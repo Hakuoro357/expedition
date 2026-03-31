@@ -1,9 +1,14 @@
 import { ECONOMY } from "@/app/config/economy";
+import type { ChapterId } from "@/data/naming";
+import { getPointByDealId } from "@/data/narrative/points";
 import type { Difficulty } from "@/core/klondike/dealSolver";
 
 export type ChapterNode = {
   /** Unique deal ID used throughout the system, e.g. "c1n1" */
   id: string;
+  pointId: string;
+  entryId: string;
+  rewardId: string;
   chapter: number;
   nodeIndex: number; // 0-based within chapter
   /** Seed for createShuffledDeck — pre-verified solvable */
@@ -16,8 +21,7 @@ export type ChapterNode = {
 
 export type ChapterDef = {
   id: number;
-  titleRu: string;
-  titleEn: string;
+  chapterId: ChapterId;
   nodes: ChapterNode[];
 };
 
@@ -53,12 +57,17 @@ function buildChapterNodes(chapterIdx: number): ChapterNode[] {
   const difficulty = CHAPTER_DIFFICULTY[chapterIdx] ?? "medium";
 
   return seeds.map((seed, nodeIndex) => {
+    const dealId = `c${chapterIdx + 1}n${nodeIndex + 1}`;
+    const point = getPointByDealId(dealId);
     const artifactDropIdx = dropNodes.indexOf(nodeIndex);
     const artifactId =
       artifactDropIdx !== -1 ? artifactIds[artifactDropIdx] : undefined;
 
     return {
-      id: `c${chapterIdx + 1}n${nodeIndex + 1}`,
+      id: dealId,
+      pointId: point?.pointId ?? "",
+      entryId: point?.entryId ?? "",
+      rewardId: point?.rewardId ?? "",
       chapter: chapterIdx + 1,
       nodeIndex,
       seed,
@@ -71,20 +80,17 @@ function buildChapterNodes(chapterIdx: number): ChapterNode[] {
 export const CHAPTERS: ChapterDef[] = [
   {
     id: 1,
-    titleRu: "Северный маршрут",
-    titleEn: "Northern Route",
+    chapterId: "chapter_01",
     nodes: buildChapterNodes(0),
   },
   {
     id: 2,
-    titleRu: "Горный перевал",
-    titleEn: "Mountain Pass",
+    chapterId: "chapter_02",
     nodes: buildChapterNodes(1),
   },
   {
     id: 3,
-    titleRu: "Речной лагерь",
-    titleEn: "River Camp",
+    chapterId: "chapter_03",
     nodes: buildChapterNodes(2),
   },
 ];

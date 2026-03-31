@@ -49,4 +49,12 @@ describe("SaveService", () => {
 
     expect(nextState.currentGame).toBeNull();
   });
+
+  it("returns reward id when completing a node", () => {
+    storage.getItem.mockReturnValue(JSON.stringify(createDefaultSaveState()));
+
+    const result = service.completeNode("c1n1");
+
+    expect(result.rewardId).toBe("reward_diary_page_01");
+  });
 });

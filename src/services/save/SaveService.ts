@@ -1,7 +1,8 @@
 import { SAVE_KEY } from "@/app/config/gameConfig";
 import { createInitialProgressState } from "@/core/game-state/progress";
 import type { GameState, ProgressState, SaveState } from "@/core/game-state/types";
-import { getNextNodeId, isLastNodeInChapter, getFirstNodeOfChapter } from "@/data/chapters";
+import { getNextNodeId, isLastNodeInChapter, getFirstNodeOfChapter, getNodeById } from "@/data/chapters";
+import { getRewardById } from "@/data/narrative/rewards";
 import { ECONOMY } from "@/app/config/economy";
 import type { YandexSdkService } from "@/services/sdk/YandexSdkService";
 
@@ -91,12 +92,16 @@ export class SaveService {
    * Returns the reward summary for the caller to display.
    */
   completeNode(nodeId: string, artifactId?: string): {
+    rewardId: string | null;
     coinsAwarded: number;
     artifactAwarded: string | null;
     chapterCompleted: boolean;
   } {
     const save = this.load();
     const progress = save.progress;
+    const node = getNodeById(nodeId);
+    const rewardId = node?.rewardId ?? null;
+    const reward = rewardId ? getRewardById(rewardId) : undefined;
     let coinsAwarded = ECONOMY.winCoins;
     let artifactAwarded: string | null = null;
     let chapterCompleted = false;
@@ -110,8 +115,9 @@ export class SaveService {
     }
 
     // Artifact drop
-    if (artifactId && !progress.artifacts.includes(artifactId)) {
-      artifactAwarded = artifactId;
+    const collectibleArtifactId = reward?.collectibleArtifactId ?? artifactId;
+    if (collectibleArtifactId && !progress.artifacts.includes(collectibleArtifactId)) {
+      artifactAwarded = collectibleArtifactId;
     }
 
     this.updateProgress((p) => {
@@ -151,7 +157,7 @@ export class SaveService {
       };
     });
 
-    return { coinsAwarded, artifactAwarded, chapterCompleted };
+    return { rewardId, coinsAwarded, artifactAwarded, chapterCompleted };
   }
 
   /** Mark daily as claimed for today */

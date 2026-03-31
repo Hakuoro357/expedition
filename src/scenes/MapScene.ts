@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { CHAPTERS, getNodeById } from "@/data/chapters";
+import { getChapterTitle } from "@/data/naming";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { createButton } from "@/ui/createButton";
 
@@ -60,9 +61,9 @@ export class MapScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
 
     // ── Chapter header ─────────────────────────────────────────────────────────
-    const chapterTitle = i18n.currentLocale() === "ru"
-      ? (chapter?.titleRu ?? "")
-      : (chapter?.titleEn ?? "");
+    const chapterTitle = chapter
+      ? getChapterTitle(chapter.chapterId, i18n.currentLocale())
+      : "";
 
     this.add
       .text(GAME_WIDTH / 2, 138, `${i18n.t("chapter")} ${progress.currentChapter}: ${chapterTitle}`, {

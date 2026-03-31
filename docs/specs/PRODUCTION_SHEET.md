@@ -7,7 +7,7 @@
 ## Назначение
 
 - Этот документ раскладывает narrative-награды по стабильным `ids`, типам файлов и production-форматам.
-- Основа берётся из [STORY.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\STORY.md), [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\NAMING.md) и [ASSETS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\ASSETS.md).
+- Основа берётся из [STORY.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\STORY.md), [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\NAMING.md) и [ASSETS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\ASSETS.md).
 - Это рабочая таблица для подготовки графических ассетов, а не для геймдизайна или кода.
 
 ## Общие правила
@@ -33,7 +33,7 @@
 - `chapter_id` — глава маршрута.
 - `reward_id` — стабильный id narrative-награды.
 - `asset_type` — тип визуального ассета.
-- `naming_ref` — ссылка на `entity_id` из [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\NAMING.md), если применимо.
+- `naming_ref` — ссылка на `entity_id` из [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\NAMING.md), если применимо.
 - `file_id` — стабильный production-id файла.
 - `suggested_filename` — рекомендуемое имя экспортируемого файла.
 - `master_spec` — целевой мастер-формат.
@@ -120,7 +120,7 @@
 
 ## Синхронизация с каноном
 
-- Сюжетный источник: [STORY.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\STORY.md)
-- Naming source: [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\NAMING.md)
-- Общий ассет-лист: [ASSETS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\ASSETS.md)
-- Языковые правила: [LOCALIZATION_PLAN.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\LOCALIZATION_PLAN.md)
+- Сюжетный источник: [STORY.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\STORY.md)
+- Naming source: [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\NAMING.md)
+- Общий ассет-лист: [ASSETS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\ASSETS.md)
+- Языковые правила: [LOCALIZATION_PLAN.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\LOCALIZATION_PLAN.md)

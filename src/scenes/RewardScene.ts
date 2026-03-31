@@ -5,6 +5,7 @@ import { ECONOMY } from "@/app/config/economy";
 import type { GameMode } from "@/core/game-state/types";
 import { getNodeById } from "@/data/chapters";
 import { getArtifactById } from "@/data/artifacts";
+import { getRewardById, getRewardDisplayText } from "@/data/narrative/rewards";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { createButton } from "@/ui/createButton";
 
@@ -25,6 +26,7 @@ export class RewardScene extends Phaser.Scene {
 
     // ── Apply rewards to save ────────────────────────────────────────────────
     let coinsAwarded = 0;
+    let rewardId: string | null = null;
     let artifactAwarded: string | null = null;
     let chapterCompleted = false;
 
@@ -35,6 +37,7 @@ export class RewardScene extends Phaser.Scene {
       // Only award if this node hasn't been completed yet
       if (!progress.completedNodes.includes(dealId)) {
         const result = save.completeNode(dealId, node?.artifactId);
+        rewardId = result.rewardId;
         coinsAwarded = result.coinsAwarded;
         artifactAwarded = result.artifactAwarded;
         chapterCompleted = result.chapterCompleted;
@@ -60,7 +63,7 @@ export class RewardScene extends Phaser.Scene {
     void save.pushToCloud(getAppContext().sdk);
 
     sound.victory();
-    analytics.track("deal_win_reward_applied", { mode, dealId, coinsAwarded, artifactAwarded });
+    analytics.track("deal_win_reward_applied", { mode, dealId, rewardId, coinsAwarded, artifactAwarded });
 
     // ── Background ───────────────────────────────────────────────────────────
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x17302e);
@@ -101,6 +104,14 @@ export class RewardScene extends Phaser.Scene {
         : (artifact?.titleEn ?? artifactAwarded);
       const icon = artifact?.icon ?? "🏺";
       rewardLines.push(`${icon} ${name}`);
+    }
+
+    if (rewardId && !artifactAwarded) {
+      const reward = getRewardById(rewardId);
+      const rewardText = getRewardDisplayText(rewardId, i18n.getNarrativeLocale());
+      if (reward && rewardText) {
+        rewardLines.push(`📜 ${rewardText.title}`);
+      }
     }
 
     if (chapterCompleted) {

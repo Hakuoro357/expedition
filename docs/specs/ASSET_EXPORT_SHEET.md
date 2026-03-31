@@ -7,7 +7,7 @@
 ## Назначение
 
 - Этот документ раскладывает `promo`, `core`, `meta` и `audio` ассеты по стабильным `asset_id`, `file_id`, форматам и export-правилам.
-- Narrative rewards вынесены отдельно в [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\PRODUCTION_SHEET.md).
+- Narrative rewards вынесены отдельно в [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\PRODUCTION_SHEET.md).
 - Этот лист нужен для реального производства и передачи в генерацию, отрисовку или сборку финальных файлов.
 
 ## Общие правила
@@ -149,7 +149,7 @@
 
 ## Связанные документы
 
-- Общий ассет-лист: [ASSETS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\ASSETS.md)
-- Narrative rewards: [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\PRODUCTION_SHEET.md)
-- Naming: [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\NAMING.md)
-- Локализация: [LOCALIZATION_PLAN.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\LOCALIZATION_PLAN.md)
+- Общий ассет-лист: [ASSETS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\ASSETS.md)
+- Narrative rewards: [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\PRODUCTION_SHEET.md)
+- Naming: [NAMING.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\NAMING.md)
+- Локализация: [LOCALIZATION_PLAN.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\LOCALIZATION_PLAN.md)

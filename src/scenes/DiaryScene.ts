@@ -3,6 +3,8 @@ import { getAppContext } from "@/app/config/appContext";
 import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ARTIFACTS } from "@/data/artifacts";
 import { CHAPTERS } from "@/data/chapters";
+import { getNarrativeEntry } from "@/data/narrative/entries";
+import { getChapterTitle } from "@/data/naming";
 import { createButton } from "@/ui/createButton";
 
 export class DiaryScene extends Phaser.Scene {
@@ -14,9 +16,21 @@ export class DiaryScene extends Phaser.Scene {
     const { i18n, save } = getAppContext();
     const { progress } = save.load();
     const isRu = i18n.currentLocale() === "ru";
+    const narrativeLocale = i18n.getNarrativeLocale();
 
     const totalNodes = CHAPTERS.reduce((sum, c) => sum + c.nodes.length, 0);
     const completedNodes = progress.completedNodes.length;
+    const unlockedEntries = CHAPTERS
+      .flatMap((chapter) => chapter.nodes)
+      .filter((node) => progress.completedNodes.includes(node.id))
+      .map((node) => ({
+        chapterId: CHAPTERS.find((chapter) => chapter.id === node.chapter)?.chapterId,
+        entryId: node.entryId,
+        pointId: node.pointId,
+        entry: getNarrativeEntry(node.entryId, narrativeLocale),
+      }))
+      .filter((item) => item.entry);
+    const latestEntry = unlockedEntries.at(-1);
 
     // ── Background ─────────────────────────────────────────────────────────────
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x1a2e2b);
@@ -53,11 +67,62 @@ export class DiaryScene extends Phaser.Scene {
     // ── Separator ──────────────────────────────────────────────────────────────
     this.add.rectangle(GAME_WIDTH / 2, 132, 300, 1, 0xdac9a1, 0.4);
 
+    // ── Latest narrative entry ────────────────────────────────────────────────
+    this.add
+      .rectangle(GAME_WIDTH / 2, 208, 314, 118, 0x1c3531, 1)
+      .setStrokeStyle(1, 0xdac9a1, 0.35);
+
+    this.add
+      .text(32, 162, `${i18n.t("diaryEntries")}: ${unlockedEntries.length}/30`, {
+        fontFamily: "Georgia",
+        fontSize: "13px",
+        color: "#e9d59a",
+      })
+      .setOrigin(0, 0);
+
+    const latestTitle = latestEntry
+      ? `${i18n.t("point")} ${latestEntry.pointId.replace("pt_", "")}`
+      : i18n.t("diaryEntriesLocked");
+    const latestBody = latestEntry?.entry?.body ?? i18n.t("diaryEntriesHint");
+
+    this.add
+      .text(38, 182, latestTitle, {
+        fontFamily: "Georgia",
+        fontSize: "15px",
+        color: "#f6e8c7",
+      })
+      .setOrigin(0, 0);
+
+    this.add
+      .text(38, 205, latestBody, {
+        fontFamily: "Georgia",
+        fontSize: "11px",
+        color: "#d9ceb0",
+        wordWrap: { width: 286 },
+        maxLines: 5,
+      })
+      .setOrigin(0, 0);
+
+    // ── Recent entries list ───────────────────────────────────────────────────
+    const recentEntries = unlockedEntries.slice(-3).reverse();
+    recentEntries.forEach((item, idx) => {
+      const chapterTitle = item.chapterId
+        ? getChapterTitle(item.chapterId, isRu ? "ru" : "en")
+        : "";
+      this.add
+        .text(38, 287 + idx * 17, `• ${chapterTitle} — ${item.pointId.replace("pt_", "")}`, {
+          fontFamily: "monospace",
+          fontSize: "10px",
+          color: "#ceb88e",
+        })
+        .setOrigin(0, 0);
+    });
+
     // ── Artifacts grid ─────────────────────────────────────────────────────────
     const colCount = 3;
     const cellW = 108;
-    const cellH = 110;
-    const gridStartY = 148;
+    const cellH = 92;
+    const gridStartY = 352;
     const gridLeft = GAME_WIDTH / 2 - (colCount * cellW) / 2 + cellW / 2;
 
     ARTIFACTS.forEach((artifact, idx) => {
@@ -96,7 +161,7 @@ export class DiaryScene extends Phaser.Scene {
       this.add
         .text(cx, cy + 16, name, {
           fontFamily: "Georgia",
-          fontSize: "10px",
+          fontSize: "9px",
           color: collected ? "#f0e4c4" : "#7a9490",
           align: "center",
           wordWrap: { width: cellW - 10 },
@@ -106,7 +171,7 @@ export class DiaryScene extends Phaser.Scene {
     });
 
     // ── Separator ──────────────────────────────────────────────────────────────
-    const chapSepY = gridStartY + Math.ceil(ARTIFACTS.length / colCount) * cellH + 8;
+    const chapSepY = gridStartY + Math.ceil(ARTIFACTS.length / colCount) * cellH + 4;
     this.add.rectangle(GAME_WIDTH / 2, chapSepY, 300, 1, 0xdac9a1, 0.4);
 
     // ── Chapter progress ───────────────────────────────────────────────────────
@@ -114,7 +179,7 @@ export class DiaryScene extends Phaser.Scene {
       const nodesCompleted = chapter.nodes.filter((n) =>
         progress.completedNodes.includes(n.id)
       ).length;
-      const chapterTitle = isRu ? chapter.titleRu : chapter.titleEn;
+      const chapterTitle = getChapterTitle(chapter.chapterId, isRu ? "ru" : "en");
       const y = chapSepY + 20 + idx * 30;
 
       this.add

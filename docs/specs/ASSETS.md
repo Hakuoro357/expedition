@@ -6,8 +6,8 @@
 
 Сопутствующие рабочие листы:
 
-- narrative rewards: [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\PRODUCTION_SHEET.md)
-- promo/core/meta/audio exports: [ASSET_EXPORT_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\ASSET_EXPORT_SHEET.md)
+- narrative rewards: [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\PRODUCTION_SHEET.md)
+- promo/core/meta/audio exports: [ASSET_EXPORT_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\ASSET_EXPORT_SHEET.md)
 
 ## Принципы
 

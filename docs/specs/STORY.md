@@ -1224,4 +1224,4 @@
 
 ## Что ещё нужно доработать
 
-- отдельный production-sheet вынесен в [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\PRODUCTION_SHEET.md).
+- отдельный production-sheet вынесен в [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\PRODUCTION_SHEET.md).
