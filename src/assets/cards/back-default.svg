@@ -1,0 +1,67 @@
+<svg viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with warm tones -->
+  <rect width="300" height="420" rx="18" fill="#A07838"/>
+  <rect x="10" y="10" width="280" height="400" rx="14" fill="#B08848" opacity="0.45"/>
+  <rect x="10" y="10" width="280" height="400" rx="14" fill="none" stroke="#5C3C10" stroke-width="3"/>
+  <rect x="18" y="18" width="264" height="384" rx="10" fill="none" stroke="#D4A850" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Central seal badge -->
+  <g transform="translate(150, 210)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="95" fill="#7A5A28" opacity="0.35"/>
+    <circle cx="0" cy="0" r="95" fill="none" stroke="#5C3A10" stroke-width="2.5"/>
+    <circle cx="0" cy="0" r="88" fill="none" stroke="#D4A850" stroke-width="1" opacity="0.5"/>
+
+    <!-- Inner decorative circle -->
+    <circle cx="0" cy="0" r="80" fill="none" stroke="#8B6914" stroke-width="1.5" opacity="0.6" stroke-dasharray="4,3"/>
+
+    <!-- Central emblem - mountain peak -->
+    <path d="M 0,-50 L -35,15 L 35,15 Z" fill="none" stroke="#D4B896" stroke-width="2.5" opacity="0.8"/>
+    <path d="M 0,-40 L -20,10 L 20,10 Z" fill="none" stroke="#C17A2E" stroke-width="1" opacity="0.6"/>
+
+    <!-- Star at peak -->
+    <path d="M 0,-60 L 2,-40 L 22,-38 L 8,-26 L 14,-6 L 0,-15 L -14,-6 L -8,-26 L -22,-38 L -2,-40 Z" fill="#C17A2E" opacity="0.7"/>
+
+    <!-- Compass rose elements around seal -->
+    <g opacity="0.4">
+      <line x1="0" y1="-75" x2="0" y2="-85" stroke="#D4B896" stroke-width="1.5"/>
+      <line x1="75" y1="0" x2="85" y2="0" stroke="#D4B896" stroke-width="1.5"/>
+      <line x1="0" y1="75" x2="0" y2="85" stroke="#D4B896" stroke-width="1.5"/>
+      <line x1="-75" y1="0" x2="-85" y2="0" stroke="#D4B896" stroke-width="1.5"/>
+
+      <line x1="53" y1="-53" x2="60" y2="-60" stroke="#D4B896" stroke-width="1"/>
+      <line x1="53" y1="53" x2="60" y2="60" stroke="#D4B896" stroke-width="1"/>
+      <line x1="-53" y1="53" x2="-60" y2="60" stroke="#D4B896" stroke-width="1"/>
+      <line x1="-53" y1="-53" x2="-60" y2="-60" stroke="#D4B896" stroke-width="1"/>
+    </g>
+
+    <!-- Text around seal -->
+    <defs>
+      <path id="circlePath" d="M -70,0 A 70,70 0 0,1 70,0" fill="none"/>
+    </defs>
+    <text font-size="11" font-family="serif" fill="#D4B896" opacity="0.6" letter-spacing="3">
+      <textPath href="#circlePath" startOffset="50%" text-anchor="middle">
+        EXPEDITION
+      </textPath>
+    </text>
+  </g>
+
+  <!-- Decorative corner stamps -->
+  <g opacity="0.3">
+    <!-- Top left -->
+    <rect x="28" y="28" width="35" height="28" fill="none" stroke="#D4B896" stroke-width="1" transform="rotate(-15 45 42)"/>
+    <text x="45" y="48" text-anchor="middle" font-size="9" font-family="serif" fill="#D4B896" transform="rotate(-15 45 42)">SEAL</text>
+
+    <!-- Top right -->
+    <rect x="237" y="28" width="35" height="28" fill="none" stroke="#D4B896" stroke-width="1" transform="rotate(15 254 42)"/>
+    <text x="254" y="48" text-anchor="middle" font-size="9" font-family="serif" fill="#D4B896" transform="rotate(15 254 42)">SEAL</text>
+
+    <!-- Bottom left -->
+    <rect x="28" y="364" width="35" height="28" fill="none" stroke="#D4B896" stroke-width="1" transform="rotate(15 45 378)"/>
+    <text x="45" y="384" text-anchor="middle" font-size="9" font-family="serif" fill="#D4B896" transform="rotate(15 45 378)">SEAL</text>
+
+    <!-- Bottom right -->
+    <rect x="237" y="364" width="35" height="28" fill="none" stroke="#D4B896" stroke-width="1" transform="rotate(-15 254 378)"/>
+    <text x="254" y="384" text-anchor="middle" font-size="9" font-family="serif" fill="#D4B896" transform="rotate(-15 254 378)">SEAL</text>
+  </g>
+</svg>

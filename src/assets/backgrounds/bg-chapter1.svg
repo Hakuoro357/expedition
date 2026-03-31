@@ -1,0 +1,100 @@
+<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8D5A4;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#D4B896;stop-opacity:0.5" />
+    </linearGradient>
+    <linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B6914;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#2C4A3E;stop-opacity:0.9" />
+    </linearGradient>
+  </defs>
+
+  <!-- Sky background -->
+  <rect width="1200" height="800" fill="#D4B896" opacity="0.1"/>
+  <rect width="1200" height="800" fill="url(#skyGrad)"/>
+
+  <!-- Far mountains (background) -->
+  <g opacity="0.2">
+    <polygon points="0,500 150,300 300,500" fill="#2C4A3E"/>
+    <polygon points="200,500 350,250 500,500" fill="#2C4A3E"/>
+    <polygon points="700,500 850,300 1000,500" fill="#2C4A3E"/>
+    <polygon points="900,500 1050,250 1200,500" fill="#2C4A3E"/>
+  </g>
+
+  <!-- Mid mountains -->
+  <g opacity="0.4">
+    <polygon points="0,550 200,350 400,550" fill="#8B6914"/>
+    <polygon points="300,550 500,320 700,550" fill="#8B6914"/>
+    <polygon points="800,550 1000,350 1200,550" fill="#8B6914"/>
+  </g>
+
+  <!-- Main mountains (foreground silhouette) -->
+  <g fill="#1A2E2B" opacity="0.9">
+    <!-- Left peak -->
+    <polygon points="0,650 150,280 350,650"/>
+
+    <!-- Central dominant peak -->
+    <polygon points="250,650 500,200 750,650"/>
+
+    <!-- Right peaks -->
+    <polygon points="650,650 800,350 950,650"/>
+    <polygon points="900,650 1050,320 1200,650"/>
+  </g>
+
+  <!-- Mountain contour lines (minimal) -->
+  <g opacity="0.3" stroke="#D4B896" stroke-width="1" fill="none">
+    <path d="M 0 600 Q 100 550 200 600 T 400 600"/>
+    <path d="M 200 650 Q 300 600 400 650 T 600 650"/>
+    <path d="M 600 650 Q 800 580 1000 650 T 1200 650"/>
+  </g>
+
+  <!-- Compass Rose - positioned upper right -->
+  <g transform="translate(950, 150)" opacity="0.35">
+    <!-- Outer circles -->
+    <circle cx="0" cy="0" r="80" fill="none" stroke="#D4B896" stroke-width="2"/>
+    <circle cx="0" cy="0" r="70" fill="none" stroke="#D4B896" stroke-width="1" opacity="0.6"/>
+
+    <!-- Cardinal directions -->
+    <!-- North -->
+    <polygon points="0,-55 -6,-30 0,-40 6,-30" fill="#D4B896" opacity="0.8"/>
+    <text x="0" y="-75" text-anchor="middle" font-size="16" font-family="serif" fill="#D4B896" opacity="0.7">N</text>
+
+    <!-- South -->
+    <polygon points="0,55 -6,30 0,40 6,30" fill="#D4B896" opacity="0.6"/>
+    <text x="0" y="80" text-anchor="middle" font-size="16" font-family="serif" fill="#D4B896" opacity="0.6">S</text>
+
+    <!-- East -->
+    <polygon points="55,0 30,-6 40,0 30,6" fill="#D4B896" opacity="0.6"/>
+    <text x="80" y="6" text-anchor="middle" font-size="16" font-family="serif" fill="#D4B896" opacity="0.6">E</text>
+
+    <!-- West -->
+    <polygon points="-55,0 -30,-6 -40,0 -30,6" fill="#D4B896" opacity="0.6"/>
+    <text x="-80" y="6" text-anchor="middle" font-size="16" font-family="serif" fill="#D4B896" opacity="0.6">W</text>
+
+    <!-- Diagonal points -->
+    <g opacity="0.4">
+      <line x1="0" y1="0" x2="40" y2="-40" stroke="#D4B896" stroke-width="1"/>
+      <line x1="0" y1="0" x2="40" y2="40" stroke="#D4B896" stroke-width="1"/>
+      <line x1="0" y1="0" x2="-40" y2="40" stroke="#D4B896" stroke-width="1"/>
+      <line x1="0" y1="0" x2="-40" y2="-40" stroke="#D4B896" stroke-width="1"/>
+    </g>
+
+    <!-- Center point -->
+    <circle cx="0" cy="0" r="10" fill="#D4B896" opacity="0.7"/>
+    <circle cx="0" cy="0" r="6" fill="#E8D5A4" opacity="0.6"/>
+
+    <!-- Decorative star -->
+    <path d="M 0,-6 L 1,-2 L 5,-2 L 2,1 L 3,5 L 0,2 L -3,5 L -2,1 L -5,-2 L -1,-2 Z" fill="#D4B896" opacity="0.5"/>
+  </g>
+
+  <!-- Mountain text label -->
+  <text x="100" y="700" font-size="32" font-family="serif" fill="#D4B896" opacity="0.15" font-style="italic">Northern Route</text>
+
+  <!-- Subtle path markers on mountain -->
+  <g opacity="0.25">
+    <circle cx="300" cy="480" r="8" fill="none" stroke="#C17A2E" stroke-width="1.5"/>
+    <circle cx="500" cy="320" r="8" fill="none" stroke="#C17A2E" stroke-width="1.5"/>
+    <circle cx="700" cy="450" r="8" fill="none" stroke="#C17A2E" stroke-width="1.5"/>
+  </g>
+</svg>

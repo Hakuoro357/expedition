@@ -1,0 +1,130 @@
+<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2C4A3E;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#1A2E2B;stop-opacity:0.6" />
+    </linearGradient>
+    <linearGradient id="skyGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B6914;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#D4B896;stop-opacity:0.25" />
+    </linearGradient>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1200" height="800" fill="#D4B896" opacity="0.05"/>
+  <rect width="1200" height="800" fill="url(#skyGrad2)"/>
+
+  <!-- Distant forest (background) -->
+  <g opacity="0.2">
+    <!-- Tree silhouettes far background -->
+    <polygon points="0,400 20,350 40,400"/>
+    <polygon points="50,400 75,320 100,400"/>
+    <polygon points="120,400 150,340 180,400"/>
+    <polygon points="220,400 250,350 280,400"/>
+    <polygon points="350,400 380,330 410,400"/>
+    <polygon points="500,400 530,340 560,400"/>
+    <polygon points="700,400 730,320 760,400"/>
+    <polygon points="900,400 930,350 960,400"/>
+    <polygon points="1050,400 1080,330 1110,400"/>
+  </g>
+
+  <!-- Mid-ground forest (darker) -->
+  <g opacity="0.4">
+    <polygon points="0,550 35,450 70,550"/>
+    <polygon points="80,550 120,420 160,550"/>
+    <polygon points="200,550 240,430 280,550"/>
+    <polygon points="400,550 450,400 500,550"/>
+    <polygon points="700,550 740,420 780,550"/>
+    <polygon points="900,550 945,430 990,550"/>
+    <polygon points="1100,550 1140,440 1180,550"/>
+  </g>
+
+  <!-- Foreground forest (main silhouettes) -->
+  <g fill="#1A2E2B" opacity="0.92">
+    <!-- Left forest cluster -->
+    <polygon points="0,750 60,450 150,750"/>
+    <polygon points="120,750 180,480 250,750"/>
+    <polygon points="230,750 280,500 340,750"/>
+
+    <!-- Center clearing (river area) -->
+    <polygon points="350,750 380,580 450,750"/>
+    <polygon points="750,750 780,580 850,750"/>
+
+    <!-- Right forest cluster -->
+    <polygon points="850,750 920,460 1000,750"/>
+    <polygon points="950,750 1010,490 1080,750"/>
+    <polygon points="1050,750 1120,470 1200,750"/>
+  </g>
+
+  <!-- River (center feature) -->
+  <g opacity="0.6">
+    <!-- River bed -->
+    <path d="M 450 550 Q 500 600 550 650 T 650 750" stroke="url(#waterGrad)" stroke-width="80" fill="none" stroke-linecap="round"/>
+
+    <!-- Water flow lines -->
+    <path d="M 450 550 Q 500 600 550 650 T 650 750" stroke="#D4B896" stroke-width="1.5" fill="none" opacity="0.2" stroke-dasharray="5,8"/>
+
+    <!-- Highlights -->
+    <path d="M 460 560 Q 505 605 555 655 T 660 760" stroke="#E8D5A4" stroke-width="1.5" fill="none" opacity="0.15"/>
+  </g>
+
+  <!-- Rocks in/by river -->
+  <g opacity="0.5" fill="#8B6914" stroke="#2C4A3E" stroke-width="1">
+    <ellipse cx="480" cy="600" rx="18" ry="12"/>
+    <ellipse cx="530" cy="630" rx="16" ry="10"/>
+    <ellipse cx="580" cy="680" rx="14" ry="9"/>
+    <ellipse cx="620" cy="710" rx="16" ry="11"/>
+  </g>
+
+  <!-- Camp elements -->
+  <!-- Tent left side -->
+  <g transform="translate(250, 650)" opacity="0.35">
+    <!-- Tent shape -->
+    <polygon points="0,0 -30,-40 30,-40" fill="none" stroke="#C17A2E" stroke-width="2"/>
+    <polygon points="-30,-40 -30,0 30,0 30,-40" fill="none" stroke="#C17A2E" stroke-width="1.5"/>
+
+    <!-- Door opening -->
+    <line x1="0" y1="-40" x2="0" y2="0" stroke="#8B6914" stroke-width="1.5"/>
+  </g>
+
+  <!-- Tent right side -->
+  <g transform="translate(950, 650)" opacity="0.35">
+    <polygon points="0,0 -30,-40 30,-40" fill="none" stroke="#C17A2E" stroke-width="2"/>
+    <polygon points="-30,-40 -30,0 30,0 30,-40" fill="none" stroke="#C17A2E" stroke-width="1.5"/>
+    <line x1="0" y1="-40" x2="0" y2="0" stroke="#8B6914" stroke-width="1.5"/>
+  </g>
+
+  <!-- Campfire (center) -->
+  <g transform="translate(600, 680)" opacity="0.4">
+    <!-- Fire logs (triangle base) -->
+    <polygon points="-20,10 20,10 0,-10" fill="none" stroke="#C17A2E" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Flames (simplified) -->
+    <path d="M -8,5 Q -5,-10 0,-5 Q 5,-10 8,5" fill="none" stroke="#C17A2E" stroke-width="1.5" opacity="0.7"/>
+    <path d="M -5,0 Q -2,-8 0,-2 Q 2,-8 5,0" fill="none" stroke="#E8D5A4" stroke-width="1" opacity="0.5"/>
+
+    <!-- Light glow -->
+    <circle cx="0" cy="0" r="25" fill="#C17A2E" opacity="0.1"/>
+  </g>
+
+  <!-- Smoke from fire -->
+  <g transform="translate(600, 670)" opacity="0.2" stroke="#D4B896" stroke-width="1" fill="none">
+    <path d="M 0,0 Q -5,-15 0,-30 Q 5,-45 0,-60"/>
+    <path d="M 5,0 Q 8,-20 5,-35 Q 2,-50 8,-65"/>
+    <path d="M -5,0 Q -8,-20 -5,-35 Q -2,-50 -8,-65"/>
+  </g>
+
+  <!-- River/camp label -->
+  <text x="100" y="700" font-size="28" font-family="serif" fill="#D4B896" opacity="0.12" font-style="italic">River Camp</text>
+
+  <!-- Subtle footprints/paths -->
+  <g opacity="0.1">
+    <circle cx="300" cy="700" r="4" fill="#D4B896"/>
+    <circle cx="320" cy="710" r="4" fill="#D4B896"/>
+    <circle cx="280" cy="690" r="4" fill="#D4B896"/>
+
+    <circle cx="900" cy="700" r="4" fill="#D4B896"/>
+    <circle cx="920" cy="710" r="4" fill="#D4B896"/>
+    <circle cx="880" cy="690" r="4" fill="#D4B896"/>
+  </g>
+</svg>
