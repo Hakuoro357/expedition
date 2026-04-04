@@ -26,6 +26,12 @@ export type GameOverlayFaceDownCard = {
   top: number;
 };
 
+export type GameOverlayEmptySlot = {
+  key: string;
+  left: number;
+  top: number;
+};
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -60,8 +66,10 @@ type GameSceneOverlayParams = {
   rulesLabel: string;
   cards: GameOverlayCard[];
   dragCards: GameOverlayCard[];
-  cardBackSvg?: string;
+  stockCardBackSvg?: string; // For stock slot only (hidden when stock empty)
+  cardBackSvg?: string; // For tableau face-down cards (always shown)
   faceDownCards?: GameOverlayFaceDownCard[];
+  emptyTableauSlots?: GameOverlayEmptySlot[]; // For empty tableau piles
 };
 
 function createTopRowHtml(
@@ -69,16 +77,17 @@ function createTopRowHtml(
   wasteHasCard: boolean,
   wasteActive: boolean,
   foundationSlots: GameFoundationSlot[],
-  cardBackSvg?: string,
+  stockCardBackSvg?: string,
 ): string {
   // Stock slot: use same class as tableau cards (.game-overlay__dom-card) to guarantee 44x70 size.
   // Position it manually since .game-overlay__dom-card is absolute.
   const stockLeft = 17; // Matches TABLEAU_START_X - CARD_WIDTH/2
   const stockTop = 101; // Matches TOP_ROW_Y - CARD_HEIGHT/2
-  
-  const stockHtml = cardBackSvg
-    ? `<div class="game-overlay__dom-card game-overlay__slot--stock" style="left:${stockLeft}px;top:${stockTop}px;"><div class="game-overlay__card-back">${fixCardBackSvgAspect(cardBackSvg)}</div></div>`
-    : `<div class="game-overlay__dom-card game-overlay__slot--stock" style="left:${stockLeft}px;top:${stockTop}px;"></div>`;
+
+  // stockCardBackSvg is already processed by fixCardBackSvgAspect
+  const stockHtml = stockCardBackSvg
+    ? `<div class="game-overlay__dom-card game-overlay__slot--stock" style="left:${stockLeft}px;top:${stockTop}px;"><div class="game-overlay__card-back">${stockCardBackSvg}</div></div>`
+    : `<div class="game-overlay__slot game-overlay__slot--stock game-overlay__slot--empty" style="left:${stockLeft}px;top:${stockTop}px;"></div>`;
 
   const wasteHtml = `<div class="game-overlay__slot game-overlay__slot--waste${wasteActive ? " game-overlay__slot--active" : ""}${wasteHasCard ? " game-overlay__slot--hidden" : ""}"></div>`;
 
@@ -159,8 +168,7 @@ function createFaceDownCardsHtml(cards: GameOverlayFaceDownCard[], cardBackSvg?:
     return "";
   }
 
-  const fixedSvg = fixCardBackSvgAspect(cardBackSvg);
-
+  // cardBackSvg is already processed by fixCardBackSvgAspect
   return [
     '<div class="game-overlay__dom-cards game-overlay__dom-cards--facedown">',
     ...cards.map(
@@ -170,8 +178,27 @@ function createFaceDownCardsHtml(cards: GameOverlayFaceDownCard[], cardBackSvg?:
           data-card-key="${escapeHtml(key)}"
           style="left:${left}px;top:${top}px;"
         >
-          <div class="game-overlay__card-back">${fixedSvg}</div>
+          <div class="game-overlay__card-back">${cardBackSvg}</div>
         </div>`,
+    ),
+    "</div>",
+  ].join("");
+}
+
+function createEmptyTableauSlotsHtml(slots: GameOverlayEmptySlot[]): string {
+  if (slots.length === 0) {
+    return "";
+  }
+
+  return [
+    '<div class="game-overlay__empty-slots">',
+    ...slots.map(
+      ({ key, left, top }) => `
+        <div
+          class="game-overlay__empty-slot"
+          data-card-key="${escapeHtml(key)}"
+          style="left:${left}px;top:${top}px;"
+        ></div>`,
     ),
     "</div>",
   ].join("");
@@ -191,8 +218,10 @@ export function createGameSceneOverlayHtml({
   rulesLabel,
   cards,
   dragCards,
+  stockCardBackSvg,
   cardBackSvg,
   faceDownCards,
+  emptyTableauSlots,
 }: GameSceneOverlayParams): string {
   const items: Array<{ id: GameActionId; label: string }> = [
     { id: "undo", label: undoLabel },
@@ -207,7 +236,9 @@ export function createGameSceneOverlayHtml({
     `    <div class="game-overlay__title">${escapeHtml(title)}</div>`,
     (subtitle ? `    <div class="game-overlay__subtitle">${escapeHtml(subtitle)}</div>` : ""),
     "  </div>",
-    `  ${createTopRowHtml(stockCountLabel, wasteHasCard, wasteActive, foundationSlots, cardBackSvg)}`,
+    `  ${createTopRowHtml(stockCountLabel, wasteHasCard, wasteActive, foundationSlots, stockCardBackSvg)}`,
+    `  <div class="game-overlay__status" data-game-status="true"></div>`,
+    `  ${createEmptyTableauSlotsHtml(emptyTableauSlots ?? [])}`,
     `  ${createFaceDownCardsHtml(faceDownCards ?? [], cardBackSvg)}`,
     `  ${createCardsHtml(cards)}`,
     `  ${createDragCardsHtml(dragCards)}`,

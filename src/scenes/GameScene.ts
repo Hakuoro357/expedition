@@ -36,7 +36,7 @@ import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 import { applyTextRenderQuality } from "@/app/rendering";
 import { createButton } from "@/ui/createButton";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
-import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
+import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, type GameOverlayEmptySlot, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
 import {
   GAME_CARD_HEIGHT as CARD_HEIGHT,
   GAME_CARD_WIDTH as CARD_WIDTH,
@@ -64,7 +64,6 @@ export class GameScene extends Phaser.Scene {
   private history: GameState[] = [];
   private selection: Selection | null = null;
   private boardLayer?: Phaser.GameObjects.Container;
-  private statusText?: Phaser.GameObjects.Text;
   private dragPreview?: Phaser.GameObjects.Container;
   private draggedSelection: Selection | null = null;
   private dragPreviewCards: GameOverlayCard[] = [];
@@ -76,6 +75,7 @@ export class GameScene extends Phaser.Scene {
   private rulesOverlayObjects: Phaser.GameObjects.GameObject[] = [];
   private gameOverlay?: CanvasOverlayHandle;
   private gameOverlayCleanup?: () => void;
+  private _emptyTableauSlots: GameOverlayEmptySlot[] = [];
 
   constructor() {
     super(SCENES.game);
@@ -123,14 +123,6 @@ export class GameScene extends Phaser.Scene {
 
     // boardLayer is created BEFORE everything so cards do not overlap UI
     this.boardLayer = this.add.container(0, 0);
-
-    this.statusText = applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, 718, "", {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "15px",
-        color: "#e7d8b3",
-      }),
-    ).setOrigin(0.5);
 
     this.renderBoard();
 
@@ -190,8 +182,12 @@ export class GameScene extends Phaser.Scene {
       rulesLabel: i18n.t("rules"),
       cards: this.getOverlayCards(),
       dragCards: this.dragPreviewCards,
+      // Stock card back: only show when stock has cards (prevents ghost card impression)
+      stockCardBackSvg: (this.gameState?.stock.cards.length ?? 0) > 0 ? fixCardBackSvgAspect(cardBackSvg) : undefined,
+      // Tableau face-down cards always need the card back SVG regardless of stock state
       cardBackSvg: fixCardBackSvgAspect(cardBackSvg),
       faceDownCards: this.getOverlayFaceDownCards(),
+      emptyTableauSlots: this._emptyTableauSlots,
     });
 
     if (!this.gameOverlay) {
@@ -274,9 +270,21 @@ export class GameScene extends Phaser.Scene {
     }
 
     const faceDownCards: GameOverlayFaceDownCard[] = [];
+    const emptyTableauSlots: GameOverlayEmptySlot[] = [];
 
     this.gameState.tableau.forEach((pile, pileIndex) => {
       const x = getGameTableauX(pileIndex);
+
+      if (pile.cards.length === 0) {
+        // Empty tableau pile — render as empty slot in DOM
+        emptyTableauSlots.push({
+          key: `tableau-empty-${pileIndex}`,
+          left: getGameCardLeft(x),
+          top: getGameCardTop(TABLEAU_START_Y),
+        });
+        return;
+      }
+
       pile.cards.forEach((card, cardIndex) => {
         if (card.faceUp) {
           return;
@@ -290,6 +298,9 @@ export class GameScene extends Phaser.Scene {
         });
       });
     });
+
+    // Store empty slots for overlay rendering
+    this._emptyTableauSlots = emptyTableauSlots;
 
     return faceDownCards;
   }
@@ -336,6 +347,21 @@ export class GameScene extends Phaser.Scene {
       rulesButton.addEventListener("click", onClick);
       disposers.push(() => rulesButton.removeEventListener("click", onClick));
     }
+
+    // Handle clicks on empty tableau slots
+    root.querySelectorAll<HTMLElement>(".game-overlay__empty-slot").forEach((element) => {
+      const key = element.dataset.cardKey;
+      if (!key) return;
+      const pileIndex = parseInt(key.replace("tableau-empty-", ""), 10);
+      if (isNaN(pileIndex)) return;
+
+      const onClick = (): void => {
+        this.handleTableauClick(pileIndex, 0);
+      };
+      element.style.pointerEvents = "auto";
+      element.addEventListener("click", onClick);
+      disposers.push(() => element.removeEventListener("click", onClick));
+    });
 
     this.gameOverlayCleanup = () => {
       disposers.forEach((dispose) => dispose());
@@ -647,10 +673,11 @@ export class GameScene extends Phaser.Scene {
     // Stock aligns with col 1, waste with col 2
     this.createPileSlot(TABLEAU_START_X, TOP_ROW_Y, currentState.stock, () => {
       if (this.animating) return;
+
+      // If a card is selected, deselect it and then deal from stock
       if (this.selection) {
         this.selection = null;
         this.renderBoard();
-        return;
       }
 
       const hasCards =
@@ -747,8 +774,8 @@ export class GameScene extends Phaser.Scene {
     this.gameState.tableau.forEach((pile, pileIndex) => {
       const x = TABLEAU_START_X + pileIndex * TABLEAU_GAP_X;
 
+      // Empty piles are rendered as DOM overlay slots (getOverlayFaceDownCards tracks them)
       if (pile.cards.length === 0) {
-        this.createEmptyTableauTarget(x, TABLEAU_START_Y, pileIndex);
         return;
       }
 
@@ -941,26 +968,6 @@ export class GameScene extends Phaser.Scene {
     return cardContainer;
   }
 
-  private createEmptyTableauTarget(x: number, y: number, pileIndex: number): void {
-    if (!this.boardLayer) return;
-
-    // Use Graphics for rounded corners (Phaser Rectangle does not support radius)
-    const g = this.add.graphics();
-    g.fillStyle(0x1f3b39, 1);
-    g.lineStyle(2, 0xdac9a1, 0.6);
-    g.fillRoundedRect(x - CARD_WIDTH / 2, y - CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 4.5);
-    g.strokeRoundedRect(x - CARD_WIDTH / 2, y - CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 4.5);
-
-    // Invisible hit area for input
-    const hit = this.add.rectangle(x, y, CARD_WIDTH, CARD_HEIGHT, 0x000000, 0).setInteractive();
-    hit.on("pointerdown", () => {
-      this.handleTableauClick(pileIndex, 0);
-    });
-
-    this.boardLayer.add(g);
-    this.boardLayer.add(hit);
-  }
-
   private handleFoundationClick(foundationIndex: number): void {
     if (!this.gameState || this.animating) return;
 
@@ -974,16 +981,57 @@ export class GameScene extends Phaser.Scene {
 
     if (this.selection.kind === "waste") {
       const nextState = moveWasteToFoundation(this.gameState, foundationIndex);
+      if (nextState) {
+        const wasteCard = this.gameState.waste.cards[this.gameState.waste.cards.length - 1];
+        const sourceX = TABLEAU_START_X + TABLEAU_GAP_X;
+        const sourceY = TOP_ROW_Y;
+
+        // Remove card from waste immediately
+        this.pushHistory();
+        this.gameState = {
+          ...this.gameState,
+          waste: { ...this.gameState.waste, cards: this.gameState.waste.cards.slice(0, -1) },
+        };
+        getAppContext().save.updateCurrentGame(this.gameState);
+        this.selection = null;
+        this.renderBoard();
+
+        this.animateFlyToFoundation(sourceX, sourceY, wasteCard, foundationIndex, nextState);
+        return;
+      }
       this.applyMoveResult(nextState);
       return;
     }
 
     if (this.selection.kind === "tableau") {
+      const sourcePileIndex = this.selection.pileIndex;
+      const sourcePile = this.gameState.tableau[sourcePileIndex];
+      const sourceCard = sourcePile.cards[sourcePile.cards.length - 1];
+      const sourceX = TABLEAU_START_X + sourcePileIndex * TABLEAU_GAP_X;
+      const sourceY = this.getTableauCardY(sourcePile, sourcePile.cards.length - 1);
+
       const nextState = moveTableauToFoundation(
         this.gameState,
-        this.selection.pileIndex,
+        sourcePileIndex,
         foundationIndex
       );
+
+      if (nextState) {
+        // Remove card from tableau immediately
+        this.pushHistory();
+        this.gameState = {
+          ...this.gameState,
+          tableau: this.gameState.tableau.map((p, i) =>
+            i === sourcePileIndex ? { ...p, cards: p.cards.slice(0, -1) } : p
+          ),
+        };
+        getAppContext().save.updateCurrentGame(this.gameState);
+        this.selection = null;
+        this.renderBoard();
+
+        this.animateFlyToFoundation(sourceX, sourceY, sourceCard, foundationIndex, nextState);
+        return;
+      }
       this.applyMoveResult(nextState);
       return;
     }
@@ -1009,6 +1057,19 @@ export class GameScene extends Phaser.Scene {
           if (nextState) {
             const sourceX = TABLEAU_START_X + pileIndex * TABLEAU_GAP_X;
             const sourceY = this.getTableauCardY(pile, cardIndex);
+
+            // Remove card from tableau immediately so it disappears before animation
+            this.pushHistory();
+            this.gameState = {
+              ...this.gameState,
+              tableau: this.gameState.tableau.map((p, i) =>
+                i === pileIndex ? { ...p, cards: p.cards.slice(0, -1) } : p
+              ),
+            };
+            getAppContext().save.updateCurrentGame(this.gameState);
+            this.selection = null;
+            this.renderBoard();
+
             this.animateFlyToFoundation(sourceX, sourceY, card, fi, nextState);
             return;
           }
@@ -1031,7 +1092,17 @@ export class GameScene extends Phaser.Scene {
         const targetY = this.getTableauCardY(targetPile, targetPile.cards.length);
 
         const wasteCard = this.gameState.waste.cards[this.gameState.waste.cards.length - 1];
-        
+
+        // Remove card from Waste immediately so it disappears before animation
+        this.pushHistory();
+        this.gameState = {
+          ...this.gameState,
+          waste: { ...this.gameState.waste, cards: this.gameState.waste.cards.slice(0, -1) },
+        };
+        getAppContext().save.updateCurrentGame(this.gameState);
+        this.selection = null;
+        this.renderBoard();
+
         this.animateFlyToTableau(
           sourceX,
           sourceY,
@@ -1328,7 +1399,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setStatus(message: string): void {
-    this.statusText?.setText(message);
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
+    const statusEl = overlayEl.querySelector('[data-game-status="true"]') as HTMLElement | null;
+    if (statusEl) {
+      statusEl.textContent = message;
+    }
   }
 
   private updateHintDisplay(): void {
@@ -1637,8 +1713,11 @@ export class GameScene extends Phaser.Scene {
 
     void animEls[0].offsetHeight;
 
+    // targetCardY is where the BOTTOM (last) card of the stack should land.
+    // The TOP (first) card should land at targetCardY - (n-1) * gap.
+    const topCardTargetY = targetCardY - (stackCards.length - 1) * Math.min(FACE_UP_GAP_Y, 18);
     const targetLeft = getGameCardLeft(targetX) * scale;
-    const targetTopOffset = getGameCardTop(targetCardY) * scale;
+    const targetTopOffset = getGameCardTop(topCardTargetY) * scale;
 
     requestAnimationFrame(() => {
       animEls.forEach((animEl, index) => {

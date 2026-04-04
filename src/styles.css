@@ -309,6 +309,19 @@ canvas {
   color: #f5e7c8;
 }
 
+.game-overlay__status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 718px;
+  text-align: center;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 15px;
+  color: #e7d8b3;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .game-overlay__subtitle {
   width: 100%;
   margin-top: 6px;
@@ -339,6 +352,24 @@ canvas {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* Empty tableau slots — same style as foundation empty slots */
+.game-overlay__empty-slots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-overlay__empty-slot {
+  position: absolute;
+  width: 44px;
+  height: 70px;
+  border: 2px solid rgba(218, 201, 161, 0.9);
+  background: rgba(31, 59, 57, 0.86);
+  border-radius: 4.5px;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .game-overlay__dom-card {
@@ -407,6 +438,13 @@ canvas {
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+/* Empty stock: dashed outline like foundation */
+.game-overlay__slot--stock.game-overlay__slot--empty {
+  border: 2px dashed rgba(218, 201, 161, 0.9) !important;
+  background: rgba(31, 59, 57, 0.86) !important;
+  border-radius: 4.5px !important;
 }
 
 .game-overlay__slot--stock .game-overlay__card-back {
