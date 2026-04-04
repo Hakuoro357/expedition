@@ -61,19 +61,20 @@ type GameSceneOverlayParams = {
   cards: GameOverlayCard[];
   dragCards: GameOverlayCard[];
   cardBackSvg?: string;
-  faceDownCards: GameOverlayFaceDownCard[];
+  faceDownCards?: GameOverlayFaceDownCard[];
 };
 
 function createTopRowHtml(
-  stockCountLabel: string,
+  _stockCountLabel: string,
   wasteHasCard: boolean,
   wasteActive: boolean,
   foundationSlots: GameFoundationSlot[],
   cardBackSvg?: string,
 ): string {
+  // Stock slot now just shows the card back, no counter
   const stockHtml = cardBackSvg
-    ? `<div class="game-overlay__slot game-overlay__slot--stock">${cardBackSvg}<span class="game-overlay__slot-count">${escapeHtml(stockCountLabel)}</span></div>`
-    : `<div class="game-overlay__slot game-overlay__slot--stock"><span class="game-overlay__slot-count">${escapeHtml(stockCountLabel)}</span></div>`;
+    ? `<div class="game-overlay__slot game-overlay__slot--stock">${cardBackSvg}</div>`
+    : `<div class="game-overlay__slot game-overlay__slot--stock"></div>`;
 
   const wasteHtml = `<div class="game-overlay__slot game-overlay__slot--waste${wasteActive ? " game-overlay__slot--active" : ""}${wasteHasCard ? " game-overlay__slot--hidden" : ""}"></div>`;
 

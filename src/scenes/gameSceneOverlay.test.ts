@@ -33,7 +33,8 @@ describe("gameSceneOverlay", () => {
     expect(html).toContain("game-overlay__title");
     expect(html).toContain("game-overlay__coins");
     expect(html).toContain("game-overlay__slot--stock");
-    expect(html).toContain("game-overlay__slot-count");
+    // Slot count is removed per new design requirements
+    expect(html).not.toContain("game-overlay__slot-count");
     expect(html).toContain("game-overlay__slot--foundation-3");
   });
 

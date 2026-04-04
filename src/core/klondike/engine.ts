@@ -397,28 +397,45 @@ export function hasAnyMoves(state: GameState): boolean {
     }
   }
 
-  // Check tableau → tableau (only useful moves)
+  // Check tableau → tableau (check ALL useful sub-sequences)
   for (let si = 0; si < state.tableau.length; si++) {
     const sourcePile = state.tableau[si];
     const firstFaceUpIdx = sourcePile.cards.findIndex((c) => c.faceUp);
     if (firstFaceUpIdx === -1) continue;
 
-    const movingCards = sourcePile.cards.slice(firstFaceUpIdx);
+    // Check every sub-sequence starting from any face-up card
+    for (let startIdx = firstFaceUpIdx; startIdx < sourcePile.cards.length; startIdx++) {
+      const movingCards = sourcePile.cards.slice(startIdx);
+      
+      // A move is useful if it reveals a face-down card OR if the sub-sequence itself is valid
+      // (Actually, for detecting "any moves", we just need to find ONE valid destination)
+      // Optimization: only check moving the full open stack if we want to reveal,
+      // but strictly speaking, moving a sub-part (like just the King) is also a move.
+      // Let's check if this sub-sequence can move anywhere.
+      
+      // 1. Can it move to another tableau?
+      for (let ti = 0; ti < state.tableau.length; ti++) {
+        if (si === ti) continue;
+        if (canMoveCardsToTableau(movingCards, state.tableau[ti])) return true;
+      }
 
-    // A move is useful only if it reveals a face-down card
-    const revealsCard = firstFaceUpIdx > 0;
-    if (!revealsCard) continue; // moving an all-face-up pile is just shuffling
-
-    for (let ti = 0; ti < state.tableau.length; ti++) {
-      if (si === ti) continue;
-      if (canMoveCardsToTableau(movingCards, state.tableau[ti])) return true;
+      // 2. Can the BOTTOM card of this sub-sequence move to foundation?
+      // We can only move a card to foundation if it's the bottom-most open card.
+      if (startIdx === sourcePile.cards.length - 1) {
+         const card = movingCards[0]; // Only one card in this slice
+         for (let fi = 0; fi < state.foundations.length; fi++) {
+           if (canMoveCardToFoundation(card, state.foundations[fi], fi)) return true;
+         }
+      }
     }
   }
 
-  // Check ALL cards in stock + waste (drawing will eventually expose each one).
+  // Stock is never empty if there are cards to draw (clicking stock is a move).
+  if (state.stock.cards.length > 0) return true;
+
+  // Check ALL cards in waste (if stock is empty, we might recycle).
   // If none can be played anywhere, cycling the draw pile won't help — game is stuck.
-  const drawPile = [...state.waste.cards, ...state.stock.cards];
-  for (const card of drawPile) {
+  for (const card of state.waste.cards) {
     const faceUpCard = { ...card, faceUp: true };
     // Can it go to foundation?
     for (let fi = 0; fi < state.foundations.length; fi++) {

@@ -388,6 +388,7 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4.5px !important;
 }
 
 .game-overlay__slot--active {
@@ -401,20 +402,17 @@ canvas {
 .game-overlay__slot--stock {
   left: 17px;
   top: 101px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .game-overlay__slot--stock .game-overlay__card-back {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  right: 2px;
-  bottom: 12px;
-  border-radius: 3px;
+  inset: 0;
+  border-radius: 4.5px;
   overflow: hidden;
-  opacity: 0.45;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 .game-overlay__slot--stock .game-overlay__card-back svg {

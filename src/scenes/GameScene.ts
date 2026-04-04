@@ -533,72 +533,110 @@ export class GameScene extends Phaser.Scene {
     const { i18n, save, sound } = getAppContext();
     sound.badMove();
 
-    const overlay = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6)
-      .setDepth(500)
-      .setInteractive();
+    // Create DOM overlay for loss screen
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
 
-    const panel = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 310, 230, 0x1c3532, 1)
-      .setStrokeStyle(2, 0xdac9a1)
-      .setDepth(501);
+    const lossContainer = document.createElement("div");
+    lossContainer.className = "game-overlay__loss-screen";
+    lossContainer.style.cssText = `
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      pointer-events: auto;
+    `;
 
-    applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 90, i18n.t("noMoves"), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "26px",
-        fontStyle: "bold",
-        color: "#f8ebcf",
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(502);
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      background: #1c3532;
+      border: 2px solid #dac9a1;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      max-width: 280px;
+    `;
 
-    applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, i18n.t("noMovesSubtitle"), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "15px",
-        color: "#c9b98a",
-        align: "center",
-        wordWrap: { width: 270 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(502);
+    // Title
+    const title = document.createElement("h2");
+    title.textContent = i18n.t("noMoves");
+    title.style.cssText = `
+      color: #f8ebcf;
+      font-family: 'Trebuchet MS', Verdana, sans-serif;
+      font-size: 24px;
+      margin: 0;
+    `;
 
-    // Restart button
-    createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT / 2 + 10,
-      width: 230,
-      height: 48,
-      label: i18n.t("restart"),
-      depth: 502,
-      onClick: () => {
-        if (!this.gameState) return;
-        const { mode, dealId } = this.gameState;
-        save.clearCurrentGame();
-        this.scene.start(SCENES.game, { mode, dealId });
-      },
+    // Subtitle
+    const subtitle = document.createElement("p");
+    subtitle.textContent = i18n.t("noMovesSubtitle");
+    subtitle.style.cssText = `
+      color: #c9b98a;
+      font-family: 'Trebuchet MS', Verdana, sans-serif;
+      font-size: 14px;
+      margin: 0;
+      text-align: center;
+    `;
+
+    // Buttons container
+    const btnContainer = document.createElement("div");
+    btnContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    `;
+
+    // Restart Button
+    const restartBtn = document.createElement("button");
+    restartBtn.textContent = i18n.t("restart");
+    restartBtn.className = "route-overlay__nav-item route-overlay__nav-button";
+    restartBtn.style.cssText = `
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    `;
+    restartBtn.addEventListener("click", () => {
+      if (!this.gameState) return;
+      const { mode, dealId } = this.gameState;
+      save.clearCurrentGame();
+      this.scene.start(SCENES.game, { mode, dealId });
     });
 
-    // Home
-    createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT / 2 + 68,
-      width: 230,
-      height: 48,
-      label: i18n.t("home"),
-      depth: 502,
-      onClick: () => {
-        this.scene.start(SCENES.map);
-      },
+    // Home Button
+    const homeBtn = document.createElement("button");
+    homeBtn.textContent = i18n.t("home");
+    homeBtn.className = "route-overlay__nav-item route-overlay__nav-button";
+    homeBtn.style.cssText = `
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    `;
+    homeBtn.addEventListener("click", () => {
+      this.scene.start(SCENES.map);
     });
 
-    void overlay;
-    void panel;
+    btnContainer.appendChild(restartBtn);
+    btnContainer.appendChild(homeBtn);
+    panel.appendChild(title);
+    panel.appendChild(subtitle);
+    panel.appendChild(btnContainer);
+    lossContainer.appendChild(panel);
+    overlayEl.appendChild(lossContainer);
+
+    // Cleanup on scene shutdown
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      lossContainer.remove();
+    });
   }
 
   private renderTopArea(): void {
@@ -906,14 +944,21 @@ export class GameScene extends Phaser.Scene {
   private createEmptyTableauTarget(x: number, y: number, pileIndex: number): void {
     if (!this.boardLayer) return;
 
-    const rect = this.add
-      .rectangle(x, y, CARD_WIDTH, CARD_HEIGHT, 0x1f3b39, 1)
-      .setStrokeStyle(2, 0xdac9a1, 0.6)
-      .setInteractive();
-    rect.on("pointerdown", () => {
+    // Use Graphics for rounded corners (Phaser Rectangle does not support radius)
+    const g = this.add.graphics();
+    g.fillStyle(0x1f3b39, 1);
+    g.lineStyle(2, 0xdac9a1, 0.6);
+    g.fillRoundedRect(x - CARD_WIDTH / 2, y - CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 4.5);
+    g.strokeRoundedRect(x - CARD_WIDTH / 2, y - CARD_HEIGHT / 2, CARD_WIDTH, CARD_HEIGHT, 4.5);
+
+    // Invisible hit area for input
+    const hit = this.add.rectangle(x, y, CARD_WIDTH, CARD_HEIGHT, 0x000000, 0).setInteractive();
+    hit.on("pointerdown", () => {
       this.handleTableauClick(pileIndex, 0);
     });
-    this.boardLayer.add(rect);
+
+    this.boardLayer.add(g);
+    this.boardLayer.add(hit);
   }
 
   private handleFoundationClick(foundationIndex: number): void {
@@ -978,6 +1023,25 @@ export class GameScene extends Phaser.Scene {
 
     if (this.selection.kind === "waste") {
       const nextState = moveWasteToTableau(this.gameState, pileIndex);
+      if (nextState) {
+        // Animate Waste -> Tableau
+        const sourceX = TABLEAU_START_X + TABLEAU_GAP_X; // Waste center X
+        const sourceY = TOP_ROW_Y; // Waste center Y
+        const targetPile = nextState.tableau[pileIndex];
+        const targetY = this.getTableauCardY(targetPile, targetPile.cards.length);
+
+        const wasteCard = this.gameState.waste.cards[this.gameState.waste.cards.length - 1];
+        
+        this.animateFlyToTableau(
+          sourceX,
+          sourceY,
+          wasteCard,
+          pileIndex,
+          targetY,
+          nextState
+        );
+        return;
+      }
       this.applyMoveResult(nextState);
       return;
     }
@@ -1037,7 +1101,7 @@ export class GameScene extends Phaser.Scene {
       const sourceX = TABLEAU_START_X + this.selection.pileIndex * TABLEAU_GAP_X;
       const sourceY = this.getTableauCardY(sourcePile, this.selection.cardIndex);
       const targetPile = nextState.tableau[pileIndex];
-      const targetY = this.getTableauCardY(targetPile, targetPile.cards.length - 1);
+      const targetY = this.getTableauCardY(targetPile, targetPile.cards.length);
 
       // Detect flips BEFORE mutating gameState (compare original vs nextState)
       this.pendingFlips.clear();
@@ -1595,7 +1659,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Animate stock->waste card draw using Phaser container with SVG texture.
+   * Animate stock->waste card draw using DOM overlay.
    * Slide + flip/reveal effect. Uses CENTER coordinates (Phaser coordinate system).
    */
   private animateStockToWasteDom(
@@ -1605,67 +1669,78 @@ export class GameScene extends Phaser.Scene {
     toCenterX: number,
     onComplete: () => void
   ): void {
-    const backKey = this.cardBackKey();
-
-    // Create card-back object (same as canvas approach)
-    let backObj: Phaser.GameObjects.GameObject;
-    if (this.textures.exists(backKey)) {
-      backObj = this.add.image(0, 0, backKey)
-        .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
-        .setOrigin(0.5);
-    } else {
-      backObj = this.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0x355854, 1)
-        .setStrokeStyle(2, 0xdac9a1)
-        .setOrigin(0.5);
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) {
+      onComplete();
+      return;
     }
 
-    // Container for animation at START position (center coords)
-    const flyContainer = this.add.container(fromCenterX, fromCenterY).setDepth(200);
-    flyContainer.add(backObj);
+    const scale = this.gameOverlay?.getScale() ?? 1;
+    const fromLeft = getGameCardLeft(fromCenterX) * scale;
+    const fromTop = getGameCardTop(fromCenterY) * scale;
+    const toLeft = getGameCardLeft(toCenterX) * scale;
+    const cardW = CARD_WIDTH * scale;
+    const cardH = CARD_HEIGHT * scale;
 
-    // Phase 1: Slide from midpoint to waste center
-    this.tweens.add({
-      targets: flyContainer,
-      x: toCenterX,
-      duration: 150,
-      ease: "Power2",
-      onComplete: () => {
-        // Phase 2: Flip effect
-        this.tweens.add({
-          targets: flyContainer,
-          scaleX: 0,
-          duration: 80,
-          onComplete: () => {
-            // Swap to face-up SVG texture
-            flyContainer.removeAll(true);
-            const svgTextureKey = getSvgCardFaceTextureKey(card.rank, card.suit);
-            if (this.textures.exists(svgTextureKey)) {
-              flyContainer.add(
-                this.add.image(0, 0, svgTextureKey)
-                  .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
-                  .setOrigin(0.5)
-              );
-            } else {
-              const faceTexture = ensureCardFaceTexture(this, card, CARD_WIDTH, CARD_HEIGHT, false);
-              flyContainer.add(
-                this.add.image(0, 0, faceTexture)
-                  .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
-                  .setOrigin(0.5)
-              );
-            }
-            // Phase 3: Expand back (reveal)
-            this.tweens.add({
-              targets: flyContainer,
-              scaleX: 1,
-              duration: 80,
-              onComplete: () => {
-                flyContainer.destroy();
-                onComplete();
-              },
-            });
-          },
+    // Create animation container with card back
+    const animEl = document.createElement("div");
+    animEl.className = "game-overlay__stock-anim";
+    animEl.style.cssText = `
+      position: absolute;
+      left: ${fromLeft}px;
+      top: ${fromTop}px;
+      width: ${cardW}px;
+      height: ${cardH}px;
+      pointer-events: none;
+      z-index: 200;
+    `;
+
+    // Card back using imported SVG
+    const backKey = this.cardBackKey();
+    let backSvg: string;
+    switch (backKey) {
+      case "card-back-compass": backSvg = backCompassSvg; break;
+      case "card-back-map": backSvg = backMapSvg; break;
+      default: backSvg = backDefaultSvg; break;
+    }
+    animEl.innerHTML = `<div style="width:100%;height:100%;">${backSvg}</div>`;
+    const backSvgEl = animEl.querySelector("svg");
+    if (backSvgEl) {
+      backSvgEl.style.width = "100%";
+      backSvgEl.style.height = "100%";
+    }
+
+    overlayEl.appendChild(animEl);
+    void animEl.offsetHeight; // Force reflow
+
+    // Phase 1: Slide
+    animEl.style.transition = "left 150ms ease-out";
+    animEl.style.left = `${toLeft}px`;
+
+    // Phase 2: Flip
+    this.time.delayedCall(150, () => {
+      animEl.style.transition = "transform 80ms ease-in";
+      animEl.style.transform = "scaleX(0)";
+
+      this.time.delayedCall(80, () => {
+        // Swap to face-up
+        const svgMarkup = createCardFaceSvgMarkup(card, true);
+        animEl.innerHTML = `<div style="width:100%;height:100%;">${svgMarkup}</div>`;
+        const faceSvgEl = animEl.querySelector("svg");
+        if (faceSvgEl) {
+          faceSvgEl.style.width = "100%";
+          faceSvgEl.style.height = "100%";
+        }
+
+        // Phase 3: Expand
+        animEl.style.transition = "transform 80ms ease-out";
+        animEl.style.transform = "scaleX(1)";
+
+        this.time.delayedCall(80, () => {
+          animEl.remove();
+          onComplete();
         });
-      },
+      });
     });
   }
 
