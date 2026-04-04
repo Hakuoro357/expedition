@@ -10,4 +10,6 @@ export type NarrativePoint = {
   dealId: string;
   entryId: EntryId;
   rewardId: RewardId;
+  titleRu: string;
+  titleEn: string;
 };

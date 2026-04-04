@@ -1,6 +1,11 @@
+import { getNamingValue } from "@/data/naming";
+
+const expeditionNameRu = getNamingValue("expedition_name", "ru");
+const artifactMainRu = getNamingValue("artifact_main", "ru");
+
 export const rewardTextsRu = {
   reward_diary_page_01: { title: "Первая страница дневника", description: "Первый голос экспедиции и старт восстановления маршрута." },
-  reward_expedition_stamp_01: { title: "Штамп экспедиции", description: "Подтверждение, что перед игроком реальное дело, а не легенда." },
+  reward_expedition_stamp_01: { title: "Штамп экспедиции", description: `Подтверждение, что дело ${expeditionNameRu} существовало на самом деле.` },
   reward_map_piece_01: { title: "Первый фрагмент карты", description: "Маршрут начинает складываться визуально." },
   reward_camp_marker_01: { title: "Отметка стоянки", description: "Ещё одна точка реального пути." },
   reward_stone_sign_note_01: { title: "Пометка у каменного знака", description: "Первый тихий след системы ориентиров." },
@@ -16,17 +21,17 @@ export const rewardTextsRu = {
   reward_torn_paper_01: { title: "Разорванный лист", description: "Рабочие материалы перестают быть цельными." },
   reward_anonymous_note_01: { title: "Записка без подписи", description: "Чужой внутренний голос внутри архива." },
   reward_false_map_piece_01: { title: "Ложный фрагмент карты", description: "Фальшивый маршрут становится частью конструкции." },
-  reward_artifact_case_01: { title: "Футляр от артефакта", description: "Главная находка начинает обретать вес." },
+  reward_artifact_case_01: { title: "Футляр от артефакта", description: `Главная находка начинает обретать вес и форму вокруг ${artifactMainRu}.` },
   reward_photo_key_01: { title: "Ключевая фотография", description: "Снимок, сделанный уже с расчётом на будущее чтение." },
   reward_chapter_piece_02: { title: "Фрагмент завершения главы", description: "Сокрытие маршрута становится фактом." },
   reward_map_major_01: { title: "Крупный фрагмент скрытой карты", description: "Настоящий путь начинает собираться обратно." },
   reward_diary_page_02: { title: "Последняя короткая запись", description: "Дневник сжимается до предельной точности." },
   reward_final_camp_scheme_01: { title: "Схема последней стоянки", description: "Подготовка к тайнику и финальной развязке." },
   reward_personal_item_01: { title: "Личная вещь участника", description: "Напоминание о людях внутри решения." },
-  reward_artifact_case_major_01: { title: "Контейнер диска", description: "Контекст главного артефакта становится осязаемым." },
+  reward_artifact_case_major_01: { title: "Контейнер диска", description: `Контекст ${artifactMainRu} становится осязаемым.` },
   reward_group_photo_final_01: { title: "Финальная групповая фотография", description: "Память о команде, а не только о результате." },
   reward_logistics_note_01: { title: "Служебная отметка Руденко", description: "Подтверждение, что выбранный выход вообще выполним." },
   reward_archive_note_01: { title: "Архивная пометка", description: "Исчезновение оказывается постепенным процессом." },
-  reward_archive_seal_01: { title: "Печать архива", description: "Последний допуск к завершению дела." },
-  reward_finale_bundle_01: { title: "Завершённый архив", description: "Собранный диск, полная карта и восстановленная история." },
+  reward_archive_seal_01: { title: "Печать архива", description: `Последний допуск к завершению дела ${expeditionNameRu}.` },
+  reward_finale_bundle_01: { title: "Завершённый архив", description: `Собранный ${artifactMainRu}, полная карта и восстановленная история.` },
 } as const;

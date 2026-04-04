@@ -3,7 +3,9 @@ export const GAME_HEIGHT = 844;
 
 export const SCENES = {
   boot: "boot",
+  devPreview: "dev-preview",
   map: "map",
+  detail: "detail",
   game: "game",
   reward: "reward",
   diary: "diary",
@@ -11,4 +13,3 @@ export const SCENES = {
 } as const;
 
 export const SAVE_KEY = "solitaire-expedition-save-v1";
-

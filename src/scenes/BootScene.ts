@@ -1,6 +1,14 @@
 import Phaser from "phaser";
 import { getAppContext, setAppContext } from "@/app/config/appContext";
 import { SCENES } from "@/app/config/gameConfig";
+import {
+  CARD_FACE_ASSET_HEIGHT,
+  CARD_FACE_ASSET_WIDTH,
+  getAllCardFaceDefinitions,
+} from "@/assets/cards/cardFaceSvg";
+import { ARTIFACTS } from "@/data/artifacts";
+import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
+import { getDevScenePreview } from "@/scenes/devPreview";
 import { AnalyticsService } from "@/services/analytics/AnalyticsService";
 import { AdsService } from "@/services/ads/AdsService";
 import { I18nService } from "@/services/i18n/I18nService";
@@ -20,6 +28,27 @@ export class BootScene extends Phaser.Scene {
     this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 80, height: 112 });
     this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 80, height: 112 });
     this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 80, height: 112 });
+    getAllCardFaceDefinitions().forEach(({ key, uri }) => {
+      this.load.svg(key, uri, { width: CARD_FACE_ASSET_WIDTH, height: CARD_FACE_ASSET_HEIGHT });
+    });
+
+    ARTIFACTS.forEach((artifact) => {
+      const assetPath = resolveArtifactGridUrl(artifact.imageKey);
+      if (assetPath) {
+        this.load.image(artifact.imageKey, assetPath);
+      }
+
+      const largeAssetPath = resolveArtifactLargeUrl(artifact.largeImageKey);
+      if (largeAssetPath) {
+        this.load.image(artifact.largeImageKey, largeAssetPath);
+      }
+
+      const blurKey = `${artifact.imageKey}_blur`;
+      const blurPath = resolveArtifactGridUrl(blurKey);
+      if (blurPath) {
+        this.load.image(blurKey, blurPath);
+      }
+    });
   }
 
   async create(): Promise<void> {
@@ -42,6 +71,21 @@ export class BootScene extends Phaser.Scene {
     const saveState = getAppContext().save.load();
     i18n.setLocale(saveState.progress.locale);
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
+
+    const preview =
+      typeof window !== "undefined"
+        ? getDevScenePreview(window.location.search, import.meta.env.DEV)
+        : null;
+
+    if (preview?.scene === "reward") {
+      this.scene.start(SCENES.reward, preview);
+      return;
+    }
+
+    if (preview?.scene === "reward-list") {
+      this.scene.start(SCENES.devPreview);
+      return;
+    }
 
     if (saveState.currentGame) {
       analytics.track("resume_saved_game", {

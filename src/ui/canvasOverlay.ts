@@ -1,0 +1,149 @@
+import type Phaser from "phaser";
+
+type RectLike = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+export type CanvasOverlayFrame = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  scale: number;
+};
+
+export function computeCanvasOverlayFrame(
+  canvasRect: RectLike,
+  parentRect: RectLike,
+  logicalWidth: number
+): CanvasOverlayFrame {
+  const width = canvasRect.width;
+  const height = canvasRect.height;
+  const left = canvasRect.left - parentRect.left;
+  const top = canvasRect.top - parentRect.top;
+  const scale = width / logicalWidth;
+
+  return { left, top, width, height, scale };
+}
+
+export type CanvasOverlayHandle = {
+  setHtml: (html: string) => void;
+  updateLayout: () => void;
+  setVisible: (visible: boolean) => void;
+  getInnerElement: () => HTMLDivElement;
+  getHostElement: () => HTMLDivElement;
+  getScale: () => number;
+  destroy: () => void;
+};
+
+type CreateCanvasOverlayParams = {
+  scene: Phaser.Scene;
+  html: string;
+  className: string;
+  logicalWidth: number;
+  logicalHeight: number;
+};
+
+export function createCanvasAnchoredOverlay({
+  scene,
+  html,
+  className,
+  logicalWidth,
+  logicalHeight,
+}: CreateCanvasOverlayParams): CanvasOverlayHandle {
+  const canvas = scene.game.canvas;
+  const parent = canvas.parentElement;
+
+  if (!parent) {
+    throw new Error("Canvas parent not found for overlay");
+  }
+
+  parent.style.position = "relative";
+
+  const host = document.createElement("div");
+  host.className = "canvas-overlay-host";
+  host.style.pointerEvents = "none";
+  host.style.position = "absolute";
+  host.style.overflow = "hidden";
+  host.style.zIndex = "2";
+
+  const inner = document.createElement("div");
+  inner.className = className;
+  const innerStyle = inner.style;
+  innerStyle.position = "absolute";
+  innerStyle.left = "0";
+  innerStyle.top = "0";
+  innerStyle.width = `${logicalWidth}px`;
+  innerStyle.height = `${logicalHeight}px`;
+  innerStyle.transformOrigin = "top left";
+  inner.innerHTML = html;
+
+  host.appendChild(inner);
+  parent.appendChild(host);
+
+  const updateLayout = (): void => {
+    const frame = computeCanvasOverlayFrame(
+      canvas.getBoundingClientRect(),
+      parent.getBoundingClientRect(),
+      logicalWidth
+    );
+
+    host.style.left = `${frame.left}px`;
+    host.style.top = `${frame.top}px`;
+    host.style.width = `${frame.width}px`;
+    host.style.height = `${frame.height}px`;
+    innerStyle.transform = "none";
+    innerStyle.setProperty("zoom", String(frame.scale));
+  };
+
+  const setHtml = (nextHtml: string): void => {
+    inner.innerHTML = nextHtml;
+    updateLayout();
+  };
+
+  const setVisible = (visible: boolean): void => {
+    host.style.display = visible ? "block" : "none";
+  };
+
+  const onResize = (): void => updateLayout();
+
+  scene.scale.on("resize", onResize);
+  window.addEventListener("resize", onResize);
+
+  const destroy = (): void => {
+    scene.scale.off("resize", onResize);
+    window.removeEventListener("resize", onResize);
+    host.remove();
+  };
+
+  updateLayout();
+
+  let currentScale = 1;
+
+  const origUpdateLayout = updateLayout;
+  const updateLayoutWithScale = (): void => {
+    origUpdateLayout();
+    const frame = computeCanvasOverlayFrame(
+      canvas.getBoundingClientRect(),
+      parent.getBoundingClientRect(),
+      logicalWidth
+    );
+    currentScale = frame.scale;
+  };
+
+  const wrappedUpdateLayout = (): void => {
+    updateLayoutWithScale();
+  };
+
+  // Initial scale capture
+  updateLayoutWithScale();
+
+  const getInnerElement = (): HTMLDivElement => inner;
+  const getHostElement = (): HTMLDivElement => host;
+  const getScale = (): number => currentScale;
+
+  return { setHtml, updateLayout: wrappedUpdateLayout, setVisible, getInnerElement, getHostElement, getScale, destroy };
+}
