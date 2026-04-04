@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { applyTextRenderQuality } from "@/app/rendering";
 
 type ButtonOptions = {
   scene: Phaser.Scene;
@@ -10,23 +11,29 @@ type ButtonOptions = {
   onClick: () => void;
   /** Optional render depth (for overlays) */
   depth?: number;
+  hideLabel?: boolean;
 };
 
 export function createButton(options: ButtonOptions): Phaser.GameObjects.Container {
-  const { scene, x, y, width, height, label, onClick, depth } = options;
+  const { scene, x, y, width, height, label, onClick, depth, hideLabel = false } = options;
 
   const background = scene.add
     .rectangle(0, 0, width, height, 0x2d6a5d, 0.95)
     .setStrokeStyle(2, 0xd8c59d);
 
-  const text = scene.add.text(0, 0, label, {
-    fontFamily: "Georgia",
-    fontSize: "18px",
-    color: "#f7edd8",
-  });
-  text.setOrigin(0.5);
+  const children: Phaser.GameObjects.GameObject[] = [background];
+  if (!hideLabel) {
+    const text = scene.add.text(0, 0, label, {
+      fontFamily: "'Trebuchet MS', Verdana, sans-serif",
+      fontSize: "20px",
+      color: "#f7edd8",
+      fontStyle: "bold",
+    });
+    applyTextRenderQuality(text).setOrigin(0.5);
+    children.push(text);
+  }
 
-  const container = scene.add.container(x, y, [background, text]);
+  const container = scene.add.container(x, y, children);
   container.setSize(width, height);
 
   if (depth !== undefined) {

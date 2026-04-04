@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { narrativeEntriesGlobal } from "@/data/narrative/entries.global";
 import { narrativeEntriesRu } from "@/data/narrative/entries.ru";
-import { getNarrativeEntry } from "@/data/narrative/entries";
+import { getNarrativeEntry, getNarrativeEntryExcerpt } from "@/data/narrative/entries";
 import { rewardTextsGlobal } from "@/data/narrative/rewardTexts.global";
 import { rewardTextsRu } from "@/data/narrative/rewardTexts.ru";
 
@@ -19,5 +19,12 @@ describe("narrative text packs", () => {
   it("returns narrative entries through helper", () => {
     expect(getNarrativeEntry("entry_01", "ru")?.body).toContain("Выход");
     expect(getNarrativeEntry("entry_01", "global")?.body).toContain("departure");
+  });
+
+  it("builds a short excerpt from a canonical entry", () => {
+    const excerpt = getNarrativeEntryExcerpt("entry_01", "ru");
+
+    expect(excerpt).toContain("Выход");
+    expect(excerpt?.length).toBeLessThan(151);
   });
 });

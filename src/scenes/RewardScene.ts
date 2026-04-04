@@ -1,20 +1,36 @@
 import Phaser from "phaser";
+
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ECONOMY } from "@/app/config/economy";
 import type { GameMode } from "@/core/game-state/types";
-import { getNodeById } from "@/data/chapters";
-import { getArtifactById } from "@/data/artifacts";
-import { getRewardById, getRewardDisplayText } from "@/data/narrative/rewards";
+import { CHAPTERS, getNodeById } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
+import { getChapterTitle } from "@/data/naming";
+import {
+  buildRewardRevealItems,
+} from "@/scenes/rewardRevealItems";
+import {
+  createRewardOverlayHtml,
+  type RewardOverlayRevealItem,
+} from "@/scenes/rewardSceneOverlay";
+import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
+import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 import { createButton } from "@/ui/createButton";
 
 export type RewardSceneData = {
   mode?: GameMode;
   dealId?: string;
+  preview?: boolean;
 };
 
+type RewardNavTarget = "archive" | "daily" | "settings";
+
 export class RewardScene extends Phaser.Scene {
+  private rewardOverlay?: CanvasOverlayHandle;
+  private rewardOverlayCleanup?: () => void;
+  private rewardPrimaryButtons: Phaser.GameObjects.Container[] = [];
+
   constructor() {
     super(SCENES.reward);
   }
@@ -23,160 +39,256 @@ export class RewardScene extends Phaser.Scene {
     const { ads, analytics, i18n, save, sound } = getAppContext();
     const mode = data.mode ?? "adventure";
     const dealId = data.dealId ?? "";
+    const preview = data.preview === true;
+    const isRu = i18n.currentLocale() === "ru";
+    const narrativeLocale = i18n.getNarrativeLocale();
+    const node = dealId ? getNodeById(dealId) : undefined;
+    const chapter = node ? CHAPTERS.find((item) => item.id === node.chapter) : undefined;
 
-    // ── Apply rewards to save ────────────────────────────────────────────────
     let coinsAwarded = 0;
     let rewardId: string | null = null;
     let artifactAwarded: string | null = null;
-    let chapterCompleted = false;
-
-    if (mode === "adventure" && dealId) {
-      const node = getNodeById(dealId);
+    if (preview) {
+      if (mode === "adventure" && node) {
+        rewardId = node.rewardId ?? null;
+        artifactAwarded = node.artifactId ?? null;
+        coinsAwarded = ECONOMY.winCoins;
+      } else if (mode === "daily") {
+        coinsAwarded = ECONOMY.dailyWinCoins;
+      } else {
+        coinsAwarded = ECONOMY.winCoins;
+      }
+    } else if (mode === "adventure" && dealId) {
       const progress = save.load().progress;
 
-      // Only award if this node hasn't been completed yet
       if (!progress.completedNodes.includes(dealId)) {
         const result = save.completeNode(dealId, node?.artifactId);
         rewardId = result.rewardId;
         coinsAwarded = result.coinsAwarded;
         artifactAwarded = result.artifactAwarded;
-        chapterCompleted = result.chapterCompleted;
       } else {
-        // Replaying a completed node — give only base coins
         save.addCoins(ECONOMY.winCoins);
         coinsAwarded = ECONOMY.winCoins;
       }
     } else if (mode === "daily") {
       const dateKey = getDailyDateKey();
       const progress = save.load().progress;
+
       if (progress.dailyClaimedOn !== dateKey) {
         save.claimDaily(dateKey);
         coinsAwarded = ECONOMY.dailyWinCoins;
       }
     } else {
-      // Quick-play: just coins
       save.addCoins(ECONOMY.winCoins);
       coinsAwarded = ECONOMY.winCoins;
     }
 
-    // Синхронизируем прогресс в облако после награды (fire & forget)
-    void save.pushToCloud(getAppContext().sdk);
+    if (!preview) {
+      void save.pushToCloud(getAppContext().sdk);
+    }
 
     sound.victory();
-    analytics.track("deal_win_reward_applied", { mode, dealId, rewardId, coinsAwarded, artifactAwarded });
+    analytics.track("deal_win_reward_applied", { mode, dealId, rewardId, coinsAwarded, artifactAwarded, preview });
 
-    // ── Background ───────────────────────────────────────────────────────────
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x17302e);
+    this.renderBackground();
 
-    // ── Панель ─────────────────────────────────────────────────────────────
-    const panelCX = GAME_WIDTH / 2;
-    const panelTop = 160;
-    const panelH = 460;
-    const panelCY = panelTop + panelH / 2;
-    this.add
-      .rectangle(panelCX, panelCY, 340, panelH, 0x233d3a, 0.96)
-      .setStrokeStyle(2, 0xdac9a1);
+    const revealItems =
+      mode === "adventure" && dealId && rewardId
+        ? buildRewardRevealItems({
+            dealId,
+            rewardId,
+            artifactAwarded,
+            locale: narrativeLocale,
+          })
+        : [];
 
-    // ── Title ────────────────────────────────────────────────────────────────
-    this.add
-      .text(panelCX, panelTop - 26, i18n.t("victory"), {
-        fontFamily: "Georgia",
-        fontSize: "36px",
-        color: "#f8ebcf",
-      })
-      .setOrigin(0.5);
+    const updatedProgress = save.load().progress;
+    const chapterCompletedNodes = chapter
+      ? preview
+        ? Math.max(node?.nodeIndex ?? 0, 0) + 1
+        : chapter.nodes.filter((chapterNode) => updatedProgress.completedNodes.includes(chapterNode.id)).length
+      : 0;
+    const chapterProgressLabel = chapter
+      ? `${i18n.t("chapter")} ${chapter.id}: ${getChapterTitle(chapter.chapterId, isRu ? "ru" : "en")} • ${chapterCompletedNodes}/${chapter.nodes.length}`
+      : undefined;
 
-    // ── Декоративная линия под заголовком ─────────────────────────────────
-    this.add
-      .rectangle(panelCX, panelTop + 16, 200, 1, 0xdac9a1, 0.4);
+    let adStatusText = "";
+    const renderOverlay = (): void => {
+      this.renderRewardOverlay({
+        title: i18n.t("victory"),
+        coinsLabel: coinsAwarded > 0 ? `+${coinsAwarded} ${i18n.t("coins")}` : undefined,
+        chapterProgressLabel,
+        foundTitle: revealItems.length > 0 ? i18n.t("foundItems") : undefined,
+        revealItems,
+        rewardLines: revealItems.length > 0 ? [] : [i18n.t("reward")],
+        adStatus: adStatusText,
+        navItems: [
+          { id: "archive", label: i18n.t("archive"), active: false },
+          { id: "daily", label: i18n.t("daily"), active: false },
+          { id: "settings", label: i18n.t("settings"), active: false },
+        ],
+      });
+      this.bindOverlayEvents(revealItems, dealId);
+    };
 
-    // ── Reward lines ─────────────────────────────────────────────────────────
-    const rewardLines: string[] = [];
+    renderOverlay();
 
-    if (coinsAwarded > 0) {
-      rewardLines.push(`🪙 +${coinsAwarded} ${i18n.t("coins")}`);
-    }
-
-    if (artifactAwarded) {
-      const artifact = getArtifactById(artifactAwarded);
-      const name = i18n.currentLocale() === "ru"
-        ? (artifact?.titleRu ?? artifactAwarded)
-        : (artifact?.titleEn ?? artifactAwarded);
-      const icon = artifact?.icon ?? "🏺";
-      rewardLines.push(`${icon} ${name}`);
-    }
-
-    if (rewardId && !artifactAwarded) {
-      const reward = getRewardById(rewardId);
-      const rewardText = getRewardDisplayText(rewardId, i18n.getNarrativeLocale());
-      if (reward && rewardText) {
-        rewardLines.push(`📜 ${rewardText.title}`);
-      }
-    }
-
-    if (chapterCompleted) {
-      rewardLines.push(`✨ ${i18n.t("chapterComplete")}`);
-    }
-
-    if (rewardLines.length === 0) {
-      rewardLines.push(i18n.t("reward"));
-    }
-
-    // Награды — в верхней трети панели
-    this.add
-      .text(panelCX, panelTop + 70, rewardLines.join("\n"), {
-        fontFamily: "Georgia",
-        fontSize: "24px",
-        color: "#e9d59a",
-        align: "center",
-        lineSpacing: 14,
-      })
-      .setOrigin(0.5);
-
-    // ── Rewarded ad button ───────────────────────────────────────────────────
     let adBonusShown = false;
     const adBonus = mode === "daily" ? ECONOMY.dailyAdBonusCoins : ECONOMY.adBonusCoins;
 
-    const adBtnY = panelCY + panelH / 2 - 130;
-    const adStatusY = adBtnY + 36;
-
-    createButton({
+    const continueButton = createButton({
       scene: this,
-      x: panelCX,
-      y: adBtnY,
-      width: 280,
-      height: 50,
-      label: `${i18n.t("watchAd")} (+${adBonus} ${i18n.t("coins")})`,
-      onClick: async () => {
-        if (adBonusShown) return;
-        const rewarded = await ads.showRewardedVideo("post_win_bonus");
-        if (rewarded) {
-          save.addCoins(adBonus);
-          adBonusShown = true;
-          this.add
-            .text(panelCX, adStatusY, `+${adBonus} ${i18n.t("coins")}!`, {
-              fontFamily: "Georgia",
-              fontSize: "18px",
-              color: "#f0e4c4",
-            })
-            .setOrigin(0.5);
-          sound.goodMove();
-        }
-      },
-    });
-
-    // ── Continue button ──────────────────────────────────────────────────────
-    createButton({
-      scene: this,
-      x: panelCX,
-      y: panelCY + panelH / 2 - 44,
-      width: 280,
-      height: 50,
-      label: i18n.t("backToMap"),
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT - 44,
+      width: 300,
+      height: 42,
+      label: i18n.t("continue"),
       onClick: () => {
         analytics.track("reward_screen_continue", { dealId, mode });
         this.scene.start(SCENES.map);
       },
     });
+
+    const adButton = createButton({
+      scene: this,
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT - 92,
+      width: 300,
+      height: 42,
+      label: isRu ? `Реклама (+${adBonus})` : `Ad (+${adBonus})`,
+      onClick: async () => {
+        if (adBonusShown) {
+          return;
+        }
+
+        const rewarded = await ads.showRewardedVideo("post_win_bonus");
+        if (!rewarded) {
+          return;
+        }
+
+        save.addCoins(adBonus);
+        adBonusShown = true;
+        adStatusText = `+${adBonus} ${i18n.t("coins")}!`;
+        renderOverlay();
+        sound.goodMove();
+      },
+    });
+
+    this.rewardPrimaryButtons = [adButton, continueButton];
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.rewardPrimaryButtons.forEach((button) => button.destroy());
+      this.rewardPrimaryButtons = [];
+      this.rewardOverlayCleanup?.();
+      this.rewardOverlay?.destroy();
+      this.rewardOverlay = undefined;
+    });
+  }
+
+  private renderBackground(): void {
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x162927);
+    this.add
+      .rectangle(GAME_WIDTH / 2, (GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT) / 2, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, 0x213733, 0.58);
+
+    const navBar = this.add.graphics();
+    navBar.fillStyle(0x10201f, 0.96);
+    navBar.lineStyle(1, 0x4f6964, 0.35);
+    navBar.fillRect(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, ROUTE_BOTTOM_NAV_HEIGHT);
+    navBar.strokeLineShape(
+      new Phaser.Geom.Line(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT),
+    );
+  }
+
+  private renderRewardOverlay(params: Parameters<typeof createRewardOverlayHtml>[0]): void {
+    const html = createRewardOverlayHtml(params);
+
+    if (!this.rewardOverlay) {
+      this.rewardOverlay = createCanvasAnchoredOverlay({
+        scene: this,
+        html,
+        className: "reward-overlay-root",
+        logicalWidth: GAME_WIDTH,
+        logicalHeight: GAME_HEIGHT,
+      });
+      return;
+    }
+
+    this.rewardOverlay.setHtml(html);
+  }
+
+  private bindOverlayEvents(revealItems: RewardOverlayRevealItem[], dealId: string): void {
+    if (!this.rewardOverlay) {
+      return;
+    }
+
+    const root = this.rewardOverlay.getInnerElement();
+    this.rewardOverlayCleanup?.();
+    const disposers: Array<() => void> = [];
+
+    root.querySelectorAll<HTMLElement>("[data-reveal-id]").forEach((element) => {
+      const revealId = element.dataset.revealId;
+      if (!revealId) {
+        return;
+      }
+
+      const item = revealItems.find((candidate) => candidate.id === revealId);
+      if (!item) {
+        return;
+      }
+
+      const onClick = (): void => {
+        this.scene.start(SCENES.detail, {
+          dealId,
+          initialTab: item.type === "artifact" ? "artifact" : "entry",
+        });
+      };
+
+      element.style.pointerEvents = "auto";
+      element.addEventListener("click", onClick);
+      disposers.push(() => element.removeEventListener("click", onClick));
+    });
+
+    root.querySelectorAll<HTMLElement>("[data-app-nav]").forEach((element) => {
+      const target = element.dataset.appNav as RewardNavTarget | undefined;
+      if (!target) {
+        return;
+      }
+
+      const onClick = (): void => this.handleBottomNav(target);
+      element.style.pointerEvents = "auto";
+      element.addEventListener("click", onClick);
+      disposers.push(() => element.removeEventListener("click", onClick));
+    });
+
+    this.rewardOverlayCleanup = () => {
+      disposers.forEach((dispose) => dispose());
+    };
+  }
+
+  private handleBottomNav(target: RewardNavTarget): void {
+    const { save } = getAppContext();
+
+    switch (target) {
+      case "archive":
+        this.scene.start(SCENES.diary);
+        return;
+      case "daily": {
+        const progress = save.load().progress;
+        const dailyKey = getDailyDateKey();
+
+        if (progress.dailyClaimedOn === dailyKey) {
+          return;
+        }
+
+        this.scene.start(SCENES.game, {
+          mode: "daily",
+          dealId: `daily-${dailyKey}`,
+        });
+        return;
+      }
+      case "settings":
+        this.scene.start(SCENES.settings);
+        return;
+    }
   }
 }

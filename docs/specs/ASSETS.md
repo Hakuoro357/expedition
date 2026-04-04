@@ -8,6 +8,7 @@
 
 - narrative rewards: [PRODUCTION_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\PRODUCTION_SHEET.md)
 - promo/core/meta/audio exports: [ASSET_EXPORT_SHEET.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\ASSET_EXPORT_SHEET.md)
+- prompt pack для сюжетных находок: [ARTIFACT_PROMPTS.md](C:\Users\RobotComp.ru\games\Yandex\01-solitaire-expedition\docs\specs\ARTIFACT_PROMPTS.md)
 
 ## Принципы
 

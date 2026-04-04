@@ -2,11 +2,17 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ECONOMY } from "@/app/config/economy";
+import { getCardFaceTextureKey as getSvgCardFaceTextureKey } from "@/assets/cards/cardFaceSvg";
+import backDefaultSvg from "@/assets/cards/back-default.svg?raw";
+import backCompassSvg from "@/assets/cards/back-compass.svg?raw";
+import backMapSvg from "@/assets/cards/back-map.svg?raw";
 import type { Card } from "@/core/cards/types";
 import type { GameMode, GameState, Pile } from "@/core/game-state/types";
 import { createInitialDeal } from "@/core/klondike/createInitialDeal";
 import { findRandomSolvableSeed } from "@/core/klondike/randomSeed";
 import { getNodeById } from "@/data/chapters";
+import { getPointTitleByDealId } from "@/data/narrative/points";
+import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import {
   autoCompleteStep,
   canAutoComplete,
@@ -24,28 +30,34 @@ import {
   tryAutoMoveToFoundation,
   type Selection,
 } from "@/core/klondike/engine";
-import { formatCard, formatRank, formatSuit } from "@/features/board/formatCard";
+import { formatCard } from "@/features/board/formatCard";
+import { ensureCardFaceTexture } from "@/features/board/cardFaceTexture";
+import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
+import { applyTextRenderQuality } from "@/app/rendering";
 import { createButton } from "@/ui/createButton";
+import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard } from "@/scenes/gameSceneOverlay";
+import {
+  GAME_CARD_HEIGHT as CARD_HEIGHT,
+  GAME_CARD_WIDTH as CARD_WIDTH,
+  GAME_FACE_DOWN_GAP_Y as FACE_DOWN_GAP_Y,
+  GAME_FACE_UP_GAP_Y as FACE_UP_GAP_Y,
+  GAME_FOUNDATION_GAP_X as FOUNDATION_GAP_X,
+  GAME_FOUNDATION_START_X as FOUNDATION_START_X,
+  GAME_TABLEAU_GAP_X as TABLEAU_GAP_X,
+  GAME_TABLEAU_START_X as TABLEAU_START_X,
+  GAME_TABLEAU_START_Y as TABLEAU_START_Y,
+  GAME_TOP_ROW_Y as TOP_ROW_Y,
+  getGameCardLeft,
+  getGameCardTop,
+  getGameFoundationX,
+  getGameTableauX,
+} from "@/scenes/gameSceneLayout";
 type GameSceneData = {
   dealId?: string;
   mode?: GameMode;
   resumeCurrentGame?: boolean;
 };
-
-const CARD_WIDTH = 44;
-const CARD_HEIGHT = 70;
-// Layout: равные отступы 17px с каждой стороны
-// CARD_WIDTH=44, GAP=52 → 44 + 6×52 = 356px, (390-356)/2 = 17px
-// 7 columns: 39, 91, 143, 195, 247, 299, 351
-const TABLEAU_START_X = 39;
-const TABLEAU_GAP_X = 52;
-const TABLEAU_START_Y = 205;
-const FACE_UP_GAP_Y = 26;
-const FACE_DOWN_GAP_Y = 18;
-// Foundations align with cols 4-7: 195, 247, 299, 351
-const FOUNDATION_START_X = 195;
-const FOUNDATION_GAP_X = 52;
-const TOP_ROW_Y = 115;
 
 export class GameScene extends Phaser.Scene {
   private gameState: GameState | null = null;
@@ -53,16 +65,17 @@ export class GameScene extends Phaser.Scene {
   private selection: Selection | null = null;
   private boardLayer?: Phaser.GameObjects.Container;
   private statusText?: Phaser.GameObjects.Text;
-  private hintCountText?: Phaser.GameObjects.Text;
-  private coinText?: Phaser.GameObjects.Text;
   private dragPreview?: Phaser.GameObjects.Container;
   private draggedSelection: Selection | null = null;
+  private dragPreviewCards: GameOverlayCard[] = [];
   private hintsUsedThisGame = 0;
   private lossDetected = false;
   private pendingFlips: Set<string> = new Set();
-  private flyingCard?: Phaser.GameObjects.Container;
   private autoCompleting = false;
   private animating = false;
+  private rulesOverlayObjects: Phaser.GameObjects.GameObject[] = [];
+  private gameOverlay?: CanvasOverlayHandle;
+  private gameOverlayCleanup?: () => void;
 
   constructor() {
     super(SCENES.game);
@@ -79,24 +92,23 @@ export class GameScene extends Phaser.Scene {
     this.gameState = restoredState ? cloneGameState(restoredState) : createInitialDeal(mode, dealId, randomSeed);
     this.history = [];
     this.selection = null;
-    // Require 8px movement before drag starts — prevents taps from triggering drag
+    // Require 8px movement before drag starts - prevents taps from triggering drag
     this.input.dragDistanceThreshold = 8;
     this.hintsUsedThisGame = 0;
     this.lossDetected = false;
     this.pendingFlips.clear();
-    this.flyingCard?.destroy();
-    this.flyingCard = undefined;
     this.autoCompleting = false;
     this.animating = false;
     this.dragPreview?.destroy();
     this.dragPreview = undefined;
     this.draggedSelection = null;
+    this.dragPreviewCards = [];
 
-    const { i18n, analytics, save } = getAppContext();
+    const { analytics, save } = getAppContext();
     analytics.track("deal_start", { mode, dealId });
     save.updateCurrentGame(this.gameState);
 
-    // ── Background ───────────────────────────────────────────────────────────
+    // Background
     const chapterNum = mode === "adventure" ? (parseInt(dealId.charAt(1), 10) || 1) : 1;
     const bgKey = `bg-chapter${chapterNum}`;
     if (this.textures.exists(bgKey)) {
@@ -106,173 +118,375 @@ export class GameScene extends Phaser.Scene {
     }
     // Dim overlay so board stays readable
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a1e1c, 0.45);
+    this.renderBottomBar();
+    this.renderGameOverlay();
 
-    // boardLayer создаётся ДО всего, чтобы карты не перекрывали UI поверх
+    // boardLayer is created BEFORE everything so cards do not overlap UI
     this.boardLayer = this.add.container(0, 0);
 
-    // ── Header ───────────────────────────────────────────────────────────────
-    this.add
-      .text(GAME_WIDTH / 2, 30, i18n.t("boardPreview"), {
-        fontFamily: "Georgia",
-        fontSize: "22px",
-        color: "#f5e7c8",
-      })
-      .setOrigin(0.5);
-
-    // Subtitle: "Глава 1 • 4/10" for adventure, "Маршрут дня" for daily
-    let subtitle = "";
-    if (mode === "adventure") {
-      const ch = parseInt(dealId.charAt(1), 10) || 1;
-      const lvl = parseInt(dealId.substring(3), 10) || 1;
-      subtitle = `${i18n.t("chapter")} ${ch} • ${lvl}/10`;
-    } else if (mode === "daily") {
-      subtitle = i18n.t("daily");
-    }
-    if (subtitle) {
-      this.add
-        .text(GAME_WIDTH / 2, 56, subtitle, {
-          fontFamily: "Georgia",
-          fontSize: "13px",
-          color: "#ceb88e",
-        })
-        .setOrigin(0.5);
-    }
-
-    // ── Coin counter (рядом с subtitle, слева) ───────────────────────────────
-    this.coinText = this.add
-      .text(12, 56, `🪙 ${save.load().progress.coins}`, {
-        fontFamily: "monospace",
-        fontSize: "13px",
-        color: "#f0d97a",
-      })
-      .setOrigin(0, 0.5);
-
-    // ── Hint usage indicator (рядом с subtitle, справа) ──────────────────────
-    this.hintCountText = this.add
-      .text(GAME_WIDTH - 12, 56, "", {
-        fontFamily: "monospace",
-        fontSize: "13px",
-        color: "#ceb88e",
-      })
-      .setOrigin(1, 0.5);
-
-    // ── Status text (над кнопками, не перекрывает карты) ─────────────────────
-    this.statusText = this.add
-      .text(GAME_WIDTH / 2, 718, "", {
-        fontFamily: "Georgia",
-        fontSize: "16px",
+    this.statusText = applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, 718, "", {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
+        fontSize: "15px",
         color: "#e7d8b3",
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
-    this.createControls();
     this.renderBoard();
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.destroyRulesOverlay();
+      this.gameOverlayCleanup?.();
+      this.gameOverlay?.destroy();
+      this.gameOverlay = undefined;
+      this.gameOverlayCleanup = undefined;
+    });
   }
 
-  private createControls(): void {
-    const { i18n, save, analytics, sound } = getAppContext();
+  private renderBottomBar(): void {
+    const barTop = GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT;
+    const navBar = this.add.graphics();
+    navBar.fillStyle(0x10201f, 0.96);
+    navBar.lineStyle(1, 0x4f6964, 0.35);
+    navBar.fillRect(0, barTop, GAME_WIDTH, ROUTE_BOTTOM_NAV_HEIGHT);
+    navBar.strokeLineShape(new Phaser.Geom.Line(0, barTop, GAME_WIDTH, barTop));
+  }
 
-    const BTN_Y = 755;
-    // ── Undo ─────────────────────────────────────────────────────────────────
-    // Layout: 3 кнопки по 110px, промежутки 14px, отступы 16px с краёв
-    // x: 16+55=71, 71+55+14+55=195, 195+55+14+55=319
-    const BTN_W = 110;
-    createButton({
-      scene: this,
-      x: 71,
-      y: BTN_Y,
-      width: BTN_W,
-      height: 48,
-      label: i18n.t("undo"),
-      onClick: () => {
-        const previousState = this.history.pop();
+  private renderGameOverlay(): void {
+    const { i18n } = getAppContext();
+    const foundationSuitSymbols = ["♠", "♣", "♦", "♥"];
+    const backKey = this.cardBackKey();
 
-        if (!previousState || !this.gameState) {
-          this.setStatus(i18n.t("nothingToUndo"));
-          sound.badMove();
+    // Get card back SVG for stock slot display
+    let cardBackSvg: string | undefined;
+    switch (backKey) {
+      case "card-back-compass":
+        cardBackSvg = backCompassSvg;
+        break;
+      case "card-back-map":
+        cardBackSvg = backMapSvg;
+        break;
+      case "card-back-default":
+      default:
+        cardBackSvg = backDefaultSvg;
+        break;
+    }
+
+    const html = createGameSceneOverlayHtml({
+      title: this.getOverlayTitle(),
+      subtitle: this.getOverlaySubtitle(),
+      coinsLabel: String(getAppContext().save.load().progress.coins),
+      stockCountLabel: String(this.gameState?.stock.cards.length ?? 0),
+      wasteHasCard: (this.gameState?.waste.cards.length ?? 0) > 0,
+      wasteActive: this.selection?.kind === "waste",
+      foundationSlots: foundationSuitSymbols.map((suitSymbol, index) => ({
+        suitSymbol,
+        active: this.selection?.kind === "foundation" && this.selection.pileIndex === index,
+        hasCard: (this.gameState?.foundations[index]?.cards.length ?? 0) > 0,
+      })),
+      undoLabel: i18n.t("undo"),
+      hintLabel: i18n.t("hint"),
+      homeLabel: i18n.t("home"),
+      rulesLabel: i18n.t("rules"),
+      cards: this.getOverlayCards(),
+      dragCards: this.dragPreviewCards,
+      cardBackSvg: `<div class="game-overlay__card-back">${cardBackSvg}</div>`,
+      faceDownCards: this.getOverlayFaceDownCards(),
+    });
+
+    if (!this.gameOverlay) {
+      this.gameOverlay = createCanvasAnchoredOverlay({
+        scene: this,
+        html,
+        className: "game-overlay-root",
+        logicalWidth: GAME_WIDTH,
+        logicalHeight: GAME_HEIGHT,
+      });
+    } else {
+      this.gameOverlay.setHtml(html);
+    }
+
+    this.bindGameOverlayEvents();
+  }
+
+  private getOverlayCards(): GameOverlayCard[] {
+    if (!this.gameState) {
+      return [];
+    }
+
+    const cards: GameOverlayCard[] = [];
+
+    this.gameState.tableau.forEach((pile, pileIndex) => {
+      const x = getGameTableauX(pileIndex);
+      pile.cards.forEach((card, cardIndex) => {
+        if (!card.faceUp) {
           return;
         }
 
-        this.gameState = {
-          ...previousState,
-          undoCount: previousState.undoCount + 1,
-        };
-        save.updateCurrentGame(this.gameState);
-        analytics.track("undo_used", { dealId: this.gameState.dealId });
-        this.selection = null;
-        this.lossDetected = false;
-        sound.cardPlace();
-        this.renderBoard();
-      },
+        const y = this.getTableauCardY(pile, cardIndex);
+        cards.push({
+          key: `tableau-${card.id}`,
+          left: getGameCardLeft(x),
+          top: getGameCardTop(y),
+          card,
+          selected:
+            this.selection?.kind === "tableau" &&
+            this.selection.pileIndex === pileIndex &&
+            this.selection.cardIndex === cardIndex,
+        });
+      });
     });
 
-    // ── Hint ─────────────────────────────────────────────────────────────────
-    createButton({
-      scene: this,
-      x: 195,
-      y: BTN_Y,
-      width: BTN_W,
-      height: 48,
-      label: i18n.t("hint"),
-      onClick: async () => {
-        if (!this.gameState) return;
+    const wasteTop = this.gameState.waste.cards[this.gameState.waste.cards.length - 1];
+    if (wasteTop) {
+      cards.push({
+        key: `waste-${wasteTop.id}`,
+        left: getGameCardLeft(getGameTableauX(1)),
+        top: getGameCardTop(TOP_ROW_Y),
+        card: wasteTop,
+        selected: this.selection?.kind === "waste",
+      });
+    }
 
-        const freeHintsLeft = ECONOMY.freeHintsPerGame - this.hintsUsedThisGame;
+    this.gameState.foundations.forEach((pile, foundationIndex) => {
+      const topCard = pile.cards[pile.cards.length - 1];
+      if (!topCard) {
+        return;
+      }
 
-        if (freeHintsLeft <= 0) {
-          // Try to spend coins or show ad
-          const progress = save.load().progress;
-          if (progress.coins >= ECONOMY.hintCoinCost) {
-            save.addCoins(-ECONOMY.hintCoinCost);
-            this.updateCoinDisplay();
-          } else {
-            // Offer rewarded ad for a hint
-            const rewarded = await getAppContext().ads.showRewardedVideo("hint_reward");
-            if (!rewarded) {
-              this.setStatus(i18n.t("notEnoughCoins"));
-              sound.badMove();
-              return;
-            }
-          }
+      cards.push({
+        key: `foundation-${topCard.id}`,
+        left: getGameCardLeft(getGameFoundationX(foundationIndex)),
+        top: getGameCardTop(TOP_ROW_Y),
+        card: topCard,
+        selected:
+          this.selection?.kind === "foundation" &&
+          this.selection.pileIndex === foundationIndex,
+      });
+    });
+
+    return cards;
+  }
+
+  private getOverlayFaceDownCards(): GameOverlayFaceDownCard[] {
+    if (!this.gameState) {
+      return [];
+    }
+
+    const faceDownCards: GameOverlayFaceDownCard[] = [];
+
+    this.gameState.tableau.forEach((pile, pileIndex) => {
+      const x = getGameTableauX(pileIndex);
+      pile.cards.forEach((card, cardIndex) => {
+        if (card.faceUp) {
+          return;
         }
 
-        const hint = getHint(this.gameState);
-        this.hintsUsedThisGame++;
-        this.gameState = {
-          ...this.gameState,
-          hintCount: this.gameState.hintCount + 1,
-        };
-        save.updateCurrentGame(this.gameState);
-        analytics.track("hint_used", {
-          dealId: this.gameState.dealId,
-          mode: this.gameState.mode,
-          hint,
-          hintsUsed: this.gameState.hintCount,
+        const y = this.getTableauCardY(pile, cardIndex);
+        faceDownCards.push({
+          key: `tableau-facedown-${card.id}`,
+          left: getGameCardLeft(x),
+          top: getGameCardTop(y),
         });
-
-        this.setStatus(hint ? `💡 ${hint}` : i18n.t("noMovesFound"));
-        this.updateHintDisplay();
-        sound.goodMove();
-      },
+      });
     });
 
-    // ── Menu ──────────────────────────────────────────────────────────────────
-    createButton({
+    return faceDownCards;
+  }
+
+  private bindGameOverlayEvents(): void {
+    if (!this.gameOverlay) {
+      return;
+    }
+
+    const root = this.gameOverlay.getInnerElement();
+    this.gameOverlayCleanup?.();
+
+    const disposers: Array<() => void> = [];
+
+    root.querySelectorAll<HTMLElement>("[data-game-action]").forEach((element) => {
+      const action = element.dataset.gameAction as "undo" | "hint" | "home" | undefined;
+      if (!action) {
+        return;
+      }
+
+      const onClick = (): void => {
+        switch (action) {
+          case "undo":
+            this.handleUndoAction();
+            return;
+          case "hint":
+            void this.handleHintAction();
+            return;
+          case "home":
+            this.scene.start(SCENES.map);
+            return;
+        }
+      };
+
+      element.style.pointerEvents = "auto";
+      element.addEventListener("click", onClick);
+      disposers.push(() => element.removeEventListener("click", onClick));
+    });
+
+    const rulesButton = root.querySelector<HTMLElement>("[data-game-rules]");
+    if (rulesButton) {
+      const onClick = (): void => this.showRulesOverlay();
+      rulesButton.style.pointerEvents = "auto";
+      rulesButton.addEventListener("click", onClick);
+      disposers.push(() => rulesButton.removeEventListener("click", onClick));
+    }
+
+    this.gameOverlayCleanup = () => {
+      disposers.forEach((dispose) => dispose());
+    };
+  }
+
+  private handleUndoAction(): void {
+    const { i18n, save, analytics, sound } = getAppContext();
+    const previousState = this.history.pop();
+
+    if (!previousState || !this.gameState) {
+      this.setStatus(i18n.t("nothingToUndo"));
+      sound.badMove();
+      return;
+    }
+
+    this.gameState = {
+      ...previousState,
+      undoCount: previousState.undoCount + 1,
+    };
+    save.updateCurrentGame(this.gameState);
+    analytics.track("undo_used", { dealId: this.gameState.dealId });
+    this.selection = null;
+    this.lossDetected = false;
+    sound.cardPlace();
+    this.renderBoard();
+  }
+
+  private async handleHintAction(): Promise<void> {
+    const { i18n, save, analytics, sound, ads } = getAppContext();
+    if (!this.gameState) return;
+
+    const freeHintsLeft = ECONOMY.freeHintsPerGame - this.hintsUsedThisGame;
+
+    if (freeHintsLeft <= 0) {
+      const progress = save.load().progress;
+      if (progress.coins >= ECONOMY.hintCoinCost) {
+        save.addCoins(-ECONOMY.hintCoinCost);
+        this.updateCoinDisplay();
+      } else {
+        const rewarded = await ads.showRewardedVideo("hint_reward");
+        if (!rewarded) {
+          this.setStatus(i18n.t("notEnoughCoins"));
+          sound.badMove();
+          return;
+        }
+      }
+    }
+
+    const hint = getHint(this.gameState);
+    this.hintsUsedThisGame++;
+    this.gameState = {
+      ...this.gameState,
+      hintCount: this.gameState.hintCount + 1,
+    };
+    save.updateCurrentGame(this.gameState);
+    analytics.track("hint_used", {
+      dealId: this.gameState.dealId,
+      mode: this.gameState.mode,
+      hint,
+      hintsUsed: this.gameState.hintCount,
+    });
+
+    this.setStatus(hint ? `💡 ${hint}` : i18n.t("noMovesFound"));
+    this.updateHintDisplay();
+    sound.goodMove();
+  }
+
+  private showRulesOverlay(): void {
+    const { i18n } = getAppContext();
+    this.destroyRulesOverlay();
+
+    const overlay = this.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.58)
+      .setDepth(500)
+      .setInteractive();
+
+    const panel = this.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 322, 412, 0x17302d, 0.98)
+      .setStrokeStyle(1, 0x5f7d77, 0.55)
+      .setDepth(501);
+
+    const title = applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 164, i18n.t("rules"), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
+        fontSize: "24px",
+        fontStyle: "bold",
+        color: "#f7edd8",
+      }),
+    )
+      .setOrigin(0.5)
+      .setDepth(502);
+
+    const body = applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 124, this.getRulesBody(), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
+        fontSize: "16px",
+        color: "#e7d8b3",
+        align: "left",
+        wordWrap: { width: 258 },
+        lineSpacing: 4,
+      }),
+    )
+      .setOrigin(0.5, 0)
+      .setDepth(502);
+
+    const closeButton = createButton({
       scene: this,
-      x: 319,
-      y: BTN_Y,
-      width: BTN_W,
-      height: 48,
-      label: i18n.t("menu"),
-      onClick: () => {
-        this.scene.start(SCENES.map);
-      },
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT / 2 + 164,
+      width: 188,
+      height: 40,
+      label: i18n.t("close"),
+      depth: 502,
+      onClick: () => this.destroyRulesOverlay(),
     });
+
+    overlay.on("pointerdown", () => this.destroyRulesOverlay());
+    this.rulesOverlayObjects = [overlay, panel, title, body, closeButton];
+  }
+
+  private destroyRulesOverlay(): void {
+    this.rulesOverlayObjects.forEach((item) => item.destroy());
+    this.rulesOverlayObjects = [];
+  }
+
+  private getRulesBody(): string {
+    const locale = getAppContext().i18n.currentLocale();
+    if (locale === "ru") {
+      return [
+        "Собери все карты по мастям в верхние стопки: от туза до короля.",
+        "",
+        "На поле карты кладутся по убыванию, чередуя красные и чёрные масти.",
+        "",
+        "Переноси открытые карты и стопки, открывай закрытые карты и добирай из колоды слева.",
+      ].join("\n");
+    }
+
+    return [
+      "Build every suit in the top foundations from ace to king.",
+      "",
+      "On the tableau, build downward while alternating red and black cards.",
+      "",
+      "Move open cards and stacks, reveal face-down cards, and draw from the stock on the left.",
+    ].join("\n");
   }
 
   private renderBoard(): void {
     if (!this.gameState || !this.boardLayer) return;
     this.animating = false;
+    this.renderGameOverlay();
     this.boardLayer.removeAll(true);
     this.clearDragPreview();
     this.renderTopArea();
@@ -280,7 +494,7 @@ export class GameScene extends Phaser.Scene {
 
     const { analytics, save, sound } = getAppContext();
 
-    // ── Win ───────────────────────────────────────────────────────────────────
+    // Win
     if (this.gameState.status === "won") {
       save.clearCurrentGame();
       analytics.track("deal_win", {
@@ -290,7 +504,6 @@ export class GameScene extends Phaser.Scene {
         hintCount: this.gameState.hintCount,
       });
       sound.victory();
-      // Помечаем idle, чтобы повторный вызов renderBoard не запустил анимацию ещё раз
       const { mode, dealId } = this.gameState;
       this.gameState = { ...this.gameState, status: "idle" };
       this.playWinAnimation(() => {
@@ -299,13 +512,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // ── Auto-complete offer ──────────────────────────────────────────────────
+    // Auto-complete offer
     if (!this.autoCompleting && canAutoComplete(this.gameState)) {
       this.showAutoCompleteOverlay();
       return;
     }
 
-    // ── Loss (no moves remaining) ─────────────────────────────────────────────
+    // Loss (no moves remaining)
     if (!this.lossDetected && !hasAnyMoves(this.gameState)) {
       this.lossDetected = true;
       this.showLossOverlay();
@@ -330,23 +543,26 @@ export class GameScene extends Phaser.Scene {
       .setStrokeStyle(2, 0xdac9a1)
       .setDepth(501);
 
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 90, i18n.t("noMoves"), {
-        fontFamily: "Georgia",
+    applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 90, i18n.t("noMoves"), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
         fontSize: "26px",
+        fontStyle: "bold",
         color: "#f8ebcf",
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502);
 
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, i18n.t("noMovesSubtitle"), {
-        fontFamily: "Georgia",
+    applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, i18n.t("noMovesSubtitle"), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
         fontSize: "15px",
         color: "#c9b98a",
         align: "center",
         wordWrap: { width: 270 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502);
 
@@ -367,14 +583,14 @@ export class GameScene extends Phaser.Scene {
       },
     });
 
-    // Back to map
+    // Home
     createButton({
       scene: this,
       x: GAME_WIDTH / 2,
       y: GAME_HEIGHT / 2 + 68,
       width: 230,
       height: 48,
-      label: i18n.t("backToMap"),
+      label: i18n.t("home"),
       depth: 502,
       onClick: () => {
         this.scene.start(SCENES.map);
@@ -407,64 +623,26 @@ export class GameScene extends Phaser.Scene {
       const drewCard = nextState.waste.cards.length > currentState.waste.cards.length;
 
       if (drewCard) {
-        // Animate drawn card from stock to waste (card-back slides, then flips)
+        // Animate drawn card from stock to waste using Phaser container with SVG texture
         this.animating = true;
         const drawnCard = nextState.waste.cards[nextState.waste.cards.length - 1];
-        const backKey = this.cardBackKey();
-        const flyContainer = this.add.container(TABLEAU_START_X, TOP_ROW_Y).setDepth(100);
-        if (this.textures.exists(backKey)) {
-          flyContainer.add(
-            this.add.image(0, 0, backKey).setDisplaySize(CARD_WIDTH, CARD_HEIGHT).setOrigin(0.5)
-          );
-        } else {
-          flyContainer.add(
-            this.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0x355854, 1)
-              .setStrokeStyle(2, 0xdac9a1).setOrigin(0.5)
-          );
-        }
         getAppContext().sound.cardPlace();
-        this.tweens.add({
-          targets: flyContainer,
-          x: TABLEAU_START_X + TABLEAU_GAP_X,
-          duration: 150,
-          ease: "Power2",
-          onComplete: () => {
-            // Shrink to 0 (hide back), replace with face, expand (flip effect)
-            this.tweens.add({
-              targets: flyContainer,
-              scaleX: 0,
-              duration: 80,
-              onComplete: () => {
-                flyContainer.removeAll(true);
-                // Add face content
-                const textColor = drawnCard.color === "red" ? "#a93f48" : "#1b1b1b";
-                const label = `${formatRank(drawnCard)}${formatSuit(drawnCard)}`;
-                flyContainer.add(this.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0xf7ecd8, 1)
-                  .setStrokeStyle(2, 0xdac9a1).setOrigin(0.5));
-                flyContainer.add(this.add.text(-CARD_WIDTH / 2 + 4, -CARD_HEIGHT / 2 + 4, label, {
-                  fontFamily: "Georgia", fontSize: "14px", fontStyle: "bold", color: textColor,
-                }).setOrigin(0, 0));
-                flyContainer.add(this.add.text(0, 0, formatSuit(drawnCard), {
-                  fontFamily: "Georgia", fontSize: "24px", color: textColor,
-                }).setOrigin(0.5));
-                this.tweens.add({
-                  targets: flyContainer,
-                  scaleX: 1,
-                  duration: 80,
-                  onComplete: () => {
-                    flyContainer.destroy();
-                    this.animating = false;
-                    this.applyState(nextState, "");
-                  },
-                });
-              },
-            });
-          },
+
+        // Center coordinates for Phaser animation
+        const stockCenterX = TABLEAU_START_X;
+        const wasteCenterX = TABLEAU_START_X + TABLEAU_GAP_X;
+        const centerY = TOP_ROW_Y;
+        const midCenterX = (stockCenterX + wasteCenterX) / 2;
+
+        // Start Phaser flip animation (midpoint -> waste slide + reveal)
+        this.animateStockToWasteDom(drawnCard, midCenterX, centerY, wasteCenterX, () => {
+          this.animating = false;
+          this.applyState(nextState);
         });
       } else {
-        // Recycle waste → stock, no fly animation needed
+        // Recycle waste -> stock, no fly animation needed
         getAppContext().sound.cardPlace();
-        this.applyState(nextState, "");
+        this.applyState(nextState);
       }
     });
 
@@ -502,7 +680,7 @@ export class GameScene extends Phaser.Scene {
         this.renderBoard();
       },
       wasteTop,
-      wasteTop ? { kind: "waste" } : null,   // drag разрешён без предварительного выбора
+      wasteTop ? { kind: "waste" } : null,
       wasteTop ? [wasteTop] : []
     );
 
@@ -542,7 +720,7 @@ export class GameScene extends Phaser.Scene {
           this.selection?.kind === "tableau" &&
           this.selection.pileIndex === pileIndex &&
           this.selection.cardIndex === cardIndex;
-        // Drag разрешён для всех открытых карт (не только выбранных)
+        // Drag is allowed for all face-up cards
         const dragSel = card.faceUp
           ? ({ kind: "tableau", pileIndex, cardIndex } as const)
           : null;
@@ -556,7 +734,8 @@ export class GameScene extends Phaser.Scene {
             this.handleTableauClick(pileIndex, cardIndex);
           },
           dragSel,
-          dragSel ? pile.cards.slice(cardIndex) : []
+          dragSel ? pile.cards.slice(cardIndex) : [],
+          false
         );
 
         this.boardLayer?.add(cardContainer);
@@ -581,9 +760,18 @@ export class GameScene extends Phaser.Scene {
         pile.type === "foundation" &&
         pile.id === `foundation-${this.selection.pileIndex + 1}`);
 
+    const isTopRowSlot =
+      pile.type === "stock" ||
+      pile.type === "waste" ||
+      pile.type === "foundation";
+
     const slot = this.add
-      .rectangle(x, y, CARD_WIDTH, CARD_HEIGHT, pile.cards.length > 0 ? 0x244542 : 0x1f3b39, 1)
-      .setStrokeStyle(2, isSelected ? 0xe3a34f : 0xdac9a1, pile.cards.length > 0 ? 1 : 0.6)
+      .rectangle(x, y, CARD_WIDTH, CARD_HEIGHT, 0xffffff, isTopRowSlot ? 0 : pile.cards.length > 0 ? 1 : 0.24)
+      .setStrokeStyle(
+        isTopRowSlot ? 0 : 2,
+        isSelected ? 0xe3a34f : 0xdac9a1,
+        isTopRowSlot ? 0 : pile.cards.length > 0 ? 1 : 0.6,
+      )
       .setInteractive();
     slot.on("pointerdown", onClick);
     this.boardLayer.add(slot);
@@ -596,36 +784,15 @@ export class GameScene extends Phaser.Scene {
         isSelected,
         onClick,
         dragSelection ?? null,
-        stackCards
+        stackCards,
+        false
       );
       this.boardLayer.add(cardObject);
       return;
     }
 
-    if (pile.type === "stock") {
-      const text = this.add
-        .text(x, y, String(pile.cards.length), {
-          fontFamily: "Georgia",
-          fontSize: "20px",
-          color: "#f2e6cc",
-        })
-        .setOrigin(0.5);
-      this.boardLayer.add(text);
-    }
-
-    if (pile.type === "foundation") {
-      const suitSymbols = ["♠", "♣", "♦", "♥"];
-      const pileIdx = parseInt(pile.id.replace("foundation-", ""), 10) - 1;
-      const sym = suitSymbols[pileIdx] ?? "?";
-      const text = this.add
-        .text(x, y, sym, {
-          fontFamily: "Georgia",
-          fontSize: "24px",
-          color: "#dac9a1",
-        })
-        .setOrigin(0.5)
-        .setAlpha(0.4);
-      this.boardLayer.add(text);
+    if (pile.type === "stock" || pile.type === "foundation") {
+      return;
     }
   }
 
@@ -639,6 +806,19 @@ export class GameScene extends Phaser.Scene {
     return "card-back-default";
   }
 
+  private createFaceCardImage(
+    x: number,
+    y: number,
+    card: Card,
+    isSelected: boolean,
+  ): Phaser.GameObjects.Image {
+    const svgTextureKey = getSvgCardFaceTextureKey(card.rank, card.suit);
+    const textureKey = this.textures.exists(svgTextureKey)
+      ? svgTextureKey
+      : ensureCardFaceTexture(this, card, CARD_WIDTH, CARD_HEIGHT, isSelected);
+    return this.add.image(x, y, textureKey).setDisplaySize(CARD_WIDTH, CARD_HEIGHT).setOrigin(0.5);
+  }
+
   private createCardObject(
     x: number,
     y: number,
@@ -646,7 +826,8 @@ export class GameScene extends Phaser.Scene {
     isSelected: boolean,
     onClick: () => void,
     dragSelection: Selection | null,
-    stackCards: Card[]
+    stackCards: Card[],
+    renderFaceUpVisual = true,
   ): Phaser.GameObjects.Container {
     const cardContainer = this.add.container(x, y);
     const borderColor = isSelected ? 0xe3a34f : 0xdac9a1;
@@ -673,47 +854,17 @@ export class GameScene extends Phaser.Scene {
           .setOrigin(0.5);
         cardContainer.add(rect);
       }
-    } else {
-      const rect = this.add
-        .rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0xf7ecd8, 1)
-        .setStrokeStyle(2, borderColor)
-        .setOrigin(0.5);
-      cardContainer.add(rect);
-
-      const textColor = card.color === "red" ? "#a93f48" : "#1b1b1b";
-      const label = `${formatRank(card)}${formatSuit(card)}`;
-
-      // Ранг+масть — верхний левый угол
-      cardContainer.add(
-        this.add.text(-CARD_WIDTH / 2 + 4, -CARD_HEIGHT / 2 + 4, label, {
-          fontFamily: "Georgia", fontSize: "14px", fontStyle: "bold", color: textColor,
-        }).setOrigin(0, 0)
-      );
-      // Большая масть — центр
-      cardContainer.add(
-        this.add.text(0, 0, formatSuit(card), {
-          fontFamily: "Georgia", fontSize: "24px", color: textColor,
-        }).setOrigin(0.5)
-      );
-      // Ранг+масть — нижний правый угол (повёрнут 180°)
-      cardContainer.add(
-        this.add.text(CARD_WIDTH / 2 - 4, CARD_HEIGHT / 2 - 4, label, {
-          fontFamily: "Georgia", fontSize: "14px", fontStyle: "bold", color: textColor,
-        }).setOrigin(0, 0).setAngle(180)
-      );
+    } else if (renderFaceUpVisual) {
+      cardContainer.add(this.createFaceCardImage(0, 0, card, isSelected));
     }
 
     cardContainer.setSize(CARD_WIDTH, CARD_HEIGHT);
-    // Container origin is (0.5, 0.5) in Phaser 3.60+; use top-left Rectangle so
-    // pointWithinHitArea's displayOrigin offset produces the correct world hit box.
     cardContainer.setInteractive(
       new Phaser.Geom.Rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT),
       Phaser.Geom.Rectangle.Contains
     );
 
-    // pointerup + флаг wasDragged: тап вызывает onClick, drag — нет.
-    // Используем pointerup (а не pointerdown), чтобы поднятый палец после drag
-    // не запускал случайный тап-клик.
+    // pointerup + flag wasDragged: tap triggers onClick, drag does not
     let wasDragged = false;
     cardContainer.on("pointerup", () => {
       if (!wasDragged) onClick();
@@ -744,8 +895,8 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({
         targets: cardContainer,
         scaleX: 1,
-        duration: 220,
-        ease: "Back.Out",
+        duration: 80,
+        ease: "Power2",
       });
     }
 
@@ -849,7 +1000,7 @@ export class GameScene extends Phaser.Scene {
       if (sameSelection) {
         const nextState = tryAutoMoveToFoundation(this.gameState, this.selection);
         if (nextState) {
-          this.applyState(nextState, "");
+          this.applyState(nextState);
           getAppContext().sound.goodMove();
           return;
         }
@@ -866,7 +1017,7 @@ export class GameScene extends Phaser.Scene {
       );
 
       if (!nextState) {
-        // Move invalid — re-select the clicked card if it is face-up
+        // Move invalid - re-select the clicked card if it is face-up
         const clickedPile = this.gameState.tableau[pileIndex];
         const clickedCard = clickedPile?.cards[cardIndex];
         if (clickedCard?.faceUp) {
@@ -880,8 +1031,56 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      getAppContext().sound.cardPlace();
-      this.applyState(nextState, "");
+      const sourcePile = this.gameState.tableau[this.selection.pileIndex];
+      const stackCards = sourcePile.cards.slice(this.selection.cardIndex);
+      const sourceCard = stackCards[0];
+      const sourceX = TABLEAU_START_X + this.selection.pileIndex * TABLEAU_GAP_X;
+      const sourceY = this.getTableauCardY(sourcePile, this.selection.cardIndex);
+      const targetPile = nextState.tableau[pileIndex];
+      const targetY = this.getTableauCardY(targetPile, targetPile.cards.length - 1);
+
+      // Detect flips BEFORE mutating gameState (compare original vs nextState)
+      this.pendingFlips.clear();
+      for (let i = 0; i < nextState.tableau.length; i++) {
+        const oldPile = this.gameState.tableau[i];
+        const newPile = nextState.tableau[i];
+        const newTop = newPile.cards[newPile.cards.length - 1];
+        if (newTop?.faceUp) {
+          const oldCard = oldPile.cards.find((c) => c.id === newTop.id);
+          if (oldCard && !oldCard.faceUp) {
+            this.pendingFlips.add(newTop.id);
+          }
+        }
+      }
+
+      // Remove cards from source immediately so they don't appear doubled
+      this.pushHistory();
+      const srcPileIndex = this.selection.pileIndex;
+      const srcCardIndex = this.selection.cardIndex;
+      this.gameState = {
+        ...this.gameState,
+        tableau: this.gameState.tableau.map((pile, i) =>
+          i === srcPileIndex
+            ? { ...pile, cards: pile.cards.slice(0, srcCardIndex) }
+            : pile
+        ),
+      };
+      getAppContext().save.updateCurrentGame(this.gameState);
+
+      // Re-render board without source cards (flip animations already in pendingFlips)
+      this.selection = null;
+      this.renderBoard();
+
+      this.animateFlyToTableau(
+        sourceX,
+        sourceY,
+        sourceCard,
+        pileIndex,
+        targetY,
+        nextState,
+        stackCards,
+        sourceY
+      );
     }
   }
 
@@ -892,27 +1091,30 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     getAppContext().sound.cardPlace();
-    this.applyState(nextState, "");
+    this.applyState(nextState);
   }
 
-  private applyState(nextState: GameState, _message: string): void {
+  private applyState(nextState: GameState, skipHistory = false): void {
     if (!this.gameState) return;
 
-    // Detect cards that flipped from face-down to face-up (for flip animation)
-    this.pendingFlips.clear();
-    for (let i = 0; i < nextState.tableau.length; i++) {
-      const oldPile = this.gameState.tableau[i];
-      const newPile = nextState.tableau[i];
-      const newTop = newPile.cards[newPile.cards.length - 1];
-      if (newTop?.faceUp) {
-        const oldCard = oldPile.cards.find((c) => c.id === newTop.id);
-        if (oldCard && !oldCard.faceUp) {
-          this.pendingFlips.add(newTop.id);
+    // Flip detection - only run if pendingFlips not already set
+    if (this.pendingFlips.size === 0) {
+      for (let i = 0; i < nextState.tableau.length; i++) {
+        const oldPile = this.gameState.tableau[i];
+        const newPile = nextState.tableau[i];
+        const newTop = newPile.cards[newPile.cards.length - 1];
+        if (newTop?.faceUp) {
+          const oldCard = oldPile.cards.find((c) => c.id === newTop.id);
+          if (oldCard && !oldCard.faceUp) {
+            this.pendingFlips.add(newTop.id);
+          }
         }
       }
     }
 
-    this.pushHistory();
+    if (!skipHistory) {
+      this.pushHistory();
+    }
     this.gameState = {
       ...nextState,
       status: getGameStatus(nextState),
@@ -931,30 +1133,26 @@ export class GameScene extends Phaser.Scene {
   ): void {
     this.clearDragPreview();
     this.draggedSelection = selection;
-
-    const preview = this.add.container(pointerX, pointerY);
-
-    cards.forEach((card, index) => {
-      const y = index * Math.min(FACE_UP_GAP_Y, 18);
-      const rect = this.add
-        .rectangle(0, y, CARD_WIDTH, CARD_HEIGHT, 0xf7ecd8, 0.95)
-        .setStrokeStyle(2, 0xe3a34f);
-      const text = this.add
-        .text(-CARD_WIDTH / 2 + 6, y - CARD_HEIGHT / 2 + 6, formatCard(card), {
-          fontFamily: "Georgia",
-          fontSize: "15px",
-          color: card.color === "red" ? "#a93f48" : "#1b1b1b",
-        })
-        .setOrigin(0, 0);
-      preview.add([rect, text]);
-    });
-
-    preview.setDepth(1000);
-    this.dragPreview = preview;
+    this.dragPreviewCards = cards.map((card, index) => ({
+      key: `drag-${card.id}-${index}`,
+      left: pointerX - CARD_WIDTH / 2,
+      top: pointerY - CARD_HEIGHT / 2 + index * Math.min(FACE_UP_GAP_Y, 18),
+      card,
+      selected: true,
+    }));
+    this.renderGameOverlay();
   }
 
   private updateDragPreview(x: number, y: number): void {
-    this.dragPreview?.setPosition(x, y);
+    if (this.dragPreviewCards.length === 0) {
+      return;
+    }
+    this.dragPreviewCards = this.dragPreviewCards.map((previewCard, index) => ({
+      ...previewCard,
+      left: x - CARD_WIDTH / 2,
+      top: y - CARD_HEIGHT / 2 + index * Math.min(FACE_UP_GAP_Y, 18),
+    }));
+    this.renderGameOverlay();
   }
 
   private finishDrag(worldX: number, worldY: number): void {
@@ -967,9 +1165,8 @@ export class GameScene extends Phaser.Scene {
     const tableauIndex = this.getTableauIndexAt(worldX, worldY);
     let nextState: GameState | null = null;
 
-    // Foundation zone: entire row from first to last foundation slot (generous area)
+    // Foundation zone: entire row from first to last foundation slot
     if (this.isInFoundationZone(worldX, worldY)) {
-      // Try all 4 foundation slots — engine validates suit/rank
       for (let fi = 0; fi < 4; fi++) {
         if (selection.kind === "waste") {
           nextState = moveWasteToFoundation(this.gameState, fi);
@@ -1001,7 +1198,7 @@ export class GameScene extends Phaser.Scene {
 
     if (nextState) {
       getAppContext().sound.cardPlace();
-      this.applyState(nextState, "");
+      this.applyState(nextState);
       return;
     }
 
@@ -1012,6 +1209,8 @@ export class GameScene extends Phaser.Scene {
     this.dragPreview?.destroy();
     this.dragPreview = undefined;
     this.draggedSelection = null;
+    this.dragPreviewCards = [];
+    this.renderGameOverlay();
   }
 
   /** Returns true if (x, y) is anywhere inside the foundation row area */
@@ -1025,8 +1224,7 @@ export class GameScene extends Phaser.Scene {
   private getTableauIndexAt(x: number, y: number): number | null {
     if (y < TABLEAU_START_Y - CARD_HEIGHT / 2 - 20 || y > 740) return null;
 
-    // Find the closest column within half-gap distance (generous tolerance)
-    const halfGap = TABLEAU_GAP_X / 2; // 26px — covers the full space between columns
+    const halfGap = TABLEAU_GAP_X / 2;
     let bestIndex: number | null = null;
     let bestDist = halfGap + 1;
 
@@ -1070,13 +1268,42 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHintDisplay(): void {
-    const free = Math.max(0, ECONOMY.freeHintsPerGame - this.hintsUsedThisGame);
-    this.hintCountText?.setText(free > 0 ? `💡×${free}` : "💡 0");
+    this.renderGameOverlay();
   }
 
   private updateCoinDisplay(): void {
-    const coins = getAppContext().save.load().progress.coins;
-    this.coinText?.setText(`🪙 ${coins}`);
+    this.renderGameOverlay();
+  }
+
+  private getOverlayTitle(): string {
+    if (!this.gameState) {
+      return getAppContext().i18n.t("currentNode");
+    }
+
+    const { i18n } = getAppContext();
+    return this.gameState.mode === "adventure"
+      ? getPointTitleByDealId(this.gameState.dealId, i18n.getNarrativeLocale()) ?? i18n.t("currentNode")
+      : i18n.t("daily");
+  }
+
+  private getOverlaySubtitle(): string {
+    if (!this.gameState) {
+      return "";
+    }
+
+    const { i18n } = getAppContext();
+
+    if (this.gameState.mode === "adventure") {
+      const ch = parseInt(this.gameState.dealId.charAt(1), 10) || 1;
+      const lvl = parseInt(this.gameState.dealId.substring(3), 10) || 1;
+      return `${i18n.t("chapter")} ${ch} • ${lvl}/10`;
+    }
+
+    if (this.gameState.mode === "daily") {
+      return i18n.t("currentNode");
+    }
+
+    return "";
   }
 
   private showAutoCompleteOverlay(): void {
@@ -1093,23 +1320,26 @@ export class GameScene extends Phaser.Scene {
       .setStrokeStyle(2, 0xdac9a1)
       .setDepth(501);
 
-    const title = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, i18n.t("autoCompleteTitle"), {
-        fontFamily: "Georgia",
+    const title = applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, i18n.t("autoCompleteTitle"), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
         fontSize: "24px",
+        fontStyle: "bold",
         color: "#f8ebcf",
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502);
 
-    const body = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 25, i18n.t("autoCompleteBody"), {
-        fontFamily: "Georgia",
+    const body = applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 25, i18n.t("autoCompleteBody"), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
         fontSize: "15px",
         color: "#c9b98a",
         align: "center",
         wordWrap: { width: 260 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502);
 
@@ -1138,7 +1368,7 @@ export class GameScene extends Phaser.Scene {
       depth: 502,
       onClick: () => {
         destroyModal();
-        this.autoCompleting = true; // prevent re-show
+        this.autoCompleting = true;
       },
     });
 
@@ -1158,7 +1388,6 @@ export class GameScene extends Phaser.Scene {
 
     const step = autoCompleteStep(this.gameState);
     if (!step) {
-      // All done — check win
       if (this.gameState.status !== "won") {
         this.gameState = { ...this.gameState, status: getGameStatus(this.gameState) };
       }
@@ -1166,13 +1395,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Determine source position for fly animation
     let sourceX: number;
     let sourceY: number;
     let card: Card;
 
     if (step.source === "waste") {
-      // Card comes from waste
       if (step.target === "foundation") {
         const foundationPile = step.state.foundations[step.toPile];
         card = foundationPile.cards[foundationPile.cards.length - 1];
@@ -1180,10 +1407,9 @@ export class GameScene extends Phaser.Scene {
         const tableauPile = step.state.tableau[step.toPile];
         card = tableauPile.cards[tableauPile.cards.length - 1];
       }
-      sourceX = TABLEAU_START_X + TABLEAU_GAP_X; // waste position
+      sourceX = TABLEAU_START_X + TABLEAU_GAP_X;
       sourceY = TOP_ROW_Y;
     } else {
-      // Card comes from tableau
       const sourcePile = this.gameState.tableau[step.fromPile];
       card = sourcePile.cards[sourcePile.cards.length - 1];
       sourceX = TABLEAU_START_X + step.fromPile * TABLEAU_GAP_X;
@@ -1201,7 +1427,7 @@ export class GameScene extends Phaser.Scene {
       targetY = this.getTableauCardY(destPile, destPile.cards.length - 1);
     }
 
-    // Update state immediately (so the board re-renders without this card)
+    // Update state immediately
     this.pushHistory();
     this.gameState = { ...step.state, status: getGameStatus(step.state) };
     getAppContext().save.updateCurrentGame(this.gameState);
@@ -1211,38 +1437,30 @@ export class GameScene extends Phaser.Scene {
     this.renderTopArea();
     this.renderTableau();
 
-    // Fly animation
-    const flyCard = this.createFlyingCard(sourceX, sourceY, card);
+    // Fly animation using DOM overlay
     getAppContext().sound.cardPlace();
 
-    const targetScale = step.target === "foundation" ? 0.92 : 1;
-    this.tweens.add({
-      targets: flyCard,
-      x: targetX,
-      y: targetY,
-      scaleX: targetScale,
-      scaleY: targetScale,
-      duration: 120,
-      ease: "Power2",
-      onComplete: () => {
-        flyCard.destroy();
-        // Re-render to show updated foundation, then schedule next step
+    this.animateFlyToFoundationDom(
+      sourceX,
+      sourceY,
+      card,
+      targetX,
+      targetY,
+      () => {
         this.boardLayer?.removeAll(true);
         this.renderTopArea();
         this.renderTableau();
 
-        // Check win
         if (this.gameState?.status === "won") {
           this.renderBoard();
           return;
         }
 
-        // Next card after a short pause
         this.time.delayedCall(60, () => {
           this.runAutoComplete();
         });
-      },
-    });
+      }
+    );
   }
 
   /** Find the foundation index where this card can be placed, or null */
@@ -1254,36 +1472,7 @@ export class GameScene extends Phaser.Scene {
     return null;
   }
 
-  /** Create a visual-only card clone for fly animation (no interactivity) */
-  private createFlyingCard(x: number, y: number, card: Card): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
-    const rect = this.add
-      .rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0xf7ecd8, 1)
-      .setStrokeStyle(2, 0xe3a34f)
-      .setOrigin(0.5);
-    container.add(rect);
-    const textColor = card.color === "red" ? "#a93f48" : "#1b1b1b";
-    const label = `${formatRank(card)}${formatSuit(card)}`;
-    container.add(
-      this.add.text(-CARD_WIDTH / 2 + 4, -CARD_HEIGHT / 2 + 4, label, {
-        fontFamily: "Georgia", fontSize: "14px", fontStyle: "bold", color: textColor,
-      }).setOrigin(0, 0)
-    );
-    container.add(
-      this.add.text(0, 0, formatSuit(card), {
-        fontFamily: "Georgia", fontSize: "24px", color: textColor,
-      }).setOrigin(0.5)
-    );
-    container.add(
-      this.add.text(CARD_WIDTH / 2 - 4, CARD_HEIGHT / 2 - 4, label, {
-        fontFamily: "Georgia", fontSize: "14px", fontStyle: "bold", color: textColor,
-      }).setOrigin(0, 0).setAngle(180)
-    );
-    container.setDepth(100);
-    return container;
-  }
-
-  /** Animate a card flying from source position to foundation, then apply state */
+  /** Animate a card flying from source position to foundation using DOM overlay */
   private animateFlyToFoundation(
     sourceX: number,
     sourceY: number,
@@ -1295,29 +1484,252 @@ export class GameScene extends Phaser.Scene {
     const targetX = FOUNDATION_START_X + foundationIndex * FOUNDATION_GAP_X;
     const targetY = TOP_ROW_Y;
 
-    this.flyingCard?.destroy();
-    this.flyingCard = this.createFlyingCard(sourceX, sourceY, card);
+    this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetY, () => {
+      this.animating = false;
+      getAppContext().sound.goodMove();
+      this.applyState(nextState);
+    });
+  }
 
+  /** Animate a card flying from source position to tableau using DOM overlay */
+  private animateFlyToTableau(
+    sourceX: number,
+    sourceY: number,
+    card: Card,
+    targetPileIndex: number,
+    targetCardY: number,
+    nextState: GameState,
+    stackCards?: Card[],
+    stackSourceY?: number,
+  ): void {
+    this.animating = true;
+    const targetX = TABLEAU_START_X + targetPileIndex * TABLEAU_GAP_X;
+
+    if (stackCards && stackCards.length > 1) {
+      this.animateFlyStackToTableau(
+        sourceX,
+        stackSourceY ?? sourceY,
+        stackCards,
+        targetX,
+        targetCardY,
+        () => {
+          this.animating = false;
+          getAppContext().sound.cardPlace();
+          this.applyState(nextState, true);
+        }
+      );
+    } else {
+      this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetCardY, () => {
+        this.animating = false;
+        getAppContext().sound.cardPlace();
+        this.applyState(nextState, true);
+      });
+    }
+  }
+
+  /** Animate a stack of cards flying from source to tableau */
+  private animateFlyStackToTableau(
+    sourceX: number,
+    sourceTopY: number,
+    stackCards: Card[],
+    targetX: number,
+    targetCardY: number,
+    onComplete: () => void
+  ): void {
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) {
+      onComplete();
+      return;
+    }
+
+    const scale = this.gameOverlay?.getScale() ?? 1;
+
+    const animEls: HTMLElement[] = [];
+    stackCards.forEach((card, index) => {
+      const yOffset = index * Math.min(FACE_UP_GAP_Y, 18);
+      const animEl = document.createElement("div");
+      animEl.className = "game-overlay__dom-card game-overlay__stack-anim-card";
+      const cardLeft = getGameCardLeft(sourceX) * scale;
+      const cardTop = getGameCardTop(sourceTopY + yOffset) * scale;
+      animEl.style.cssText = `
+        position: absolute;
+        left: ${cardLeft}px;
+        top: ${cardTop}px;
+        pointer-events: none;
+        z-index: ${100 + index};
+      `;
+
+      const svgMarkup = createCardFaceSvgMarkup(card, true);
+      animEl.innerHTML = svgMarkup;
+      const svgEl = animEl.querySelector("svg");
+      if (svgEl) {
+        svgEl.style.width = `${CARD_WIDTH * scale}px`;
+        svgEl.style.height = `${CARD_HEIGHT * scale}px`;
+      }
+
+      overlayEl.appendChild(animEl);
+      animEls.push(animEl);
+    });
+
+    void animEls[0].offsetHeight;
+
+    const targetLeft = getGameCardLeft(targetX) * scale;
+    const targetTopOffset = getGameCardTop(targetCardY) * scale;
+
+    requestAnimationFrame(() => {
+      animEls.forEach((animEl, index) => {
+        const yOffset = index * Math.min(FACE_UP_GAP_Y, 18) * scale;
+        animEl.style.transition = `left 220ms ease-out ${index * 15}ms, top 220ms ease-out ${index * 15}ms`;
+        animEl.style.left = `${targetLeft}px`;
+        animEl.style.top = `${targetTopOffset + yOffset}px`;
+      });
+
+      const totalTime = 220 + (stackCards.length - 1) * 15 + 120;
+      this.time.delayedCall(totalTime, () => {
+        animEls.forEach(el => {
+          if (el.parentNode) el.remove();
+        });
+        onComplete();
+      });
+    });
+  }
+
+  /**
+   * Animate stock->waste card draw using Phaser container with SVG texture.
+   * Slide + flip/reveal effect. Uses CENTER coordinates (Phaser coordinate system).
+   */
+  private animateStockToWasteDom(
+    card: Card,
+    fromCenterX: number,
+    fromCenterY: number,
+    toCenterX: number,
+    onComplete: () => void
+  ): void {
+    const backKey = this.cardBackKey();
+
+    // Create card-back object (same as canvas approach)
+    let backObj: Phaser.GameObjects.GameObject;
+    if (this.textures.exists(backKey)) {
+      backObj = this.add.image(0, 0, backKey)
+        .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
+        .setOrigin(0.5);
+    } else {
+      backObj = this.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0x355854, 1)
+        .setStrokeStyle(2, 0xdac9a1)
+        .setOrigin(0.5);
+    }
+
+    // Container for animation at START position (center coords)
+    const flyContainer = this.add.container(fromCenterX, fromCenterY).setDepth(200);
+    flyContainer.add(backObj);
+
+    // Phase 1: Slide from midpoint to waste center
     this.tweens.add({
-      targets: this.flyingCard,
-      x: targetX,
-      y: targetY,
-      scaleX: 0.92,
-      scaleY: 0.92,
-      duration: 220,
+      targets: flyContainer,
+      x: toCenterX,
+      duration: 150,
       ease: "Power2",
       onComplete: () => {
-        this.flyingCard?.destroy();
-        this.flyingCard = undefined;
-        this.animating = false;
-        getAppContext().sound.goodMove();
-        this.applyState(nextState, "");
+        // Phase 2: Flip effect
+        this.tweens.add({
+          targets: flyContainer,
+          scaleX: 0,
+          duration: 80,
+          onComplete: () => {
+            // Swap to face-up SVG texture
+            flyContainer.removeAll(true);
+            const svgTextureKey = getSvgCardFaceTextureKey(card.rank, card.suit);
+            if (this.textures.exists(svgTextureKey)) {
+              flyContainer.add(
+                this.add.image(0, 0, svgTextureKey)
+                  .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
+                  .setOrigin(0.5)
+              );
+            } else {
+              const faceTexture = ensureCardFaceTexture(this, card, CARD_WIDTH, CARD_HEIGHT, false);
+              flyContainer.add(
+                this.add.image(0, 0, faceTexture)
+                  .setDisplaySize(CARD_WIDTH, CARD_HEIGHT)
+                  .setOrigin(0.5)
+              );
+            }
+            // Phase 3: Expand back (reveal)
+            this.tweens.add({
+              targets: flyContainer,
+              scaleX: 1,
+              duration: 80,
+              onComplete: () => {
+                flyContainer.destroy();
+                onComplete();
+              },
+            });
+          },
+        });
+      },
+    });
+  }
+
+  /** Animate a card flying from source to target using DOM overlay */
+  private animateFlyToFoundationDom(
+    sourceX: number,
+    sourceY: number,
+    card: Card,
+    targetX: number,
+    targetY: number,
+    onComplete: () => void
+  ): void {
+    const svgMarkup = createCardFaceSvgMarkup(card, true);
+
+    const animEl = document.createElement("div");
+    animEl.className = "game-overlay__fly-anim";
+    animEl.style.cssText = `
+      position: absolute;
+      left: ${sourceX}px;
+      top: ${sourceY}px;
+      width: ${CARD_WIDTH}px;
+      height: ${CARD_HEIGHT}px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 100;
+    `;
+    animEl.innerHTML = svgMarkup;
+
+    const svgEl = animEl.querySelector("svg");
+    if (svgEl) {
+      svgEl.style.width = "100%";
+      svgEl.style.height = "100%";
+    }
+
+    const overlayEl = this.gameOverlay?.getInnerElement();
+    if (overlayEl) {
+      overlayEl.appendChild(animEl);
+    }
+
+    const startPos = { x: sourceX, y: sourceY };
+    this.tweens.add({
+      targets: startPos,
+      x: targetX,
+      y: targetY,
+      duration: 220,
+      ease: "Power2",
+      onUpdate: () => {
+        animEl.style.left = `${startPos.x}px`;
+        animEl.style.top = `${startPos.y}px`;
+      },
+      onComplete: () => {
+        animEl.style.transition = "transform 80ms ease-out";
+        animEl.style.transform = "translate(-50%, -50%) scale(0.92)";
+
+        this.time.delayedCall(80, () => {
+          animEl.remove();
+          onComplete();
+        });
       },
     });
   }
 
   private playWinAnimation(onComplete: () => void): void {
-    // 1. Белая вспышка
+    // 1. White flash
     const flash = this.add
       .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0)
       .setDepth(200);
@@ -1329,7 +1741,7 @@ export class GameScene extends Phaser.Scene {
       ease: "Power2",
     });
 
-    // 2. Runtime-текстура для частиц (маленький золотой кружок)
+    // 2. Runtime texture for particles (small gold circle)
     if (!this.textures.exists("win-particle")) {
       const gfx = this.add.graphics();
       gfx.fillStyle(0xffd700, 1);
@@ -1338,7 +1750,7 @@ export class GameScene extends Phaser.Scene {
       gfx.destroy();
     }
 
-    // 3. Золотые частицы из зоны foundations (x-диапазон = весь ряд foundation)
+    // 3. Gold particles from foundations zone
     const emitter = this.add.particles(
       0,
       TOP_ROW_Y - 10,
@@ -1356,16 +1768,18 @@ export class GameScene extends Phaser.Scene {
       }
     ).setDepth(201);
 
-    // 4. Текст "Победа!" поверх поля
+    // 4. "Victory!" text
     const { i18n } = getAppContext();
-    const victoryText = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, i18n.t("victory"), {
-        fontFamily: "Georgia",
+    const victoryText = applyTextRenderQuality(
+      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, i18n.t("victory"), {
+        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
         fontSize: "42px",
+        fontStyle: "bold",
         color: "#f8ebcf",
         stroke: "#3a2000",
         strokeThickness: 4,
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(202)
       .setAlpha(0);
@@ -1377,7 +1791,7 @@ export class GameScene extends Phaser.Scene {
       ease: "Back.Out",
     });
 
-    // 5. Через 1.5с завершаем
+    // 5. Cleanup after 1.5s
     this.time.delayedCall(1500, () => {
       emitter.destroy();
       victoryText.destroy();

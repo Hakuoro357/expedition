@@ -102,6 +102,14 @@ export function getNodeById(id: string): ChapterNode | undefined {
   return ALL_NODES.find((n) => n.id === id);
 }
 
+export function getNodeByEntryId(entryId: string): ChapterNode | undefined {
+  return ALL_NODES.find((node) => node.entryId === entryId);
+}
+
+export function getNodeByArtifactId(artifactId: string): ChapterNode | undefined {
+  return ALL_NODES.find((node) => node.artifactId === artifactId);
+}
+
 export function getNextNodeId(currentId: string): string | null {
   const idx = ALL_NODES.findIndex((n) => n.id === currentId);
   if (idx === -1 || idx === ALL_NODES.length - 1) {

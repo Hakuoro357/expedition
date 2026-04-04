@@ -2,7 +2,7 @@
 
 ## Статус
 
-`Draft for review`
+`Approved`
 
 ## Задача
 

@@ -1,13 +1,15 @@
 import { getArtifactById } from "@/data/artifacts";
+import { resolveArtifactGridUrl } from "@/data/artifactAssetUrls";
 import { getNodeById } from "@/data/chapters";
-import { getNarrativeEntry } from "@/data/narrative/entries";
+import { getNarrativeEntry, getNarrativeEntryExcerpt } from "@/data/narrative/entries";
+import { getPointTitleByPointId } from "@/data/narrative/points";
+import { getNarrativeSpeakerProfile } from "@/data/narrative/speakers";
+import { resolvePortraitUrl } from "@/data/portraitAssetUrls";
 import {
   getRewardById,
-  getRewardDisplayText,
-  type NarrativeRewardType,
 } from "@/data/narrative/rewards";
 
-export type RewardRevealType = "entry" | "artifact" | "map";
+export type RewardRevealType = "entry" | "artifact";
 
 export type RewardRevealItem = {
   type: RewardRevealType;
@@ -16,6 +18,7 @@ export type RewardRevealItem = {
   badgeLabel: string;
   subtitle?: string;
   description?: string;
+  mediaUrl?: string;
 };
 
 export type BuildRewardRevealItemsParams = {
@@ -24,24 +27,6 @@ export type BuildRewardRevealItemsParams = {
   artifactAwarded: string | null;
   locale: "ru" | "global";
 };
-
-const MAP_REWARD_TYPES = [
-  "map_piece",
-  "map_variant",
-  "map_marker",
-  "chapter_piece",
-] as const;
-
-type MapRewardType = (typeof MAP_REWARD_TYPES)[number];
-
-function isMapRewardType(rewardType: NarrativeRewardType): rewardType is MapRewardType {
-  return MAP_REWARD_TYPES.includes(rewardType as MapRewardType);
-}
-
-function getPointLabel(pointId: string, locale: "ru" | "global"): string {
-  const pointNumber = pointId.replace("pt_", "");
-  return locale === "ru" ? `Точка ${pointNumber}` : `Point ${pointNumber}`;
-}
 
 export function buildRewardRevealItems({
   dealId,
@@ -54,21 +39,20 @@ export function buildRewardRevealItems({
   const isRu = locale === "ru";
   const node = getNodeById(dealId);
   const validatedReward = node?.rewardId === rewardId ? getRewardById(rewardId) : undefined;
-  const validatedMapReward =
-    validatedReward && isMapRewardType(validatedReward.rewardType) ? validatedReward : undefined;
   const expectedArtifactId = validatedReward?.collectibleArtifactId ?? node?.artifactId ?? null;
-  const suppressArtifactForMapReward = Boolean(validatedMapReward?.collectibleArtifactId);
 
   if (node?.entryId) {
     const entry = getNarrativeEntry(node.entryId, narrativeLocale);
 
     if (entry) {
+      const speaker = getNarrativeSpeakerProfile(entry.speakerEntityId, narrativeLocale);
       items.push({
         type: "entry",
         id: node.entryId,
-        title: getPointLabel(node.pointId, locale),
+        title: getPointTitleByPointId(node.pointId, locale) ?? node.pointId,
         badgeLabel: isRu ? "Запись" : "Entry",
-        subtitle: entry.body,
+        subtitle: getNarrativeEntryExcerpt(node.entryId, narrativeLocale) ?? entry.body,
+        mediaUrl: resolvePortraitUrl(speaker.portraitKey),
       });
     }
   }
@@ -76,8 +60,7 @@ export function buildRewardRevealItems({
   if (
     artifactAwarded != null &&
     expectedArtifactId != null &&
-    artifactAwarded === expectedArtifactId &&
-    !suppressArtifactForMapReward
+    artifactAwarded === expectedArtifactId
   ) {
     const artifact = getArtifactById(artifactAwarded);
 
@@ -88,20 +71,7 @@ export function buildRewardRevealItems({
         title: isRu ? artifact.titleRu : artifact.titleEn,
         badgeLabel: isRu ? "Артефакт" : "Artifact",
         subtitle: isRu ? artifact.descriptionRu : artifact.descriptionEn,
-      });
-    }
-  }
-
-  if (validatedMapReward) {
-    const rewardText = getRewardDisplayText(rewardId, narrativeLocale);
-
-    if (rewardText) {
-      items.push({
-        type: "map",
-        id: validatedMapReward.rewardId,
-        title: rewardText.title,
-        badgeLabel: isRu ? "Карта" : "Map",
-        subtitle: rewardText.description,
+        mediaUrl: resolveArtifactGridUrl(artifact.imageKey),
       });
     }
   }

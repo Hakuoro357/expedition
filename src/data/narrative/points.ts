@@ -36,10 +36,44 @@ const REWARD_IDS: string[] = [
   "reward_finale_bundle_01",
 ];
 
+const POINT_TITLES = [
+  { ru: "Выход в шесть двенадцать", en: "Departure at Six Twelve" },
+  { ru: "Смещённые отметки", en: "Shifted Markers" },
+  { ru: "Ложный гребень", en: "False Ridge" },
+  { ru: "Камень у стоянки", en: "Stone by the Camp" },
+  { ru: "Сменённая плёнка", en: "Changed Film" },
+  { ru: "Знак на повторе", en: "Repeated Marker" },
+  { ru: "Конверт отдельно", en: "Envelope Set Aside" },
+  { ru: "Дуга маршрута", en: "Route Arc" },
+  { ru: "Тождественный знак", en: "Identical Marker" },
+  { ru: "Ниже линии ветра", en: "Below the Wind Line" },
+  { ru: "Пересчёт ночью", en: "Recount at Night" },
+  { ru: "Лишний обход", en: "Unneeded Detour" },
+  { ru: "Заметка Левина", en: "Levin's Note" },
+  { ru: "Проход ниже гребня", en: "Pass Below the Ridge" },
+  { ru: "Лист без даты", en: "Undated Sheet" },
+  { ru: "Решение вслух", en: "Decision Spoken Aloud" },
+  { ru: "Ложная карта", en: "False Map" },
+  { ru: "Пустой футляр", en: "Empty Case" },
+  { ru: "Тропа к стоянке", en: "Path to the Camp" },
+  { ru: "Следы сокрытия", en: "Traces of Concealment" },
+  { ru: "Скрытый маршрут", en: "Hidden Route" },
+  { ru: "Вторая запись", en: "Second Entry" },
+  { ru: "Схема стоянки", en: "Camp Layout" },
+  { ru: "Оставленная вещь", en: "Left-Behind Item" },
+  { ru: "Контейнер диска", en: "Disc Container" },
+  { ru: "Групповой снимок", en: "Group Photograph" },
+  { ru: "Порядок ухода", en: "Order of Departure" },
+  { ru: "Архивная помета", en: "Archive Note" },
+  { ru: "Печать дела", en: "Seal on the File" },
+  { ru: "Последний лист", en: "Final Page" },
+] as const;
+
 export const NARRATIVE_POINTS: NarrativePoint[] = REWARD_IDS.map((rewardId, index) => {
   const chapterIndex = Math.floor(index / 10);
   const nodeIndex = (index % 10) + 1;
   const serial = String(index + 1).padStart(2, "0");
+  const title = POINT_TITLES[index];
 
   return {
     pointId: `pt_${serial}`,
@@ -47,6 +81,8 @@ export const NARRATIVE_POINTS: NarrativePoint[] = REWARD_IDS.map((rewardId, inde
     dealId: `c${chapterIndex + 1}n${nodeIndex}`,
     entryId: `entry_${serial}`,
     rewardId,
+    titleRu: title?.ru ?? `Точка ${index + 1}`,
+    titleEn: title?.en ?? `Point ${index + 1}`,
   };
 });
 
@@ -56,4 +92,28 @@ export function getPointByDealId(dealId: string): NarrativePoint | undefined {
 
 export function getPointByPointId(pointId: string): NarrativePoint | undefined {
   return NARRATIVE_POINTS.find((point) => point.pointId === pointId);
+}
+
+export function getPointTitleByPointId(
+  pointId: string,
+  locale: "ru" | "en" | "global",
+): string | undefined {
+  const point = getPointByPointId(pointId);
+  if (!point) {
+    return undefined;
+  }
+
+  return locale === "ru" ? point.titleRu : point.titleEn;
+}
+
+export function getPointTitleByDealId(
+  dealId: string,
+  locale: "ru" | "en" | "global",
+): string | undefined {
+  const point = getPointByDealId(dealId);
+  if (!point) {
+    return undefined;
+  }
+
+  return locale === "ru" ? point.titleRu : point.titleEn;
 }

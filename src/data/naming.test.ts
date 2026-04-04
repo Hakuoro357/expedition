@@ -9,6 +9,13 @@ describe("naming", () => {
     expect(getChapterTitle("chapter_03", "en")).toBe("Last Camp");
   });
 
+  it("returns canonical expedition and main artifact names", () => {
+    expect(getNamingValue("expedition_name", "ru")).toBe('Экспедиция "Перевал"');
+    expect(getNamingValue("expedition_name", "en")).toBe("The Pass Expedition");
+    expect(getNamingValue("artifact_main", "ru")).toBe("Навигационный диск");
+    expect(getNamingValue("artifact_main", "en")).toBe("Wayfinder Disc");
+  });
+
   it("assigns canonical chapter ids in order", () => {
     expect(CHAPTERS.map((chapter) => chapter.chapterId)).toEqual([
       "chapter_01",

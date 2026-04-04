@@ -29,7 +29,7 @@ export type NarrativeReward = {
   collectibleArtifactId?: string;
 };
 
-const REWARDS: NarrativeReward[] = [
+export const NARRATIVE_REWARDS: NarrativeReward[] = [
   { rewardId: "reward_diary_page_01", rewardType: "diary_page" },
   { rewardId: "reward_expedition_stamp_01", rewardType: "stamp", collectibleArtifactId: "compass" },
   { rewardId: "reward_map_piece_01", rewardType: "map_piece", collectibleArtifactId: "old-map" },
@@ -63,7 +63,7 @@ const REWARDS: NarrativeReward[] = [
 ];
 
 export function getRewardById(rewardId: string): NarrativeReward | undefined {
-  return REWARDS.find((reward) => reward.rewardId === rewardId);
+  return NARRATIVE_REWARDS.find((reward) => reward.rewardId === rewardId);
 }
 
 export function getRewardDisplayText(rewardId: string, locale: "ru" | "global") {

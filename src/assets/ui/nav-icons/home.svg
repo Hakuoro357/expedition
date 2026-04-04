@@ -1,0 +1,8 @@
+<svg class="route-overlay__nav-svg" viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <path
+    fill="currentColor"
+    fill-rule="evenodd"
+    d="M11.25 4.2a1.05 1.05 0 0 1 1.5 0l6.15 6.05a1.05 1.05 0 0 1-1.47 1.5l-.68-.67V18a1.8 1.8 0 0 1-1.8 1.8H9.05A1.8 1.8 0 0 1 7.25 18v-6.92l-.68.67a1.05 1.05 0 0 1-1.47-1.5l6.15-6.05Zm-1.9 5.82V18a.4.4 0 0 0 .4.4h5.1a.4.4 0 0 0 .4-.4v-7.98L12 6.82l-2.65 3.2Zm1.55 3.53h2.2a.72.72 0 0 1 .72.72v3.4h-3.64v-3.4a.72.72 0 0 1 .72-.72Z"
+    clip-rule="evenodd"
+  />
+</svg>

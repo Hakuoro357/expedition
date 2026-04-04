@@ -12,7 +12,7 @@ describe("buildRewardRevealItems", () => {
 
     expect(items.map((item) => item.type)).toEqual(["entry", "artifact"]);
     expect(items[0]?.id).toBe("entry_16");
-    expect(items[0]?.title).toContain("16");
+    expect(items[0]?.title).toBe("Решение вслух");
     expect(items[1]?.id).toBe("field-journal");
     expect(items[1]?.title).toBe("Записка без подписи");
   });
@@ -70,7 +70,20 @@ describe("buildRewardRevealItems", () => {
     });
   });
 
-  it("creates entry plus map, not artifact, for a map reward with collectibleArtifactId", () => {
+  it("uses a short excerpt instead of the full canonical entry body", () => {
+    const items = buildRewardRevealItems({
+      dealId: "c1n1",
+      rewardId: "reward_diary_page_01",
+      artifactAwarded: null,
+      locale: "ru",
+    });
+
+    expect(items[0]?.type).toBe("entry");
+    expect(items[0]?.subtitle).toContain("Выход в шесть двенадцать");
+    expect(items[0]?.subtitle?.length).toBeLessThan(151);
+  });
+
+  it("creates entry plus artifact for a reward with collectibleArtifactId when artifact is awarded", () => {
     const items = buildRewardRevealItems({
       dealId: "c1n3",
       rewardId: "reward_map_piece_01",
@@ -78,61 +91,41 @@ describe("buildRewardRevealItems", () => {
       locale: "ru",
     });
 
-    expect(items.map((item) => item.type)).toEqual(["entry", "map"]);
+    expect(items.map((item) => item.type)).toEqual(["entry", "artifact"]);
     expect(items[0]).toMatchObject({
       type: "entry",
       id: "entry_03",
-      title: "Точка 03",
+      title: "Ложный гребень",
       badgeLabel: "Запись",
       subtitle: expect.any(String),
+      mediaUrl: expect.any(String),
     });
     expect(items[1]).toMatchObject({
-      type: "map",
-      id: "reward_map_piece_01",
+      type: "artifact",
+      id: "old-map",
       title: "Первый фрагмент карты",
-      badgeLabel: "Карта",
-      subtitle: "Маршрут начинает складываться визуально.",
+      badgeLabel: "Артефакт",
+      subtitle: "Клочок маршрута, жёлтый и ломкий. С него путь начинает собираться заново.",
+      mediaUrl: expect.any(String),
     });
   });
 
   it.each([
-    {
-      dealId: "c1n8",
-      rewardId: "reward_map_variant_01",
-      title: "Схема с расхождениями",
-      subtitle: "Первый явный след двойного маршрута.",
-    },
-    {
-      dealId: "c1n4",
-      rewardId: "reward_camp_marker_01",
-      title: "Отметка стоянки",
-      subtitle: "Ещё одна точка реального пути.",
-    },
-    {
-      dealId: "c1n10",
-      rewardId: "reward_chapter_piece_01",
-      title: "Ключевой фрагмент главы",
-      subtitle: "Скрытый слой первого участка начинает раскрываться.",
-    },
-  ] as const)("creates a map item for $rewardId", ({ dealId, rewardId, title, subtitle }) => {
+    "reward_map_variant_01",
+    "reward_camp_marker_01",
+    "reward_chapter_piece_01",
+  ] as const)("does not create a map item for %s anymore", (rewardId) => {
     const items = buildRewardRevealItems({
-      dealId,
+      dealId: rewardId === "reward_map_variant_01" ? "c1n8" : rewardId === "reward_camp_marker_01" ? "c1n4" : "c1n10",
       rewardId,
       artifactAwarded: null,
       locale: "ru",
     });
 
-    expect(items.map((item) => item.type)).toEqual(["entry", "map"]);
-    expect(items[1]).toMatchObject({
-      type: "map",
-      id: rewardId,
-      title,
-      badgeLabel: "Карта",
-      subtitle,
-    });
+    expect(items.map((item) => item.type)).toEqual(["entry"]);
   });
 
-  it("returns a localized map item in global locale", () => {
+  it("returns only entry in global locale when no artifact was awarded", () => {
     const items = buildRewardRevealItems({
       dealId: "c1n3",
       rewardId: "reward_map_piece_01",
@@ -140,20 +133,13 @@ describe("buildRewardRevealItems", () => {
       locale: "global",
     });
 
-    expect(items.map((item) => item.type)).toEqual(["entry", "map"]);
+    expect(items.map((item) => item.type)).toEqual(["entry"]);
     expect(items[0]).toMatchObject({
       type: "entry",
       id: "entry_03",
-      title: "Point 03",
+      title: "False Ridge",
       badgeLabel: "Entry",
       subtitle: expect.any(String),
-    });
-    expect(items[1]).toMatchObject({
-      type: "map",
-      id: "reward_map_piece_01",
-      title: "First Map Fragment",
-      badgeLabel: "Map",
-      subtitle: "The route begins to take shape.",
     });
   });
 });
