@@ -71,9 +71,10 @@ function createTopRowHtml(
   foundationSlots: GameFoundationSlot[],
   cardBackSvg?: string,
 ): string {
-  // Stock slot now just shows the card back, no counter
-  const stockHtml = cardBackSvg
-    ? `<div class="game-overlay__slot game-overlay__slot--stock">${cardBackSvg}</div>`
+  // Stock slot: only card back, no counter. Fix aspect ratio and wrap in card-back div.
+  const fixedSvg = cardBackSvg ? fixCardBackSvgAspect(cardBackSvg) : "";
+  const stockHtml = fixedSvg
+    ? `<div class="game-overlay__slot game-overlay__slot--stock"><div class="game-overlay__card-back">${fixedSvg}</div></div>`
     : `<div class="game-overlay__slot game-overlay__slot--stock"></div>`;
 
   const wasteHtml = `<div class="game-overlay__slot game-overlay__slot--waste${wasteActive ? " game-overlay__slot--active" : ""}${wasteHasCard ? " game-overlay__slot--hidden" : ""}"></div>`;
@@ -138,10 +139,20 @@ function createDragCardsHtml(cards: GameOverlayCard[]): string {
   ].join("");
 }
 
+// Fix SVG aspect ratio to match card dimensions (44x70 ≈ 0.63)
+// Original viewBox is 0 0 300 420 (≈ 0.71), which causes squashing.
+const FIXED_CARD_BACK_VIEWBOX = 'viewBox="0 0 300 477"';
+
+export function fixCardBackSvgAspect(svg: string): string {
+  return svg.replace(/viewBox="[^"]*"/, FIXED_CARD_BACK_VIEWBOX);
+}
+
 function createFaceDownCardsHtml(cards: GameOverlayFaceDownCard[], cardBackSvg?: string): string {
   if (cards.length === 0 || !cardBackSvg) {
     return "";
   }
+
+  const fixedSvg = fixCardBackSvgAspect(cardBackSvg);
 
   return [
     '<div class="game-overlay__dom-cards game-overlay__dom-cards--facedown">',
@@ -152,7 +163,7 @@ function createFaceDownCardsHtml(cards: GameOverlayFaceDownCard[], cardBackSvg?:
           data-card-key="${escapeHtml(key)}"
           style="left:${left}px;top:${top}px;"
         >
-          <div class="game-overlay__card-back">${cardBackSvg}</div>
+          <div class="game-overlay__card-back">${fixedSvg}</div>
         </div>`,
     ),
     "</div>",
@@ -190,7 +201,7 @@ export function createGameSceneOverlayHtml({
     (subtitle ? `    <div class="game-overlay__subtitle">${escapeHtml(subtitle)}</div>` : ""),
     "  </div>",
     `  ${createTopRowHtml(stockCountLabel, wasteHasCard, wasteActive, foundationSlots, cardBackSvg)}`,
-    `  ${createFaceDownCardsHtml(faceDownCards, cardBackSvg)}`,
+    `  ${createFaceDownCardsHtml(faceDownCards ?? [], cardBackSvg)}`,
     `  ${createCardsHtml(cards)}`,
     `  ${createDragCardsHtml(dragCards)}`,
     `  <button class="game-overlay__question route-overlay__nav-item route-overlay__nav-button" data-game-rules="true" type="button" aria-label="${escapeHtml(rulesLabel)}">`,

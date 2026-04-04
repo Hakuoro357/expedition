@@ -36,7 +36,7 @@ import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 import { applyTextRenderQuality } from "@/app/rendering";
 import { createButton } from "@/ui/createButton";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
-import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard } from "@/scenes/gameSceneOverlay";
+import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
 import {
   GAME_CARD_HEIGHT as CARD_HEIGHT,
   GAME_CARD_WIDTH as CARD_WIDTH,
@@ -190,7 +190,7 @@ export class GameScene extends Phaser.Scene {
       rulesLabel: i18n.t("rules"),
       cards: this.getOverlayCards(),
       dragCards: this.dragPreviewCards,
-      cardBackSvg: `<div class="game-overlay__card-back">${cardBackSvg}</div>`,
+      cardBackSvg: `<div class="game-overlay__card-back">${fixCardBackSvgAspect(cardBackSvg)}</div>`,
       faceDownCards: this.getOverlayFaceDownCards(),
     });
 
@@ -1695,7 +1695,7 @@ export class GameScene extends Phaser.Scene {
       z-index: 200;
     `;
 
-    // Card back using imported SVG
+    // Card back using imported SVG (fix aspect ratio)
     const backKey = this.cardBackKey();
     let backSvg: string;
     switch (backKey) {
@@ -1703,6 +1703,7 @@ export class GameScene extends Phaser.Scene {
       case "card-back-map": backSvg = backMapSvg; break;
       default: backSvg = backDefaultSvg; break;
     }
+    backSvg = fixCardBackSvgAspect(backSvg);
     animEl.innerHTML = `<div style="width:100%;height:100%;">${backSvg}</div>`;
     const backSvgEl = animEl.querySelector("svg");
     if (backSvgEl) {
