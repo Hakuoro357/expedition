@@ -190,7 +190,7 @@ export class GameScene extends Phaser.Scene {
       rulesLabel: i18n.t("rules"),
       cards: this.getOverlayCards(),
       dragCards: this.dragPreviewCards,
-      cardBackSvg: `<div class="game-overlay__card-back">${fixCardBackSvgAspect(cardBackSvg)}</div>`,
+      cardBackSvg: fixCardBackSvgAspect(cardBackSvg),
       faceDownCards: this.getOverlayFaceDownCards(),
     });
 

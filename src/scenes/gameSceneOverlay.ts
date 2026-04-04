@@ -71,11 +71,14 @@ function createTopRowHtml(
   foundationSlots: GameFoundationSlot[],
   cardBackSvg?: string,
 ): string {
-  // Stock slot: only card back, no counter. Fix aspect ratio and wrap in card-back div.
-  const fixedSvg = cardBackSvg ? fixCardBackSvgAspect(cardBackSvg) : "";
-  const stockHtml = fixedSvg
-    ? `<div class="game-overlay__slot game-overlay__slot--stock"><div class="game-overlay__card-back">${fixedSvg}</div></div>`
-    : `<div class="game-overlay__slot game-overlay__slot--stock"></div>`;
+  // Stock slot: use same class as tableau cards (.game-overlay__dom-card) to guarantee 44x70 size.
+  // Position it manually since .game-overlay__dom-card is absolute.
+  const stockLeft = 17; // Matches TABLEAU_START_X - CARD_WIDTH/2
+  const stockTop = 101; // Matches TOP_ROW_Y - CARD_HEIGHT/2
+  
+  const stockHtml = cardBackSvg
+    ? `<div class="game-overlay__dom-card game-overlay__slot--stock" style="left:${stockLeft}px;top:${stockTop}px;"><div class="game-overlay__card-back">${fixCardBackSvgAspect(cardBackSvg)}</div></div>`
+    : `<div class="game-overlay__dom-card game-overlay__slot--stock" style="left:${stockLeft}px;top:${stockTop}px;"></div>`;
 
   const wasteHtml = `<div class="game-overlay__slot game-overlay__slot--waste${wasteActive ? " game-overlay__slot--active" : ""}${wasteHasCard ? " game-overlay__slot--hidden" : ""}"></div>`;
 
@@ -139,12 +142,16 @@ function createDragCardsHtml(cards: GameOverlayCard[]): string {
   ].join("");
 }
 
-// Fix SVG aspect ratio to match card dimensions (44x70 ≈ 0.63)
-// Original viewBox is 0 0 300 420 (≈ 0.71), which causes squashing.
-const FIXED_CARD_BACK_VIEWBOX = 'viewBox="0 0 300 477"';
-
+// Fix SVG aspect ratio to match card dimensions (44x70 ≈ 0.63).
+// Original viewBox is 0 0 300 420 (≈ 0.71). Without this, SVG adds letterboxing.
 export function fixCardBackSvgAspect(svg: string): string {
-  return svg.replace(/viewBox="[^"]*"/, FIXED_CARD_BACK_VIEWBOX);
+  // 1. Force stretch to container dimensions by disabling aspect ratio preservation.
+  // 2. Force width/height to 100% to ensure it fills the container even if intrinsic size is set.
+  return svg
+    .replace(/preserveAspectRatio="[^"]*"/, '')
+    .replace(/viewBox="[^"]*"/, '$& preserveAspectRatio="none"')
+    .replace(/width="[^"]*"/, 'width="100%"')
+    .replace(/height="[^"]*"/, 'height="100%"');
 }
 
 function createFaceDownCardsHtml(cards: GameOverlayFaceDownCard[], cardBackSvg?: string): string {
