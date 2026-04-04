@@ -3,3 +3,13 @@ dist/
 .DS_Store
 *.log
 
+# Temp files
+.tmp-*
+test-results/
+.qwen/
+.superpowers/
+TEMP_*
+*.tmp.png
+*.tmp.mjs
+*.tmp.txt
+
