@@ -378,6 +378,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Restore game state from history
     this.gameState = {
       ...previousState,
       undoCount: previousState.undoCount + 1,
@@ -386,6 +387,7 @@ export class GameScene extends Phaser.Scene {
     analytics.track("undo_used", { dealId: this.gameState.dealId });
     this.selection = null;
     this.lossDetected = false;
+    this.pendingFlips.clear();
     sound.cardPlace();
     this.renderBoard();
   }
@@ -986,7 +988,7 @@ export class GameScene extends Phaser.Scene {
         const sourceX = TABLEAU_START_X + TABLEAU_GAP_X;
         const sourceY = TOP_ROW_Y;
 
-        // Remove card from waste immediately
+        // Save history before mutating, remove card from waste immediately
         this.pushHistory();
         this.gameState = {
           ...this.gameState,
@@ -996,7 +998,7 @@ export class GameScene extends Phaser.Scene {
         this.selection = null;
         this.renderBoard();
 
-        this.animateFlyToFoundation(sourceX, sourceY, wasteCard, foundationIndex, nextState);
+        this.animateFlyToFoundation(sourceX, sourceY, wasteCard, foundationIndex, nextState, true);
         return;
       }
       this.applyMoveResult(nextState);
@@ -1017,7 +1019,7 @@ export class GameScene extends Phaser.Scene {
       );
 
       if (nextState) {
-        // Remove card from tableau immediately
+        // Save history before mutating, remove card from tableau immediately
         this.pushHistory();
         this.gameState = {
           ...this.gameState,
@@ -1029,7 +1031,7 @@ export class GameScene extends Phaser.Scene {
         this.selection = null;
         this.renderBoard();
 
-        this.animateFlyToFoundation(sourceX, sourceY, sourceCard, foundationIndex, nextState);
+        this.animateFlyToFoundation(sourceX, sourceY, sourceCard, foundationIndex, nextState, true);
         return;
       }
       this.applyMoveResult(nextState);
@@ -1070,7 +1072,7 @@ export class GameScene extends Phaser.Scene {
             this.selection = null;
             this.renderBoard();
 
-            this.animateFlyToFoundation(sourceX, sourceY, card, fi, nextState);
+            this.animateFlyToFoundation(sourceX, sourceY, card, fi, nextState, true);
             return;
           }
         }
@@ -1618,7 +1620,8 @@ export class GameScene extends Phaser.Scene {
     sourceY: number,
     card: Card,
     foundationIndex: number,
-    nextState: GameState
+    nextState: GameState,
+    skipHistory = false
   ): void {
     this.animating = true;
     const targetX = FOUNDATION_START_X + foundationIndex * FOUNDATION_GAP_X;
@@ -1627,7 +1630,7 @@ export class GameScene extends Phaser.Scene {
     this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetY, () => {
       this.animating = false;
       getAppContext().sound.goodMove();
-      this.applyState(nextState);
+      this.applyState(nextState, skipHistory);
     });
   }
 
