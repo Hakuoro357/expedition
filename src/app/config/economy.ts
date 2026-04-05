@@ -19,11 +19,6 @@ export const ECONOMY = {
   /** Default max undos for daily / quick-play */
   maxUndosDefault: 3,
 
-  /** Free hints per game session before paywall kicks in */
-  freeHintsPerGame: 3,
-  /** Coin cost for one extra hint after free quota is exhausted */
-  hintCoinCost: 15,
-
   /** Starting coins for a brand new player */
   startingCoins: 50,
 

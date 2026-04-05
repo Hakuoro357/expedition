@@ -21,7 +21,6 @@ export type GameState = {
   foundations: Pile[];
   tableau: Pile[];
   undoCount: number;
-  hintCount: number;
 };
 
 export type ProgressState = {

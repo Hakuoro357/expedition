@@ -62,8 +62,7 @@ export function createInitialDeal(mode: GameMode, dealId: string, seed?: number)
       createPile("foundation-4", "foundation")
     ],
     tableau,
-    undoCount: 0,
-    hintCount: 0
+    undoCount: 0
   };
 }
 

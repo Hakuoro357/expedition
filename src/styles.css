@@ -533,6 +533,62 @@ canvas {
   height: 42px;
 }
 
+/* Rules Overlay */
+.game-overlay__rules-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.game-overlay__rules-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.game-overlay__rules-panel {
+  position: relative;
+  z-index: 1;
+  max-width: 340px;
+  width: 90%;
+  max-height: 80%;
+  padding: 24px;
+  background: #1c3532;
+  border: 2px solid #dac9a1;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.game-overlay__rules-title {
+  margin: 0;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #f5e7c8;
+  text-align: center;
+}
+
+.game-overlay__rules-body {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #d9c38d;
+  white-space: pre-wrap;
+}
+
+.game-overlay__rules-close {
+  align-self: center;
+  margin-top: 8px;
+}
+
 .detail-page {
   position: relative;
   width: 390px;

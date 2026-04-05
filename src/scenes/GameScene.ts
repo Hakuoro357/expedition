@@ -19,7 +19,6 @@ import {
   canMoveCardToFoundation,
   cloneGameState,
   drawFromStock,
-  getHint,
   getGameStatus,
   hasAnyMoves,
   moveFoundationToTableau,
@@ -67,12 +66,10 @@ export class GameScene extends Phaser.Scene {
   private dragPreview?: Phaser.GameObjects.Container;
   private draggedSelection: Selection | null = null;
   private dragPreviewCards: GameOverlayCard[] = [];
-  private hintsUsedThisGame = 0;
   private lossDetected = false;
   private pendingFlips: Set<string> = new Set();
   private autoCompleting = false;
   private animating = false;
-  private rulesOverlayObjects: Phaser.GameObjects.GameObject[] = [];
   private gameOverlay?: CanvasOverlayHandle;
   private gameOverlayCleanup?: () => void;
   private _emptyTableauSlots: GameOverlayEmptySlot[] = [];
@@ -94,7 +91,6 @@ export class GameScene extends Phaser.Scene {
     this.selection = null;
     // Require 8px movement before drag starts - prevents taps from triggering drag
     this.input.dragDistanceThreshold = 8;
-    this.hintsUsedThisGame = 0;
     this.lossDetected = false;
     this.pendingFlips.clear();
     this.autoCompleting = false;
@@ -177,9 +173,8 @@ export class GameScene extends Phaser.Scene {
         hasCard: (this.gameState?.foundations[index]?.cards.length ?? 0) > 0,
       })),
       undoLabel: i18n.t("undo"),
-      hintLabel: i18n.t("hint"),
-      homeLabel: i18n.t("home"),
       rulesLabel: i18n.t("rules"),
+      homeLabel: i18n.t("home"),
       cards: this.getOverlayCards(),
       dragCards: this.dragPreviewCards,
       // Stock card back: only show when stock has cards (prevents ghost card impression)
@@ -316,7 +311,7 @@ export class GameScene extends Phaser.Scene {
     const disposers: Array<() => void> = [];
 
     root.querySelectorAll<HTMLElement>("[data-game-action]").forEach((element) => {
-      const action = element.dataset.gameAction as "undo" | "hint" | "home" | undefined;
+      const action = element.dataset.gameAction as "undo" | "rules" | "home" | undefined;
       if (!action) {
         return;
       }
@@ -326,8 +321,8 @@ export class GameScene extends Phaser.Scene {
           case "undo":
             this.handleUndoAction();
             return;
-          case "hint":
-            void this.handleHintAction();
+          case "rules":
+            this.showRulesOverlay();
             return;
           case "home":
             this.scene.start(SCENES.map);
@@ -339,14 +334,6 @@ export class GameScene extends Phaser.Scene {
       element.addEventListener("click", onClick);
       disposers.push(() => element.removeEventListener("click", onClick));
     });
-
-    const rulesButton = root.querySelector<HTMLElement>("[data-game-rules]");
-    if (rulesButton) {
-      const onClick = (): void => this.showRulesOverlay();
-      rulesButton.style.pointerEvents = "auto";
-      rulesButton.addEventListener("click", onClick);
-      disposers.push(() => rulesButton.removeEventListener("click", onClick));
-    }
 
     // Handle clicks on empty tableau slots
     root.querySelectorAll<HTMLElement>(".game-overlay__empty-slot").forEach((element) => {
@@ -392,105 +379,63 @@ export class GameScene extends Phaser.Scene {
     this.renderBoard();
   }
 
-  private async handleHintAction(): Promise<void> {
-    const { i18n, save, analytics, sound, ads } = getAppContext();
-    if (!this.gameState) return;
-
-    const freeHintsLeft = ECONOMY.freeHintsPerGame - this.hintsUsedThisGame;
-
-    if (freeHintsLeft <= 0) {
-      const progress = save.load().progress;
-      if (progress.coins >= ECONOMY.hintCoinCost) {
-        save.addCoins(-ECONOMY.hintCoinCost);
-        this.updateCoinDisplay();
-      } else {
-        const rewarded = await ads.showRewardedVideo("hint_reward");
-        if (!rewarded) {
-          this.setStatus(i18n.t("notEnoughCoins"));
-          sound.badMove();
-          return;
-        }
-      }
-    }
-
-    const hint = getHint(this.gameState);
-    this.hintsUsedThisGame++;
-    this.gameState = {
-      ...this.gameState,
-      hintCount: this.gameState.hintCount + 1,
-    };
-    save.updateCurrentGame(this.gameState);
-    analytics.track("hint_used", {
-      dealId: this.gameState.dealId,
-      mode: this.gameState.mode,
-      hint,
-      hintsUsed: this.gameState.hintCount,
-    });
-
-    this.setStatus(hint ? `💡 ${hint}` : i18n.t("noMovesFound"));
-    this.updateHintDisplay();
-    sound.goodMove();
-  }
-
   private showRulesOverlay(): void {
     const { i18n } = getAppContext();
     this.destroyRulesOverlay();
 
-    const overlay = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.58)
-      .setDepth(500)
-      .setInteractive();
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
 
-    const panel = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 322, 412, 0x17302d, 0.98)
-      .setStrokeStyle(1, 0x5f7d77, 0.55)
-      .setDepth(501);
+    const container = document.createElement("div");
+    container.className = "game-overlay__rules-overlay";
+    container.setAttribute("data-rules-overlay", "true");
 
-    const title = applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 164, i18n.t("rules"), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "24px",
-        fontStyle: "bold",
-        color: "#f7edd8",
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(502);
+    const backdrop = document.createElement("div");
+    backdrop.className = "game-overlay__rules-backdrop";
 
-    const body = applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 124, this.getRulesBody(), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "16px",
-        color: "#e7d8b3",
-        align: "left",
-        wordWrap: { width: 258 },
-        lineSpacing: 4,
-      }),
-    )
-      .setOrigin(0.5, 0)
-      .setDepth(502);
+    const panel = document.createElement("div");
+    panel.className = "game-overlay__rules-panel";
 
-    const closeButton = createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT / 2 + 164,
-      width: 188,
-      height: 40,
-      label: i18n.t("close"),
-      depth: 502,
-      onClick: () => this.destroyRulesOverlay(),
+    const title = document.createElement("h2");
+    title.className = "game-overlay__rules-title";
+    title.textContent = i18n.t("rules");
+
+    const body = document.createElement("div");
+    body.className = "game-overlay__rules-body";
+    body.textContent = this.getRulesBodyText();
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "game-overlay__rules-close route-overlay__nav-item route-overlay__nav-button";
+    closeBtn.type = "button";
+    closeBtn.textContent = i18n.t("close");
+    closeBtn.addEventListener("click", () => this.destroyRulesOverlay());
+
+    panel.appendChild(title);
+    panel.appendChild(body);
+    panel.appendChild(closeBtn);
+    container.appendChild(backdrop);
+    container.appendChild(panel);
+    overlayEl.appendChild(container);
+
+    // Backdrop click closes overlay
+    backdrop.addEventListener("click", () => this.destroyRulesOverlay());
+
+    // Cleanup on scene shutdown
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      container.remove();
     });
-
-    overlay.on("pointerdown", () => this.destroyRulesOverlay());
-    this.rulesOverlayObjects = [overlay, panel, title, body, closeButton];
   }
 
   private destroyRulesOverlay(): void {
-    this.rulesOverlayObjects.forEach((item) => item.destroy());
-    this.rulesOverlayObjects = [];
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
+    const existing = overlayEl.querySelector('[data-rules-overlay="true"]');
+    if (existing) {
+      existing.remove();
+    }
   }
 
-  private getRulesBody(): string {
+  private getRulesBodyText(): string {
     const locale = getAppContext().i18n.currentLocale();
     if (locale === "ru") {
       return [
@@ -529,7 +474,6 @@ export class GameScene extends Phaser.Scene {
         mode: this.gameState.mode,
         dealId: this.gameState.dealId,
         undoCount: this.gameState.undoCount,
-        hintCount: this.gameState.hintCount,
       });
       sound.victory();
       const { mode, dealId } = this.gameState;
@@ -1407,14 +1351,6 @@ export class GameScene extends Phaser.Scene {
     if (statusEl) {
       statusEl.textContent = message;
     }
-  }
-
-  private updateHintDisplay(): void {
-    this.renderGameOverlay();
-  }
-
-  private updateCoinDisplay(): void {
-    this.renderGameOverlay();
   }
 
   private getOverlayTitle(): string {

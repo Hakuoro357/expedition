@@ -1,0 +1,9 @@
+<svg viewBox="0 0 40 40" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Open book icon for Rules -->
+  <path d="M8 10 C8 10 12 8 20 8 C28 8 32 10 32 10 V30 C32 30 28 28 20 28 C12 28 8 30 8 30 Z" />
+  <path d="M20 8 V28" />
+  <path d="M12 14 H16" />
+  <path d="M12 18 H16" />
+  <path d="M24 14 H28" />
+  <path d="M24 18 H28" />
+</svg>

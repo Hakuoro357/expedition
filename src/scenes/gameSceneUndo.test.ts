@@ -33,7 +33,6 @@ function makeState(tableauCards: Card[][], wasteCards: Card[] = []): GameState {
     tableau: tableauCards.map((cards, index) => makePile(`t${index}`, "tableau", cards)),
     status: "in_progress",
     undoCount: 0,
-    hintCount: 0,
   };
 }
 

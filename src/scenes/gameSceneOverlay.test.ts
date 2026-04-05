@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createGameSceneOverlayHtml } from "@/scenes/gameSceneOverlay";
 
 describe("gameSceneOverlay", () => {
-  it("renders shared nav buttons and rules action", () => {
+  it("renders shared nav buttons with rules in footer", () => {
     const html = createGameSceneOverlayHtml({
       title: "Смещённые отметки",
       subtitle: "Глава 1 • 2/10",
@@ -18,17 +18,15 @@ describe("gameSceneOverlay", () => {
         { suitSymbol: "♥", active: false, hasCard: false },
       ],
       undoLabel: "Отмена",
-      hintLabel: "Подсказка",
-      homeLabel: "Домой",
       rulesLabel: "Правила",
+      homeLabel: "Домой",
       cards: [],
       dragCards: [],
       faceDownCards: [],
     });
 
-    expect(html).toContain('data-game-rules="true"');
     expect(html).toContain('data-game-action="undo"');
-    expect(html).toContain('data-game-action="hint"');
+    expect(html).toContain('data-game-action="rules"');
     expect(html).toContain('data-game-action="home"');
     expect(html).toContain("game-overlay__title");
     expect(html).toContain("game-overlay__coins");
@@ -36,6 +34,11 @@ describe("gameSceneOverlay", () => {
     // Slot count is removed per new design requirements
     expect(html).not.toContain("game-overlay__slot-count");
     expect(html).toContain("game-overlay__slot--foundation-3");
+    // No more question button in top-right corner
+    expect(html).not.toContain("game-overlay__question");
+    expect(html).not.toContain("data-game-rules");
+    // Nav labels should be present
+    expect(html).toContain("game-overlay__nav-label");
   });
 
   it("renders DOM face-up cards", () => {
@@ -53,9 +56,8 @@ describe("gameSceneOverlay", () => {
         { suitSymbol: "♥", active: false, hasCard: false },
       ],
       undoLabel: "Отмена",
-      hintLabel: "Подсказка",
-      homeLabel: "Домой",
       rulesLabel: "Правила",
+      homeLabel: "Домой",
       cards: [
         {
           key: "tableau-c1",
@@ -85,9 +87,8 @@ describe("gameSceneOverlay", () => {
       wasteActive: false,
       foundationSlots: [],
       undoLabel: "Отмена",
-      hintLabel: "Подсказка",
-      homeLabel: "Домой",
       rulesLabel: "Правила",
+      homeLabel: "Домой",
       cards: [],
       dragCards: [],
       cardBackSvg: cardBackSvg,
@@ -120,9 +121,8 @@ describe("gameSceneOverlay", () => {
       wasteActive: false,
       foundationSlots: [],
       undoLabel: "Undo",
-      hintLabel: "Hint",
-      homeLabel: "Home",
       rulesLabel: "Rules",
+      homeLabel: "Home",
       cards: [
         {
           key: "tableau-c3",
@@ -177,9 +177,8 @@ describe("gameSceneOverlay", () => {
       wasteActive: false,
       foundationSlots: [],
       undoLabel: "Undo",
-      hintLabel: "Hint",
-      homeLabel: "Home",
       rulesLabel: "Rules",
+      homeLabel: "Home",
       cards: [],
       dragCards: [],
       cardBackSvg,
