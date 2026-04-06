@@ -33,12 +33,13 @@ export function createAppNavIconHtml(id: AppNavItem["id"]): string {
 
 export function createAppNavHtml(navItems: AppNavItem[]): string {
   return [
-    '<div class="route-overlay__nav">',
+    '<div class="app-nav">',
     ...navItems.map(
       (item) => `
-        <div class="route-overlay__nav-item${item.active ? " route-overlay__nav-item--active" : ""}" data-app-nav="${escapeHtml(item.id)}">
-          <span class="route-overlay__nav-icon" aria-label="${escapeHtml(item.label)}">${createAppNavIconHtml(item.id)}</span>
-        </div>`,
+        <button class="app-nav__item${item.active ? " app-nav__item--active" : ""}" data-app-nav="${escapeHtml(item.id)}" type="button">
+          <span class="app-nav__icon">${createAppNavIconHtml(item.id)}</span>
+          <span class="app-nav__label">${escapeHtml(item.label)}</span>
+        </button>`,
     ),
     "</div>",
   ].join("");

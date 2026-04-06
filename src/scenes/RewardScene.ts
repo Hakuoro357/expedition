@@ -128,7 +128,7 @@ export class RewardScene extends Phaser.Scene {
           { id: "settings", label: i18n.t("settings"), active: false },
         ],
       });
-      this.bindOverlayEvents(revealItems, dealId);
+      this.bindOverlayEvents(revealItems, dealId, mode);
     };
 
     renderOverlay();
@@ -216,7 +216,7 @@ export class RewardScene extends Phaser.Scene {
     this.rewardOverlay.setHtml(html);
   }
 
-  private bindOverlayEvents(revealItems: RewardOverlayRevealItem[], dealId: string): void {
+  private bindOverlayEvents(revealItems: RewardOverlayRevealItem[], dealId: string, mode: GameMode): void {
     if (!this.rewardOverlay) {
       return;
     }
@@ -240,6 +240,7 @@ export class RewardScene extends Phaser.Scene {
         this.scene.start(SCENES.detail, {
           dealId,
           initialTab: item.type === "artifact" ? "artifact" : "entry",
+          origin: { scene: SCENES.reward, data: { mode, dealId } },
         });
       };
 

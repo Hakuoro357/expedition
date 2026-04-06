@@ -12,7 +12,7 @@ import { createInitialDeal } from "@/core/klondike/createInitialDeal";
 import { findRandomSolvableSeed } from "@/core/klondike/randomSeed";
 import { getNodeById } from "@/data/chapters";
 import { getPointTitleByDealId } from "@/data/narrative/points";
-import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
+import { GAME_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import {
   autoCompleteStep,
   canAutoComplete,
@@ -132,11 +132,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderBottomBar(): void {
-    const barTop = GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT;
+    const barTop = GAME_HEIGHT - GAME_BOTTOM_NAV_HEIGHT;
     const navBar = this.add.graphics();
     navBar.fillStyle(0x10201f, 0.96);
     navBar.lineStyle(1, 0x4f6964, 0.35);
-    navBar.fillRect(0, barTop, GAME_WIDTH, ROUTE_BOTTOM_NAV_HEIGHT);
+    navBar.fillRect(0, barTop, GAME_WIDTH, GAME_BOTTOM_NAV_HEIGHT);
     navBar.strokeLineShape(new Phaser.Geom.Line(0, barTop, GAME_WIDTH, barTop));
   }
 
@@ -325,7 +325,7 @@ export class GameScene extends Phaser.Scene {
             this.showRulesOverlay();
             return;
           case "home":
-            this.scene.start(SCENES.map);
+            this.showLeaveConfirm();
             return;
         }
       };
@@ -405,7 +405,7 @@ export class GameScene extends Phaser.Scene {
     body.textContent = this.getRulesBodyText();
 
     const closeBtn = document.createElement("button");
-    closeBtn.className = "game-overlay__rules-close route-overlay__nav-item route-overlay__nav-button";
+    closeBtn.className = "game-overlay__rules-close game-overlay__dialog-btn";
     closeBtn.type = "button";
     closeBtn.textContent = i18n.t("close");
     closeBtn.addEventListener("click", () => this.destroyRulesOverlay());
@@ -424,6 +424,74 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       container.remove();
     });
+  }
+
+  private showLeaveConfirm(): void {
+    const { i18n } = getAppContext();
+    this.destroyLeaveConfirm();
+
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
+
+    const container = document.createElement("div");
+    container.className = "game-overlay__rules-overlay";
+    container.setAttribute("data-leave-overlay", "true");
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "game-overlay__rules-backdrop";
+
+    const panel = document.createElement("div");
+    panel.className = "game-overlay__rules-panel game-overlay__leave-panel";
+
+    const title = document.createElement("h2");
+    title.className = "game-overlay__rules-title";
+    title.textContent = i18n.t("leaveTitle");
+
+    const body = document.createElement("div");
+    body.className = "game-overlay__rules-body game-overlay__leave-body";
+    body.textContent = i18n.t("leaveBody");
+
+    const buttons = document.createElement("div");
+    buttons.className = "game-overlay__leave-buttons";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--cancel";
+    cancelBtn.type = "button";
+    cancelBtn.textContent = i18n.t("leaveCancel");
+    cancelBtn.addEventListener("click", () => this.destroyLeaveConfirm());
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--confirm";
+    confirmBtn.type = "button";
+    confirmBtn.textContent = i18n.t("leaveConfirm");
+    confirmBtn.addEventListener("click", () => {
+      this.destroyLeaveConfirm();
+      this.scene.start(SCENES.map);
+    });
+
+    buttons.appendChild(cancelBtn);
+    buttons.appendChild(confirmBtn);
+    panel.appendChild(title);
+    panel.appendChild(body);
+    panel.appendChild(buttons);
+    container.appendChild(backdrop);
+    container.appendChild(panel);
+    overlayEl.appendChild(container);
+
+    backdrop.addEventListener("click", () => this.destroyLeaveConfirm());
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      container.remove();
+    });
+  }
+
+  private destroyLeaveConfirm(): void {
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
+    const existing = overlayEl.querySelector('[data-leave-overlay="true"]');
+    if (existing) {
+      existing.remove();
+    }
   }
 
   private destroyRulesOverlay(): void {
@@ -569,7 +637,7 @@ export class GameScene extends Phaser.Scene {
     // Restart Button
     const restartBtn = document.createElement("button");
     restartBtn.textContent = i18n.t("restart");
-    restartBtn.className = "route-overlay__nav-item route-overlay__nav-button";
+    restartBtn.className = "game-overlay__dialog-btn";
     restartBtn.style.cssText = `
       width: 100%;
       padding: 12px;
@@ -586,7 +654,7 @@ export class GameScene extends Phaser.Scene {
     // Home Button
     const homeBtn = document.createElement("button");
     homeBtn.textContent = i18n.t("home");
-    homeBtn.className = "route-overlay__nav-item route-overlay__nav-button";
+    homeBtn.className = "game-overlay__dialog-btn";
     homeBtn.style.cssText = `
       width: 100%;
       padding: 12px;

@@ -43,16 +43,16 @@ function escapeHtml(value: string): string {
 
 function buildRouteGraphicsHtml(points: RouteOverlayPoint[], segments: RouteOverlaySegment[]): string {
   const segmentsHtml = segments
-    .map(
-      (segment) => `
-        <line
+    .map((segment) => {
+      const midY = (segment.fromY + segment.toY) / 2;
+      const d = `M${segment.fromX},${segment.fromY} C${segment.fromX},${midY} ${segment.toX},${midY} ${segment.toX},${segment.toY}`;
+      return `
+        <path
           class="route-overlay__route-segment${segment.visible ? " route-overlay__route-segment--visible" : ""}"
-          x1="${segment.fromX}"
-          y1="${segment.fromY}"
-          x2="${segment.toX}"
-          y2="${segment.toY}"
-        />`,
-    )
+          d="${d}"
+          fill="none"
+        />`;
+    })
     .join("");
 
   const pointsHtml = points

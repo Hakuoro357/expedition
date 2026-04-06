@@ -1,8 +1,5 @@
-<svg class="route-overlay__nav-svg" viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-  <path
-    fill="currentColor"
-    fill-rule="evenodd"
-    d="M11.18 4.7a.95.95 0 0 1 0 1.34L9.23 8h3.52A5.95 5.95 0 0 1 18.7 13.95a.95.95 0 1 1-1.9 0 4.05 4.05 0 0 0-4.05-4.05H9.23l1.95 1.96a.95.95 0 1 1-1.34 1.34L6.27 9.63a.95.95 0 0 1 0-1.34l3.57-3.59a.95.95 0 0 1 1.34 0Z"
-    clip-rule="evenodd"
-  />
+<svg viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Undo arrow -->
+  <polyline points="1,4 1,10 7,10" />
+  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
 </svg>

@@ -87,15 +87,6 @@ export class BootScene extends Phaser.Scene {
       return;
     }
 
-    if (saveState.currentGame) {
-      analytics.track("resume_saved_game", {
-        dealId: saveState.currentGame.dealId,
-        mode: saveState.currentGame.mode
-      });
-      this.scene.start(SCENES.game, { resumeCurrentGame: true });
-      return;
-    }
-
     this.scene.start(SCENES.map);
   }
 }

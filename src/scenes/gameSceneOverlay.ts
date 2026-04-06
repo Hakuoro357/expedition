@@ -239,9 +239,9 @@ export function createGameSceneOverlayHtml({
     `  ${createFaceDownCardsHtml(faceDownCards ?? [], cardBackSvg)}`,
     `  ${createCardsHtml(cards)}`,
     `  ${createDragCardsHtml(dragCards)}`,
-    '  <div class="route-overlay__nav game-overlay__nav">',
+    '  <div class="game-overlay__nav">',
     ...items.map(
-      (item) => `    <button class="route-overlay__nav-item route-overlay__nav-button" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(item.label)}"><span class="route-overlay__nav-icon">${getActionIconHtml(item.id)}</span></button>`,
+      (item) => `    <button class="game-overlay__action game-overlay__action--${escapeHtml(item.id)}" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(item.label)}"><span class="game-overlay__action-icon">${getActionIconHtml(item.id)}</span><span class="game-overlay__action-label">${escapeHtml(item.label)}</span></button>`,
     ),
     "  </div>",
     "</div>",

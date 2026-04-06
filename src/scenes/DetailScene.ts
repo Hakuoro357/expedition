@@ -18,9 +18,15 @@ import {
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 
+export type DetailOrigin = {
+  scene: string;
+  data?: Record<string, unknown>;
+};
+
 export type DetailSceneData = {
   dealId?: string;
   initialTab?: DetailSceneTabId;
+  origin?: DetailOrigin;
 };
 
 type DetailNavTarget = "archive" | "daily" | "settings";
@@ -30,6 +36,7 @@ export class DetailScene extends Phaser.Scene {
   private overlayCleanup?: () => void;
   private dealId = "";
   private activeTab: DetailSceneTabId = "entry";
+  private origin?: DetailOrigin;
   private statusText?: Phaser.GameObjects.Text;
 
   constructor() {
@@ -47,6 +54,7 @@ export class DetailScene extends Phaser.Scene {
 
     const initialTab = data.initialTab ?? "entry";
     this.activeTab = initialTab;
+    this.origin = data.origin;
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.overlayCleanup?.();
@@ -197,7 +205,11 @@ export class DetailScene extends Phaser.Scene {
     const homeButton = root.querySelector<HTMLElement>("[data-detail-home]");
     if (homeButton) {
       const onClick = (): void => {
-        this.scene.start(SCENES.diary);
+        if (this.origin) {
+          this.scene.start(this.origin.scene, this.origin.data);
+        } else {
+          this.scene.start(SCENES.diary);
+        }
       };
       homeButton.style.pointerEvents = "auto";
       homeButton.addEventListener("click", onClick);

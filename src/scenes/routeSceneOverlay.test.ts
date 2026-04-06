@@ -31,7 +31,7 @@ describe("routeSceneOverlay", () => {
     expect(html).toContain("route-overlay__active-point-title");
     expect(html).toContain("Точка 3");
     expect(html).toContain("Маршрут дня");
-    expect(html).toContain("route-overlay__nav");
+    expect(html).toContain("app-nav");
     expect(html).toContain("route-overlay__pager route-overlay__pager--next");
     expect(html).toContain("route-overlay__current-panel");
     expect(html).toContain("route-overlay__route-svg");

@@ -38,7 +38,7 @@ describe("gameSceneOverlay", () => {
     expect(html).not.toContain("game-overlay__question");
     expect(html).not.toContain("data-game-rules");
     // Nav labels should be present
-    expect(html).toContain("game-overlay__nav-label");
+    expect(html).toContain("game-overlay__action-label");
   });
 
   it("renders DOM face-up cards", () => {

@@ -205,13 +205,14 @@ export class MapScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       hitArea.on("pointerdown", () => {
         if (state === "current") {
-          this.scene.start(SCENES.game, { mode: "adventure", dealId: node.id });
+          this.handleCurrentNodeClick(node.id);
           return;
         }
 
         this.scene.start(SCENES.detail, {
           dealId: node.id,
           initialTab: node.entryId ? "entry" : "artifact",
+          origin: { scene: SCENES.map },
         });
       });
 
@@ -342,6 +343,92 @@ export class MapScene extends Phaser.Scene {
 
   private getDealSerial(dealId: string): number {
     return ROUTE_SHEETS.flatMap((sheet) => sheet.dealIds).findIndex((id) => id === dealId) + 1;
+  }
+
+  private handleCurrentNodeClick(dealId: string): void {
+    const { save } = getAppContext();
+    const savedGame = save.load().currentGame;
+
+    if (savedGame && savedGame.dealId === dealId && savedGame.status !== "won" && savedGame.status !== "lost") {
+      this.showResumeDialog(dealId);
+    } else {
+      if (savedGame && savedGame.dealId === dealId) {
+        save.clearCurrentGame();
+      }
+      this.scene.start(SCENES.game, { mode: "adventure", dealId });
+    }
+  }
+
+  private showResumeDialog(dealId: string): void {
+    const { i18n, save } = getAppContext();
+    this.destroyResumeDialog();
+
+    const host = this.overlay?.getHostElement();
+    if (!host) return;
+
+    const container = document.createElement("div");
+    container.className = "game-overlay__rules-overlay";
+    container.setAttribute("data-resume-overlay", "true");
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "game-overlay__rules-backdrop";
+
+    const panel = document.createElement("div");
+    panel.className = "game-overlay__rules-panel game-overlay__leave-panel";
+
+    const title = document.createElement("h2");
+    title.className = "game-overlay__rules-title";
+    title.textContent = i18n.t("resumeTitle");
+
+    const body = document.createElement("div");
+    body.className = "game-overlay__rules-body game-overlay__leave-body";
+    body.textContent = i18n.t("resumeBody");
+
+    const buttons = document.createElement("div");
+    buttons.className = "game-overlay__leave-buttons";
+
+    const restartBtn = document.createElement("button");
+    restartBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--confirm";
+    restartBtn.type = "button";
+    restartBtn.textContent = i18n.t("resumeRestart");
+    restartBtn.addEventListener("click", () => {
+      this.destroyResumeDialog();
+      save.clearCurrentGame();
+      this.scene.start(SCENES.game, { mode: "adventure", dealId });
+    });
+
+    const continueBtn = document.createElement("button");
+    continueBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--cancel";
+    continueBtn.type = "button";
+    continueBtn.textContent = i18n.t("resumeContinue");
+    continueBtn.addEventListener("click", () => {
+      this.destroyResumeDialog();
+      this.scene.start(SCENES.game, { resumeCurrentGame: true });
+    });
+
+    buttons.appendChild(restartBtn);
+    buttons.appendChild(continueBtn);
+    panel.appendChild(title);
+    panel.appendChild(body);
+    panel.appendChild(buttons);
+    container.appendChild(backdrop);
+    container.appendChild(panel);
+    host.appendChild(container);
+
+    backdrop.addEventListener("click", () => this.destroyResumeDialog());
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      container.remove();
+    });
+  }
+
+  private destroyResumeDialog(): void {
+    const host = this.overlay?.getHostElement();
+    if (!host) return;
+    const existing = host.querySelector('[data-resume-overlay="true"]');
+    if (existing) {
+      existing.remove();
+    }
   }
 
   private _statusText?: Phaser.GameObjects.Text;

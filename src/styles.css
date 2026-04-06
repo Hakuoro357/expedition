@@ -210,63 +210,70 @@ canvas {
   right: 12px;
 }
 
-.route-overlay__nav {
+/* Unified app navigation bar (shared footer across all scenes) */
+.app-nav {
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 0;
+  right: 0;
   bottom: 0;
-  height: 82px;
+  height: 62px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   align-items: center;
   justify-items: center;
-  border-top: 1px solid rgba(79, 105, 100, 0.12);
-  background:
-    linear-gradient(180deg, rgba(7, 19, 18, 0.04) 0%, rgba(7, 19, 18, 0.28) 100%);
+  border-top: none;
+  background: linear-gradient(180deg, rgba(7, 19, 18, 0) 0%, rgba(7, 19, 18, 0.36) 100%);
+  pointer-events: auto;
 }
 
-.route-overlay__nav-item {
+.app-nav__item {
+  appearance: none;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 96px;
-  height: 54px;
-  border-radius: 20px;
-  border: 1px solid rgba(84, 110, 104, 0.32);
-  background: rgba(12, 28, 27, 0.2);
-  color: rgba(214, 198, 160, 0.84);
-  transition: color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
-}
-
-.route-overlay__nav-button {
-  appearance: none;
+  gap: 3px;
+  width: 72px;
+  height: 52px;
   padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(206, 184, 142, 0.48);
   cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
 }
 
-.route-overlay__nav-item--active {
-  color: #f3e4b9;
-  border-color: rgba(240, 223, 181, 0.34);
-  background:
-    radial-gradient(circle at 50% 45%, rgba(216, 176, 92, 0.22) 0%, rgba(216, 176, 92, 0.08) 58%, rgba(216, 176, 92, 0) 100%),
-    rgba(12, 28, 27, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(240, 223, 181, 0.16);
+.app-nav__item--active {
+  color: rgba(206, 184, 142, 0.82);
 }
 
-.route-overlay__nav-icon {
+.app-nav__item:active {
+  background: rgba(206, 184, 142, 0.08);
+}
+
+.app-nav__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
+  width: 36px;
+  height: 36px;
   line-height: 0;
 }
 
-.route-overlay__nav-svg {
-  width: 58px;
-  height: 58px;
+.app-nav__icon svg {
+  width: 36px;
+  height: 36px;
   display: block;
   overflow: visible;
+}
+
+.app-nav__label {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .game-overlay {
@@ -511,7 +518,68 @@ canvas {
 }
 
 .game-overlay__nav {
+  position: absolute;
+  left: 0;
+  right: 0;
   bottom: 0;
+  height: 62px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  justify-items: center;
+  border-top: none;
+  background: linear-gradient(180deg, rgba(7, 19, 18, 0) 0%, rgba(7, 19, 18, 0.36) 100%);
+  pointer-events: auto;
+}
+
+.game-overlay__action {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 72px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(206, 184, 142, 0.48);
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.game-overlay__action--undo {
+  color: rgba(206, 184, 142, 0.82);
+}
+
+.game-overlay__action:active {
+  background: rgba(206, 184, 142, 0.08);
+}
+
+.game-overlay__action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  line-height: 0;
+}
+
+.game-overlay__action-icon svg {
+  width: 36px;
+  height: 36px;
+  display: block;
+  overflow: visible;
+}
+
+.game-overlay__action-label {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .game-overlay__question {
@@ -523,12 +591,12 @@ canvas {
   border-radius: 18px;
 }
 
-.game-overlay__question .route-overlay__nav-icon {
+.game-overlay__question .app-nav__icon {
   width: 48px;
   height: 48px;
 }
 
-.game-overlay__question .route-overlay__nav-svg {
+.game-overlay__question .app-nav__icon svg {
   width: 42px;
   height: 42px;
 }
@@ -587,6 +655,75 @@ canvas {
 .game-overlay__rules-close {
   align-self: center;
   margin-top: 8px;
+}
+
+.game-overlay__leave-panel {
+  text-align: center;
+}
+
+.game-overlay__leave-body {
+  text-align: center;
+  font-size: 14px;
+  color: rgba(217, 195, 141, 0.7);
+}
+
+.game-overlay__leave-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.game-overlay__leave-btn {
+  appearance: none;
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.game-overlay__leave-btn--cancel {
+  background: rgba(218, 201, 161, 0.1);
+  border: 1px solid rgba(218, 201, 161, 0.24);
+  color: #dac9a1;
+}
+
+.game-overlay__leave-btn--confirm {
+  background: rgba(180, 80, 60, 0.3);
+  border: 1px solid rgba(200, 100, 80, 0.4);
+  color: #e8a090;
+}
+
+.game-overlay__leave-btn--cancel:active {
+  background: rgba(218, 201, 161, 0.18);
+}
+
+.game-overlay__leave-btn--confirm:active {
+  background: rgba(180, 80, 60, 0.45);
+}
+
+.game-overlay__dialog-btn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(218, 201, 161, 0.24);
+  background: rgba(218, 201, 161, 0.1);
+  color: #dac9a1;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.game-overlay__dialog-btn:active {
+  background: rgba(218, 201, 161, 0.18);
 }
 
 .detail-page {
