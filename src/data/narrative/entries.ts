@@ -3,6 +3,7 @@ import { narrativeEntriesRu } from "@/data/narrative/entries.ru";
 
 export type NarrativeEntry = {
   speakerEntityId: string;
+  excerpt?: string;
   body: string;
 };
 
@@ -29,6 +30,10 @@ export function getNarrativeEntryExcerpt(entryId: string, locale: "ru" | "global
   const entry = getNarrativeEntry(entryId, locale);
   if (!entry) {
     return null;
+  }
+
+  if (entry.excerpt) {
+    return entry.excerpt;
   }
 
   const normalizedBody = entry.body.replace(/\s+/g, " ").trim();

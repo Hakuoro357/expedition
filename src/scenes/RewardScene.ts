@@ -15,6 +15,7 @@ import {
   type RewardOverlayRevealItem,
 } from "@/scenes/rewardSceneOverlay";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
+import { getRouteSheetByDealId, ROUTE_SHEETS } from "@/data/routeSheets";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 
 export type RewardSceneData = {
@@ -92,7 +93,7 @@ export class RewardScene extends Phaser.Scene {
     }
     analytics.track("deal_win_reward_applied", { mode, dealId, rewardId, coinsAwarded, artifactAwarded, preview });
 
-    this.renderBackground();
+    this.renderBackground(dealId);
 
     const revealItems =
       mode === "adventure" && dealId && rewardId
@@ -121,12 +122,12 @@ export class RewardScene extends Phaser.Scene {
     const renderOverlay = (): void => {
       this.renderRewardOverlay({
         title: i18n.t("victory"),
-        coinsLabel: coinsAwarded > 0 ? `+${coinsAwarded} ${i18n.t("coins")}` : undefined,
+        coinsLabel: coinsAwarded > 0 ? `+${coinsAwarded} 🪙` : undefined,
         chapterProgressLabel,
         foundTitle: revealItems.length > 0 ? i18n.t("foundItems") : undefined,
         revealItems,
         rewardLines: revealItems.length > 0 ? [] : [i18n.t("reward")],
-        adLabel: isRu ? `Реклама (+${adBonus})` : `Ad (+${adBonus})`,
+        adLabel: isRu ? `Реклама (+${adBonus} 🪙)` : `Ad (+${adBonus} 🪙)`,
         adDisabled: adBonusShown,
         continueLabel: i18n.t("continue"),
         adStatus: adStatusText,
@@ -155,7 +156,7 @@ export class RewardScene extends Phaser.Scene {
           if (!rewarded) return;
           save.addCoins(adBonus);
           adBonusShown = true;
-          adStatusText = `+${adBonus} ${i18n.t("coins")}!`;
+          adStatusText = `+${adBonus} 🪙`;
           renderOverlay();
           bindButtonEvents();
           sound.goodMove();
@@ -180,10 +181,17 @@ export class RewardScene extends Phaser.Scene {
     });
   }
 
-  private renderBackground(): void {
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x162927);
-    this.add
-      .rectangle(GAME_WIDTH / 2, (GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT) / 2, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, 0x213733, 0.58);
+  private renderBackground(dealId: string): void {
+    const sheet = getRouteSheetByDealId(dealId) ?? ROUTE_SHEETS[0];
+    const { topColor, bottomColor, glowColor } = sheet.background;
+
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    bg.fillStyle(glowColor, 0.18);
+    bg.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
+    bg.fillStyle(glowColor, 0.1);
+    bg.fillEllipse(GAME_WIDTH / 2, 332, 360, 220);
 
     const navBar = this.add.graphics();
     navBar.fillStyle(0x10201f, 0.96);
@@ -269,17 +277,26 @@ export class RewardScene extends Phaser.Scene {
         this.scene.start(SCENES.diary);
         return;
       case "daily": {
-        const progress = save.load().progress;
+        const saveState = save.load();
+        const progress = saveState.progress;
         const dailyKey = getDailyDateKey();
 
         if (progress.dailyClaimedOn === dailyKey) {
           return;
         }
 
-        this.scene.start(SCENES.game, {
-          mode: "daily",
-          dealId: `daily-${dailyKey}`,
-        });
+        const dailyDealId = `daily-${dailyKey}`;
+        const savedGame = saveState.currentGame;
+
+        // Resume saved daily game if exists
+        if (savedGame && savedGame.dealId === dailyDealId && savedGame.status !== "won" && savedGame.status !== "lost") {
+          this.scene.start(SCENES.game, { resumeCurrentGame: true });
+        } else {
+          this.scene.start(SCENES.game, {
+            mode: "daily",
+            dealId: dailyDealId,
+          });
+        }
         return;
       }
       case "settings":

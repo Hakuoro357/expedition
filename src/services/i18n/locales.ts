@@ -70,7 +70,7 @@ export const locales = {
     settings: "Настройки",
     rules: "Правила",
     continue: "Продолжить",
-    restart: "Рестарт",
+    restart: "Начать заново",
     backToMap: "На карту",
     reward: "Награда",
     victory: "Победа!",

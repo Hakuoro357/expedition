@@ -111,6 +111,19 @@ export class BootScene extends Phaser.Scene {
       return;
     }
 
+    if (preview?.scene === "unlock-playable") {
+      const { save } = getAppContext();
+      save.updateProgress((p) => ({
+        ...p,
+        completedNodes: [],
+        coins: Math.max(p.coins, 500),
+        devAllPlayable: true,
+      }));
+      console.log("[dev] All points playable: pages unlocked, no nodes completed");
+      this.scene.start(SCENES.map);
+      return;
+    }
+
     this.scene.start(SCENES.map);
   }
 }

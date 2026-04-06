@@ -25,6 +25,10 @@ export type DevScenePreview =
   | {
       scene: "unlock-all";
       preview: true;
+    }
+  | {
+      scene: "unlock-playable";
+      preview: true;
     };
 
 const VALID_MODES = new Set<GameMode>(["adventure", "daily", "quick-play"]);
@@ -60,6 +64,7 @@ export function getRewardPreviewLinks(baseUrl: string): RewardPreviewLink[] {
 export function getDevActionLinks(baseUrl: string): DevPreviewLink[] {
   return [
     { label: "Разблокировать всё", url: `${baseUrl}/?preview=unlock-all` },
+    { label: "Все точки играбельны", url: `${baseUrl}/?preview=unlock-playable` },
   ];
 }
 
@@ -94,6 +99,13 @@ export function getDevScenePreview(
   if (preview === "unlock-all") {
     return {
       scene: "unlock-all",
+      preview: true,
+    };
+  }
+
+  if (preview === "unlock-playable") {
+    return {
+      scene: "unlock-playable",
       preview: true,
     };
   }

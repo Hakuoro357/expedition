@@ -34,7 +34,7 @@ export function createMapOverlayHtml({
   return [
     '<div class="map-overlay">',
     '  <div class="map-overlay__coins">',
-    '    <span class="map-overlay__coin-icon" aria-hidden="true"></span>',
+    '    <span aria-hidden="true">🪙</span>',
     `    <span class="map-overlay__coin-count">${coins}</span>`,
     "  </div>",
     '  <div class="map-overlay__content">',

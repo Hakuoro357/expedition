@@ -15,9 +15,9 @@ describe("narrative points", () => {
   });
 
   it("provides human-readable titles for route stages", () => {
-    expect(getPointByDealId("c1n1")?.titleRu).toBe("Выход в шесть двенадцать");
-    expect(getPointTitleByDealId("c1n3", "ru")).toBe("Ложный гребень");
-    expect(getPointTitleByPointId("pt_25", "ru")).toBe("Контейнер диска");
-    expect(getPointTitleByDealId("c1n3", "global")).toBe("False Ridge");
+    expect(getPointByDealId("c1n1")?.titleRu).toBe("Карта пока не врёт");
+    expect(getPointTitleByDealId("c1n3", "ru")).toBe("Линия по хребту");
+    expect(getPointTitleByPointId("pt_25", "ru")).toBe("Графы не предусмотрено");
+    expect(getPointTitleByDealId("c1n3", "global")).toBe("Line Along the Ridge");
   });
 });

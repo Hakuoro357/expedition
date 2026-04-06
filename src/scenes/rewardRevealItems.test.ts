@@ -12,7 +12,7 @@ describe("buildRewardRevealItems", () => {
 
     expect(items.map((item) => item.type)).toEqual(["entry", "artifact"]);
     expect(items[0]?.id).toBe("entry_16");
-    expect(items[0]?.title).toBe("Решение вслух");
+    expect(items[0]?.title).toBe("Между страницами");
     expect(items[1]?.id).toBe("field-journal");
     expect(items[1]?.title).toBe("Записка без подписи");
   });
@@ -95,7 +95,7 @@ describe("buildRewardRevealItems", () => {
     expect(items[0]).toMatchObject({
       type: "entry",
       id: "entry_03",
-      title: "Ложный гребень",
+      title: "Линия по хребту",
       badgeLabel: "Запись",
       subtitle: expect.any(String),
       mediaUrl: expect.any(String),
@@ -137,7 +137,7 @@ describe("buildRewardRevealItems", () => {
     expect(items[0]).toMatchObject({
       type: "entry",
       id: "entry_03",
-      title: "False Ridge",
+      title: "Line Along the Ridge",
       badgeLabel: "Entry",
       subtitle: expect.any(String),
     });

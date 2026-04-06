@@ -53,9 +53,9 @@ export class DevPreviewScene extends Phaser.Scene {
       const spec = {
         ...link,
         x: GAME_WIDTH / 2,
-        y: 155 + index * 62,
+        y: 155 + index * 44,
         width: 280,
-        height: 44,
+        height: 34,
       };
       allSpecs.push(spec);
       createButton({
@@ -73,7 +73,7 @@ export class DevPreviewScene extends Phaser.Scene {
     });
 
     // Section: Reward Previews
-    const rewardSectionY = 155 + gameEndLinks.length * 62 + 30;
+    const rewardSectionY = 155 + gameEndLinks.length * 44 + 20;
     this.add
       .text(GAME_WIDTH / 2, rewardSectionY, "Экран награды", {
         fontFamily: "Georgia",
@@ -87,9 +87,9 @@ export class DevPreviewScene extends Phaser.Scene {
         label: link.label,
         url: link.url,
         x: GAME_WIDTH / 2,
-        y: rewardSectionY + 45 + index * 62,
+        y: rewardSectionY + 35 + index * 44,
         width: 280,
-        height: 44,
+        height: 34,
       };
       allSpecs.push(spec);
       createButton({
@@ -108,7 +108,7 @@ export class DevPreviewScene extends Phaser.Scene {
 
     // Section: Dev Actions
     const actionLinks = getDevActionLinks(baseUrl);
-    const actionSectionY = rewardSectionY + 45 + rewardLinks.length * 62 + 30;
+    const actionSectionY = rewardSectionY + 35 + rewardLinks.length * 44 + 20;
     this.add
       .text(GAME_WIDTH / 2, actionSectionY, "Действия", {
         fontFamily: "Georgia",
@@ -122,9 +122,9 @@ export class DevPreviewScene extends Phaser.Scene {
         label: link.label,
         url: link.url,
         x: GAME_WIDTH / 2,
-        y: actionSectionY + 45 + index * 62,
+        y: actionSectionY + 35 + index * 44,
         width: 280,
-        height: 44,
+        height: 34,
       };
       allSpecs.push(spec);
       createButton({

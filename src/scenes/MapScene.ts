@@ -13,6 +13,7 @@ import {
   getNextPlayableDealId,
   getRouteSheetByDealId,
   getRouteSheetByPage,
+  getRouteSheetSummary,
   getRouteSheetTitle,
   isRouteSheetUnlocked,
 } from "@/data/routeSheets";
@@ -71,7 +72,7 @@ export class MapScene extends Phaser.Scene {
     const pageNodes = (page?.dealIds ?? [])
       .map((dealId) => getNodeById(dealId))
       .filter((node): node is ChapterNode => Boolean(node));
-    const routePoints = buildRouteSheetPoints(pageNodes.length);
+    const routePoints = buildRouteSheetPoints(pageNodes.length, this.currentPage);
     const nextDealId = getNextPlayableDealId(progress);
     const activeNode = nextDealId ? getNodeById(nextDealId) : undefined;
     const activePage = activeNode ? getRouteSheetByDealId(activeNode.id)?.page ?? null : null;
@@ -89,18 +90,21 @@ export class MapScene extends Phaser.Scene {
     this.renderPageSurface(page);
     this.renderPoints(pageNodes, routePoints, progress);
     this.renderBottomNav();
+    const narrativeLocale = i18n.getNarrativeLocale();
     const overlayPoints: RouteOverlayPoint[] = pageNodes
-      .map((node, idx) => {
+      .map((node, idx): RouteOverlayPoint | null => {
         const point = routePoints[idx];
         if (!point) {
           return null;
         }
 
+        const state = getCurrentRoutePointState(node.id, progress);
         return {
           x: point.x,
           y: point.y,
           label: String(this.getDealSerial(node.id)),
-          state: getCurrentRoutePointState(node.id, progress),
+          title: state === "passed" ? getPointTitleByDealId(node.id, narrativeLocale) : undefined,
+          state,
         };
       })
       .filter((point): point is RouteOverlayPoint => Boolean(point));
@@ -125,16 +129,26 @@ export class MapScene extends Phaser.Scene {
         };
       })
       .filter((segment): segment is RouteOverlaySegment => Boolean(segment));
+    // If all nodes on this page are completed, show the page summary
+    const pageFullyCompleted = (page?.dealIds ?? []).length > 0
+      && (page?.dealIds ?? []).every((id) => progress.completedNodes.includes(id));
+    const locale = i18n.currentLocale();
+
+    let panelTitle = "";
+    let panelDescription = "";
+
+    if (activeNode && activePoint) {
+      panelTitle = getPointTitleByDealId(activeNode.id, narrativeLocale) ?? `${i18n.t("point")} ${this.getDealSerial(activeNode.id)}`;
+      panelDescription = getNarrativeEntryExcerpt(activeNode.entryId, narrativeLocale) ?? "";
+    } else if (pageFullyCompleted) {
+      panelTitle = `✓ ${this.getPageLabel(locale, this.currentPage)}`;
+      panelDescription = getRouteSheetSummary(this.currentPage, locale);
+    }
+
     this.renderOverlay({
-      pageLabel: this.getPageLabel(i18n.currentLocale(), this.currentPage),
-      activePointTitle:
-        activeNode && activePoint
-          ? getPointTitleByDealId(activeNode.id, i18n.getNarrativeLocale()) ?? `${i18n.t("point")} ${this.getDealSerial(activeNode.id)}`
-          : "",
-      activePointDescription:
-        activeNode && activePoint
-          ? getNarrativeEntryExcerpt(activeNode.entryId, i18n.getNarrativeLocale()) ?? ""
-          : "",
+      pageLabel: this.getPageLabel(locale, this.currentPage),
+      activePointTitle: panelTitle,
+      activePointDescription: panelDescription,
       canGoPrev,
       canGoNext,
       routePoints: overlayPoints,
@@ -144,6 +158,7 @@ export class MapScene extends Phaser.Scene {
         { id: "daily", label: i18n.t("daily"), active: false },
         { id: "settings", label: i18n.t("settings"), active: false },
       ],
+      showDevTools: import.meta.env.DEV,
     });
   }
 
@@ -283,6 +298,20 @@ export class MapScene extends Phaser.Scene {
       disposers.push(() => nextBtn.removeEventListener("click", onClick));
     }
 
+    const devSkipBtn = root.querySelector<HTMLElement>("[data-dev-skip]");
+    if (devSkipBtn) {
+      const onClick = (): void => this.devSkipNode();
+      devSkipBtn.addEventListener("click", onClick);
+      disposers.push(() => devSkipBtn.removeEventListener("click", onClick));
+    }
+
+    const devBackBtn = root.querySelector<HTMLElement>("[data-dev-back]");
+    if (devBackBtn) {
+      const onClick = (): void => this.devUnskipNode();
+      devBackBtn.addEventListener("click", onClick);
+      disposers.push(() => devBackBtn.removeEventListener("click", onClick));
+    }
+
     this.overlayCleanup = () => {
       disposers.forEach((d) => d());
     };
@@ -295,7 +324,8 @@ export class MapScene extends Phaser.Scene {
         return;
       case "daily": {
         const { save, i18n } = getAppContext();
-        const progress = save.load().progress;
+        const saveState = save.load();
+        const progress = saveState.progress;
         const dailyKey = getDailyDateKey();
 
         if (progress.dailyClaimedOn === dailyKey) {
@@ -303,10 +333,18 @@ export class MapScene extends Phaser.Scene {
           return;
         }
 
-        this.scene.start(SCENES.game, {
-          mode: "daily",
-          dealId: `daily-${dailyKey}`,
-        });
+        const dailyDealId = `daily-${dailyKey}`;
+        const savedGame = saveState.currentGame;
+
+        // Resume saved daily game if exists
+        if (savedGame && savedGame.dealId === dailyDealId && savedGame.status !== "won" && savedGame.status !== "lost") {
+          this.scene.start(SCENES.game, { resumeCurrentGame: true });
+        } else {
+          this.scene.start(SCENES.game, {
+            mode: "daily",
+            dealId: dailyDealId,
+          });
+        }
         return;
       }
       case "settings":
@@ -464,5 +502,63 @@ export class MapScene extends Phaser.Scene {
     }
 
     this._statusText.setText(message);
+  }
+
+  /** DEV: mark current node as completed, advance to next */
+  private devSkipNode(): void {
+    const { save } = getAppContext();
+    const progress = save.load().progress;
+    const nextDealId = getNextPlayableDealId(progress);
+
+    if (!nextDealId) {
+      this.setStatus("All nodes completed");
+      return;
+    }
+
+    save.completeNode(nextDealId);
+
+    // Navigate to the page of the new current node
+    const updatedProgress = save.load().progress;
+    const newNext = getNextPlayableDealId(updatedProgress);
+    const targetPage = newNext ? getRouteSheetByDealId(newNext)?.page ?? this.currentPage : this.currentPage;
+    this.currentPage = targetPage;
+    this.render();
+  }
+
+  /** DEV: uncomplete last completed node, step back */
+  private devUnskipNode(): void {
+    const { save } = getAppContext();
+    const progress = save.load().progress;
+
+    if (progress.completedNodes.length === 0) {
+      this.setStatus("No nodes to undo");
+      return;
+    }
+
+    const lastCompleted = progress.completedNodes[progress.completedNodes.length - 1]!;
+
+    save.updateProgress((p) => {
+      const completedNodes = p.completedNodes.filter((id) => id !== lastCompleted);
+      // Keep unlocked: all completed + the next playable one
+      const unlockedSet = new Set(completedNodes);
+      // The first non-completed node becomes current — it should be unlocked
+      const allDealIds = ROUTE_SHEETS.flatMap((sheet) => sheet.dealIds);
+      const nextPlayable = allDealIds.find((id) => !unlockedSet.has(id));
+      if (nextPlayable) {
+        unlockedSet.add(nextPlayable);
+      }
+      return {
+        ...p,
+        completedNodes,
+        unlockedNodes: [...unlockedSet],
+      };
+    });
+
+    // Navigate to page with newly-current node
+    const updatedProgress = save.load().progress;
+    const newNext = getNextPlayableDealId(updatedProgress);
+    const targetPage = newNext ? getRouteSheetByDealId(newNext)?.page ?? this.currentPage : this.currentPage;
+    this.currentPage = targetPage;
+    this.render();
   }
 }

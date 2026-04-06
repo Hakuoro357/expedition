@@ -234,7 +234,7 @@ export function createGameSceneOverlayHtml({
 
   return [
     '<div class="game-overlay">',
-    `  <div class="game-overlay__coins"><span class="game-overlay__coin-dot" aria-hidden="true"></span><span class="game-overlay__coins-value">${escapeHtml(coinsLabel)}</span></div>`,
+    `  <div class="game-overlay__coins"><span aria-hidden="true">🪙</span> <span class="game-overlay__coins-value">${escapeHtml(coinsLabel)}</span></div>`,
     '  <div class="game-overlay__header">',
     `    <div class="game-overlay__title">${escapeHtml(title)}</div>`,
     (subtitle ? `    <div class="game-overlay__subtitle">${escapeHtml(subtitle)}</div>` : ""),

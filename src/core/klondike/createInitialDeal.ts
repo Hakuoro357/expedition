@@ -52,6 +52,7 @@ export function createInitialDeal(mode: GameMode, dealId: string, seed?: number)
   return {
     mode,
     dealId,
+    seed: resolvedSeed,
     status: "in_progress",
     stock,
     waste: createPile("waste", "waste"),

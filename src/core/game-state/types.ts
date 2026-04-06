@@ -15,6 +15,8 @@ export type GameMode = "adventure" | "daily" | "quick-play";
 export type GameState = {
   mode: GameMode;
   dealId: string;
+  /** Seed used to shuffle the deck — needed for same-deal restart */
+  seed?: number;
   status: GameStatus;
   stock: Pile;
   waste: Pile;
@@ -35,6 +37,8 @@ export type ProgressState = {
   streakCount: number;
   /** ISO date string of the last daily login */
   lastLoginDate: string | null;
+  /** Dev-only: all route points are playable */
+  devAllPlayable?: boolean;
 };
 
 export type SaveState = {

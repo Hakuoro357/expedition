@@ -8,6 +8,8 @@ export type RouteSheet = {
   dealIds: string[];
   titleRu: string;
   titleEn: string;
+  summaryRu: string;
+  summaryEn: string;
   background: {
     topColor: number;
     bottomColor: number;
@@ -21,10 +23,26 @@ const ROUTE_SHEET_SIZES = [8, 8, 7, 7] as const;
 function buildRouteSheets(): RouteSheet[] {
   let cursor = 0;
   const titles = [
-    { ru: "Начало пути", en: "Journey Start" },
-    { ru: "Каменная гряда", en: "Stone Ridge" },
-    { ru: "Разорванный маршрут", en: "Broken Route" },
-    { ru: "Последняя стоянка", en: "Last Camp" },
+    {
+      ru: "Начало пути", en: "Journey Start",
+      summaryRu: "Маршрут восстановлен. Первые записи дневника указывают на систему ориентиров, которой нет на официальной карте.",
+      summaryEn: "The route is restored. Early diary entries point to a marker system absent from the official map.",
+    },
+    {
+      ru: "Каменная гряда", en: "Stone Ridge",
+      summaryRu: "Два маршрута становятся видимыми. Записи осторожнее, а карта всё дальше расходится с отчётом.",
+      summaryEn: "Two routes become visible. The notes grow cautious as the map diverges further from the report.",
+    },
+    {
+      ru: "Разорванный маршрут", en: "Broken Route",
+      summaryRu: "Сокрытие маршрута — уже факт. Фальшивые фрагменты и ключевая фотография меняют всё.",
+      summaryEn: "The concealment of the route is now proven. False fragments and a key photograph change everything.",
+    },
+    {
+      ru: "Последняя стоянка", en: "Last Camp",
+      summaryRu: "Архив собран. Настоящий путь, тайник и судьба экспедиции — восстановлены полностью.",
+      summaryEn: "The archive is complete. The true route, the cache, and the expedition's fate — fully restored.",
+    },
   ] as const;
   const backgrounds = [
     { topColor: 0x264744, bottomColor: 0x172a28, glowColor: 0x3f6a62 },
@@ -43,6 +61,8 @@ function buildRouteSheets(): RouteSheet[] {
       dealIds,
       titleRu: title?.ru ?? `Лист ${index + 1}`,
       titleEn: title?.en ?? `Sheet ${index + 1}`,
+      summaryRu: title?.summaryRu ?? "",
+      summaryEn: title?.summaryEn ?? "",
       background: backgrounds[index] ?? backgrounds[0],
     };
   });
@@ -67,6 +87,12 @@ export function getRouteSheetTitle(page: number, locale: "ru" | "en"): string {
   return locale === "ru" ? sheet.titleRu : sheet.titleEn;
 }
 
+export function getRouteSheetSummary(page: number, locale: "ru" | "en"): string {
+  const sheet = getRouteSheetByPage(page);
+  if (!sheet) return "";
+  return locale === "ru" ? sheet.summaryRu : sheet.summaryEn;
+}
+
 export function getNextPlayableDealId(progress: ProgressState): string | null {
   return (
     ALL_DEAL_IDS.find((dealId) => !progress.completedNodes.includes(dealId)) ?? null
@@ -74,6 +100,10 @@ export function getNextPlayableDealId(progress: ProgressState): string | null {
 }
 
 export function isRouteSheetUnlocked(page: number, progress: ProgressState): boolean {
+  if (progress.devAllPlayable) {
+    return getRouteSheetByPage(page) != null;
+  }
+
   const sheet = getRouteSheetByPage(page);
   if (!sheet) {
     return false;
@@ -98,6 +128,10 @@ export function getCurrentRoutePointState(
 ): RouteSheetPointState {
   if (progress.completedNodes.includes(dealId)) {
     return "passed";
+  }
+
+  if (progress.devAllPlayable) {
+    return "current";
   }
 
   return getNextPlayableDealId(progress) === dealId ? "current" : "future";

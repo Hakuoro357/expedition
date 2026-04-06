@@ -302,6 +302,8 @@ export function getGameStatus(state: GameState): GameState["status"] {
  * all tableau cards are face-up (regardless of stock/waste).
  */
 export function canAutoComplete(state: GameState): boolean {
+  // Auto-complete only when stock and waste are empty and all tableau cards face-up
+  if (state.stock.cards.length > 0 || state.waste.cards.length > 0) return false;
   return state.tableau.every((pile) => pile.cards.every((card) => card.faceUp));
 }
 
@@ -315,65 +317,28 @@ export type AutoCompleteSource = "tableau" | "waste";
 export function autoCompleteStep(
   state: GameState
 ): { state: GameState; source: AutoCompleteSource; fromPile: number; toPile: number; target: "foundation" | "tableau" } | null {
-  // First: if stock has cards, drain them all to waste so they're accessible
-  let current = state;
-  while (current.stock.cards.length > 0) {
-    current = drawFromStock(current);
-  }
-
+  // Find the lowest-rank tableau card that can go to foundation
   let bestRank = 14;
-  let bestSource: AutoCompleteSource = "tableau";
   let bestFromPile = -1;
   let bestFi = -1;
 
-  // Check tableau top cards
-  for (let ti = 0; ti < current.tableau.length; ti++) {
-    const pile = current.tableau[ti];
+  for (let ti = 0; ti < state.tableau.length; ti++) {
+    const pile = state.tableau[ti];
     const topCard = pile.cards[pile.cards.length - 1];
     if (!topCard?.faceUp) continue;
-    for (let fi = 0; fi < current.foundations.length; fi++) {
-      if (canMoveCardToFoundation(topCard, current.foundations[fi], fi) && topCard.rank < bestRank) {
+    for (let fi = 0; fi < state.foundations.length; fi++) {
+      if (canMoveCardToFoundation(topCard, state.foundations[fi], fi) && topCard.rank < bestRank) {
         bestRank = topCard.rank;
-        bestSource = "tableau";
         bestFromPile = ti;
         bestFi = fi;
       }
     }
   }
 
-  // Check waste top card
-  const wasteTop = current.waste.cards[current.waste.cards.length - 1];
-  if (wasteTop) {
-    for (let fi = 0; fi < current.foundations.length; fi++) {
-      if (canMoveCardToFoundation(wasteTop, current.foundations[fi], fi) && wasteTop.rank < bestRank) {
-        bestRank = wasteTop.rank;
-        bestSource = "waste";
-        bestFromPile = -1;
-        bestFi = fi;
-      }
-    }
-  }
-
   if (bestFi !== -1) {
-    let nextState: GameState | null;
-    if (bestSource === "tableau") {
-      nextState = moveTableauToFoundation(current, bestFromPile, bestFi);
-    } else {
-      nextState = moveWasteToFoundation(current, bestFi);
-    }
+    const nextState = moveTableauToFoundation(state, bestFromPile, bestFi);
     if (nextState) {
-      return { state: nextState, source: bestSource, fromPile: bestFromPile, toPile: bestFi, target: "foundation" };
-    }
-  }
-
-  // Fallback: move waste top to tableau (to unbury deeper waste cards)
-  const wasteTop2 = current.waste.cards[current.waste.cards.length - 1];
-  if (wasteTop2) {
-    for (let ti = 0; ti < current.tableau.length; ti++) {
-      const moved = moveWasteToTableau(current, ti);
-      if (moved) {
-        return { state: moved, source: "waste", fromPile: -1, toPile: ti, target: "tableau" };
-      }
+      return { state: nextState, source: "tableau", fromPile: bestFromPile, toPile: bestFi, target: "foundation" };
     }
   }
 

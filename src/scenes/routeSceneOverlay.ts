@@ -10,6 +10,7 @@ export type RouteOverlayPoint = {
   x: number;
   y: number;
   label: string;
+  title?: string;
   state: "current" | "passed" | "future";
 };
 
@@ -30,6 +31,7 @@ type RouteSceneOverlayParams = {
   routePoints: RouteOverlayPoint[];
   routeSegments: RouteOverlaySegment[];
   navItems: RouteNavItem[];
+  showDevTools?: boolean;
 };
 
 function escapeHtml(value: string): string {
@@ -39,6 +41,68 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+/** Viewport width used for label placement clamping */
+const SVG_WIDTH = 390;
+
+const EDGE_PADDING = 8;
+const POINT_RADIUS = 19;
+const CURRENT_RADIUS = 24;
+const LABEL_GAP = 8;
+
+type TitlePlacement = { side: "left" | "right"; maxWidth: number };
+
+/**
+ * Decide whether the title goes left or right of the point.
+ *
+ * Primary rule: pick the side with more available space so the text fits.
+ * Tie-breaker (when both sides are roughly equal): place opposite to the
+ * direction the route segments pull, so the label doesn't overlap the line.
+ */
+function computeTitlePlacement(
+  pointIndex: number,
+  points: RouteOverlayPoint[],
+  segments: RouteOverlaySegment[],
+): TitlePlacement {
+  const point = points[pointIndex]!;
+  const radius = point.state === "current" ? CURRENT_RADIUS : POINT_RADIUS;
+  const labelStart = radius + LABEL_GAP;
+
+  const spaceRight = SVG_WIDTH - point.x - labelStart - EDGE_PADDING;
+  const spaceLeft = point.x - labelStart - EDGE_PADDING;
+
+  // Segment pull direction — used as tie-breaker only
+  let pullX = 0;
+  const segBelow = segments[pointIndex - 1];
+  if (segBelow) {
+    const otherX = segBelow.fromX === point.x && segBelow.fromY === point.y
+      ? segBelow.toX : segBelow.fromX;
+    pullX += otherX - point.x;
+  }
+  const segAbove = segments[pointIndex];
+  if (segAbove) {
+    const otherX = segAbove.fromX === point.x && segAbove.fromY === point.y
+      ? segAbove.toX : segAbove.fromX;
+    pullX += otherX - point.x;
+  }
+
+  let side: "left" | "right";
+  const spaceDiff = spaceRight - spaceLeft;
+
+  if (Math.abs(spaceDiff) > 30) {
+    // One side clearly has more room — use it
+    side = spaceDiff > 0 ? "right" : "left";
+  } else {
+    // Roughly equal — place opposite to segment pull direction
+    side = pullX > 0 ? "left" : "right";
+    if (Math.abs(pullX) < 5) {
+      side = point.x > SVG_WIDTH / 2 ? "left" : "right";
+    }
+  }
+
+  const maxWidth = Math.max(40, side === "right" ? spaceRight : spaceLeft);
+  return { side, maxWidth };
 }
 
 function buildRouteGraphicsHtml(points: RouteOverlayPoint[], segments: RouteOverlaySegment[]): string {
@@ -55,6 +119,8 @@ function buildRouteGraphicsHtml(points: RouteOverlayPoint[], segments: RouteOver
     })
     .join("");
 
+  const TITLE_HEIGHT = 18;
+
   const pointsHtml = points
     .map((point, index) => {
       if (point.state === "future") {
@@ -65,11 +131,29 @@ function buildRouteGraphicsHtml(points: RouteOverlayPoint[], segments: RouteOver
           </g>`;
       }
 
+      const radius = point.state === "current" ? CURRENT_RADIUS : POINT_RADIUS;
+
+      let titleHtml = "";
+      if (point.title) {
+        const { side, maxWidth } = computeTitlePlacement(index, points, segments);
+        const foX = side === "right"
+          ? point.x + radius + LABEL_GAP
+          : point.x - radius - LABEL_GAP - maxWidth;
+        const foY = point.y - TITLE_HEIGHT / 2;
+        titleHtml = `<foreignObject x="${foX}" y="${foY}" width="${maxWidth}" height="${TITLE_HEIGHT}">
+            <div xmlns="http://www.w3.org/1999/xhtml"
+              class="route-overlay__route-point-title"
+              style="text-align:${side === "right" ? "left" : "right"}"
+            >${escapeHtml(point.title)}</div>
+          </foreignObject>`;
+      }
+
       return `
         <g class="route-overlay__route-point route-overlay__route-point--${point.state}" data-route-point="${index}">
           ${point.state === "current" ? `<circle class="route-overlay__route-point-current-halo" cx="${point.x}" cy="${point.y}" r="31" />` : ""}
-          <circle class="route-overlay__route-point-main" cx="${point.x}" cy="${point.y}" r="${point.state === "current" ? 24 : 19}" />
+          <circle class="route-overlay__route-point-main" cx="${point.x}" cy="${point.y}" r="${radius}" />
           <text class="route-overlay__route-point-label" x="${point.x}" y="${point.y}">${escapeHtml(point.label)}</text>
+          ${titleHtml}
         </g>`;
     })
     .join("");
@@ -90,6 +174,7 @@ export function createRouteSceneOverlayHtml({
   routePoints,
   routeSegments,
   navItems,
+  showDevTools,
 }: RouteSceneOverlayParams): string {
   const activePointHtml =
     activePointTitle || activePointDescription
@@ -101,14 +186,24 @@ export function createRouteSceneOverlayHtml({
         ].join("")
       : "";
   const prevArrow = canGoPrev
-    ? '<button class="route-overlay__pager-btn" data-page-prev type="button">‹</button>'
-    : '<span class="route-overlay__pager-btn route-overlay__pager-btn--hidden">‹</span>';
+    ? '<button class="route-overlay__pager-btn" data-page-prev type="button">◂</button>'
+    : '<span class="route-overlay__pager-btn route-overlay__pager-btn--hidden">◂</span>';
   const nextArrow = canGoNext
-    ? '<button class="route-overlay__pager-btn" data-page-next type="button">›</button>'
-    : '<span class="route-overlay__pager-btn route-overlay__pager-btn--hidden">›</span>';
+    ? '<button class="route-overlay__pager-btn" data-page-next type="button">▸</button>'
+    : '<span class="route-overlay__pager-btn route-overlay__pager-btn--hidden">▸</span>';
+
+  const devToolsHtml = showDevTools
+    ? [
+        '<div class="route-overlay__dev-tools">',
+        '  <button class="route-overlay__dev-btn" data-dev-back type="button">◀ Back</button>',
+        '  <button class="route-overlay__dev-btn" data-dev-skip type="button">Skip ▶</button>',
+        "</div>",
+      ].join("")
+    : "";
 
   return [
     '<div class="route-overlay">',
+    devToolsHtml,
     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
     activePointHtml,
     '  <div class="route-overlay__paginator">',

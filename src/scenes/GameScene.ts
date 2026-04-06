@@ -12,6 +12,7 @@ import { createInitialDeal } from "@/core/klondike/createInitialDeal";
 import { findRandomSolvableSeed } from "@/core/klondike/randomSeed";
 import { getPointTitleByDealId } from "@/data/narrative/points";
 import { GAME_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
+import { getRouteSheetByDealId, ROUTE_SHEETS } from "@/data/routeSheets";
 import {
   autoCompleteStep,
   canAutoComplete,
@@ -20,7 +21,7 @@ import {
   drawFromStock,
   getGameStatus,
   getHint,
-  hasProductiveMoves,
+
   moveFoundationToTableau,
   moveTableauToFoundation,
   moveTableauToTableau,
@@ -54,6 +55,8 @@ import {
 type GameSceneData = {
   dealId?: string;
   mode?: GameMode;
+  /** Seed for restarting the same deal layout */
+  seed?: number;
   resumeCurrentGame?: boolean;
   devPreviewScreen?: "loss" | "autocomplete" | "win" | "rules" | "leave";
 };
@@ -66,7 +69,6 @@ export class GameScene extends Phaser.Scene {
   private dragPreview?: Phaser.GameObjects.Container;
   private draggedSelection: Selection | null = null;
   private dragPreviewCards: GameOverlayCard[] = [];
-  private lossDetected = false;
   private pendingFlips: Set<string> = new Set();
   private autoCompleting = false;
   private animating = false;
@@ -75,6 +77,7 @@ export class GameScene extends Phaser.Scene {
   private _emptyTableauSlots: GameOverlayEmptySlot[] = [];
   private hintsUsed = 0;
   private hintHighlightTimer?: Phaser.Time.TimerEvent;
+  private hintGlowObjects: Phaser.GameObjects.GameObject[] = [];
 
   constructor() {
     super(SCENES.game);
@@ -86,14 +89,14 @@ export class GameScene extends Phaser.Scene {
     const mode = restoredState?.mode ?? data.mode ?? "adventure";
     const dealId = restoredState?.dealId ?? data.dealId ?? "c1n1";
 
-    // Always use a random solvable seed for new games (daily uses date-based seed internally)
-    const randomSeed = !restoredState && mode !== "daily" ? findRandomSolvableSeed() : undefined;
-    this.gameState = restoredState ? cloneGameState(restoredState) : createInitialDeal(mode, dealId, randomSeed);
+    // Use provided seed (restart same deal), or find a random solvable seed for new games
+    const seed = data.seed ?? (!restoredState && mode !== "daily" ? findRandomSolvableSeed() : undefined);
+    this.gameState = restoredState ? cloneGameState(restoredState) : createInitialDeal(mode, dealId, seed);
     this.history = [];
     this.selection = null;
     // Require 8px movement before drag starts - prevents taps from triggering drag
     this.input.dragDistanceThreshold = 8;
-    this.lossDetected = false;
+
     this.pendingFlips.clear();
     this.autoCompleting = false;
     this.animating = false;
@@ -109,16 +112,19 @@ export class GameScene extends Phaser.Scene {
     analytics.track("deal_start", { mode, dealId });
     save.updateCurrentGame(this.gameState);
 
-    // Background
-    const chapterNum = mode === "adventure" ? (parseInt(dealId.charAt(1), 10) || 1) : 1;
-    const bgKey = `bg-chapter${chapterNum}`;
-    if (this.textures.exists(bgKey)) {
-      this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, bgKey).setAlpha(0.55);
-    } else {
-      this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x102625);
-    }
+    // Ensure card back texture is loaded for Phaser rendering
+    this.ensureCardBackTexture();
+
+    // Background — use route sheet colors for consistent theming
+    const sheet = getRouteSheetByDealId(dealId) ?? ROUTE_SHEETS[0];
+    const { topColor, bottomColor, glowColor } = sheet.background;
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    bg.fillStyle(glowColor, 0.12);
+    bg.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
     // Dim overlay so board stays readable
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a1e1c, 0.45);
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a1e1c, 0.35);
     this.renderBottomBar();
     this.renderGameOverlay();
 
@@ -143,7 +149,8 @@ export class GameScene extends Phaser.Scene {
   private showDevPreviewScreen(screen: string): void {
     switch (screen) {
       case "loss":
-        this.showLossOverlay();
+      case "leave":
+        this.showLeaveConfirm();
         break;
       case "autocomplete":
         this.showAutoCompleteOverlay();
@@ -157,9 +164,6 @@ export class GameScene extends Phaser.Scene {
         break;
       case "rules":
         this.showRulesOverlay();
-        break;
-      case "leave":
-        this.showLeaveConfirm();
         break;
     }
   }
@@ -421,7 +425,7 @@ export class GameScene extends Phaser.Scene {
     save.updateCurrentGame(this.gameState);
     analytics.track("undo_used", { dealId: this.gameState.dealId });
     this.selection = null;
-    this.lossDetected = false;
+
     this.pendingFlips.clear();
     sound.cardPlace();
     this.renderBoard();
@@ -431,13 +435,13 @@ export class GameScene extends Phaser.Scene {
     const { i18n } = getAppContext();
     const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
     if (isFirstUndo) return i18n.t("undo");
-    return `${i18n.t("undo")} 💰${ECONOMY.undoCost}`;
+    return `${i18n.t("undo")} 🪙${ECONOMY.undoCost}`;
   }
 
   private getHintLabel(): string {
     const { i18n } = getAppContext();
     if (this.hintsUsed === 0) return i18n.t("hint");
-    return `${i18n.t("hint")} 💰${ECONOMY.hintCost}`;
+    return `${i18n.t("hint")} 🪙${ECONOMY.hintCost}`;
   }
 
   private handleHintAction(): void {
@@ -472,19 +476,37 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showHintHighlight(hint: HintResult): void {
-    // Clear any existing hint highlight
     this.clearHintHighlight();
+    if (!this.gameState) return;
 
-    const root = this.gameOverlay?.getInnerElement();
-    if (!root) return;
+    const fromPos = this.getHintCardPosition(hint.from.zone, hint.from.pileIndex, hint.from.cardIndex);
+    const toPos = this.getHintCardPosition(hint.to.zone, hint.to.pileIndex, -1);
 
-    const fromEls = this.getHintElements(root, hint.from.zone, hint.from.pileIndex, hint.from.cardIndex);
-    const toEls = this.getHintElements(root, hint.to.zone, hint.to.pileIndex, -1);
+    [fromPos, toPos].forEach((pos) => {
+      if (!pos) return;
+      const glow = this.add.graphics();
+      glow.lineStyle(3, 0xffd700, 0.9);
+      glow.strokeRoundedRect(
+        pos.x - CARD_WIDTH / 2 - 4,
+        pos.y - CARD_HEIGHT / 2 - 4,
+        CARD_WIDTH + 8,
+        CARD_HEIGHT + 8,
+        6,
+      );
+      glow.setDepth(9999);
+      this.hintGlowObjects.push(glow);
 
-    [...fromEls, ...toEls].forEach((el) => el.classList.add("game-overlay__hint-glow"));
+      this.tweens.add({
+        targets: glow,
+        alpha: { from: 1, to: 0.3 },
+        duration: 500,
+        yoyo: true,
+        repeat: 3,
+        onComplete: () => glow.destroy(),
+      });
+    });
 
-    // Auto-dismiss after 2s
-    this.hintHighlightTimer = this.time.delayedCall(2000, () => {
+    this.hintHighlightTimer = this.time.delayedCall(3500, () => {
       this.clearHintHighlight();
     });
   }
@@ -492,58 +514,38 @@ export class GameScene extends Phaser.Scene {
   private clearHintHighlight(): void {
     this.hintHighlightTimer?.destroy();
     this.hintHighlightTimer = undefined;
-
-    const root = this.gameOverlay?.getInnerElement();
-    if (!root) return;
-    root.querySelectorAll(".game-overlay__hint-glow").forEach((el) => {
-      el.classList.remove("game-overlay__hint-glow");
-    });
+    this.hintGlowObjects.forEach((obj) => obj.destroy());
+    this.hintGlowObjects = [];
   }
 
-  private getHintElements(root: HTMLElement, zone: string, pileIndex: number, cardIndex: number): HTMLElement[] {
-    const els: HTMLElement[] = [];
-
+  private getHintCardPosition(
+    zone: string,
+    pileIndex: number,
+    cardIndex: number,
+  ): { x: number; y: number } | null {
     if (zone === "stock") {
-      const stockEl = root.querySelector<HTMLElement>(".game-overlay__slot--stock");
-      if (stockEl) els.push(stockEl);
-    } else if (zone === "waste") {
-      const wasteEl = root.querySelector<HTMLElement>(".game-overlay__slot--waste");
-      if (wasteEl) els.push(wasteEl);
-      // Also highlight the waste card overlay
-      const wasteCards = root.querySelectorAll<HTMLElement>(".game-overlay__dom-card");
-      // Waste card is at the waste position
-      wasteCards.forEach((el) => {
-        const left = parseFloat(el.style.left);
-        if (left >= 50 && left <= 80) els.push(el); // ~66px = waste position
-      });
-    } else if (zone === "foundation") {
-      const foundationEl = root.querySelector<HTMLElement>(`.game-overlay__slot--foundation-${pileIndex}`);
-      if (foundationEl) els.push(foundationEl);
-    } else if (zone === "tableau") {
-      // Find card(s) in the tableau pile
-      if (cardIndex >= 0) {
-        const cardKey = `tableau-${pileIndex}-${cardIndex}`;
-        const cardEl = root.querySelector<HTMLElement>(`[data-card-key="${cardKey}"]`);
-        if (cardEl) els.push(cardEl);
-      } else {
-        // Target pile — highlight the top card or empty slot
-        const emptySlotKey = `tableau-empty-${pileIndex}`;
-        const emptyEl = root.querySelector<HTMLElement>(`[data-card-key="${emptySlotKey}"]`);
-        if (emptyEl) {
-          els.push(emptyEl);
-        } else {
-          // Find the last card in this pile
-          const pile = this.gameState?.tableau[pileIndex];
-          if (pile && pile.cards.length > 0) {
-            const lastKey = `tableau-${pileIndex}-${pile.cards.length - 1}`;
-            const lastEl = root.querySelector<HTMLElement>(`[data-card-key="${lastKey}"]`);
-            if (lastEl) els.push(lastEl);
-          }
-        }
-      }
+      return { x: TABLEAU_START_X, y: TOP_ROW_Y };
     }
-
-    return els;
+    if (zone === "waste") {
+      return { x: TABLEAU_START_X + TABLEAU_GAP_X, y: TOP_ROW_Y };
+    }
+    if (zone === "foundation") {
+      return { x: FOUNDATION_START_X + pileIndex * FOUNDATION_GAP_X, y: TOP_ROW_Y };
+    }
+    if (zone === "tableau" && this.gameState) {
+      const pile = this.gameState.tableau[pileIndex];
+      if (!pile) return null;
+      const x = TABLEAU_START_X + pileIndex * TABLEAU_GAP_X;
+      if (cardIndex >= 0) {
+        return { x, y: this.getTableauCardY(pile, cardIndex) };
+      }
+      // Target: top card or empty slot
+      if (pile.cards.length > 0) {
+        return { x, y: this.getTableauCardY(pile, pile.cards.length - 1) };
+      }
+      return { x, y: TABLEAU_START_Y };
+    }
+    return null;
   }
 
   private showRulesOverlay(): void {
@@ -594,7 +596,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showLeaveConfirm(): void {
-    const { i18n } = getAppContext();
+    const { i18n, save } = getAppContext();
     this.destroyLeaveConfirm();
 
     const overlayEl = this.gameOverlay?.getHostElement();
@@ -619,14 +621,26 @@ export class GameScene extends Phaser.Scene {
     body.textContent = i18n.t("leaveBody");
 
     const buttons = document.createElement("div");
-    buttons.className = "modal__buttons modal__buttons--row";
+    buttons.className = "modal__buttons";
 
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "modal-btn";
-    cancelBtn.type = "button";
-    cancelBtn.textContent = i18n.t("leaveCancel");
-    cancelBtn.addEventListener("click", () => this.destroyLeaveConfirm());
+    // Restart (same deal, same seed) — costs coins
+    const coins = save.load().progress.coins;
+    const cost = ECONOMY.restartCost;
+    const canAfford = coins >= cost;
 
+    const restartBtn = document.createElement("button");
+    restartBtn.className = `modal-btn modal-btn--primary${canAfford ? "" : " modal-btn--disabled"}`;
+    restartBtn.type = "button";
+    restartBtn.textContent = `${i18n.t("restart")} (🪙 ${cost})`;
+    restartBtn.addEventListener("click", () => {
+      if (!this.gameState || !canAfford) return;
+      const { mode, dealId, seed } = this.gameState;
+      save.addCoins(-cost);
+      save.clearCurrentGame();
+      this.scene.start(SCENES.game, { mode, dealId, seed });
+    });
+
+    // Leave to map
     const confirmBtn = document.createElement("button");
     confirmBtn.className = "modal-btn modal-btn--danger";
     confirmBtn.type = "button";
@@ -636,8 +650,16 @@ export class GameScene extends Phaser.Scene {
       this.scene.start(SCENES.map);
     });
 
-    buttons.appendChild(cancelBtn);
+    // Cancel — back to game
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "modal-btn";
+    cancelBtn.type = "button";
+    cancelBtn.textContent = i18n.t("leaveCancel");
+    cancelBtn.addEventListener("click", () => this.destroyLeaveConfirm());
+
+    buttons.appendChild(restartBtn);
     buttons.appendChild(confirmBtn);
+    buttons.appendChild(cancelBtn);
     panel.appendChild(title);
     panel.appendChild(body);
     panel.appendChild(buttons);
@@ -725,82 +747,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Loss (no moves remaining)
-    if (!this.lossDetected && !hasProductiveMoves(this.gameState)) {
-      this.lossDetected = true;
-      this.showLossOverlay();
-      analytics.track("deal_fail", {
-        mode: this.gameState.mode,
-        dealId: this.gameState.dealId,
-      });
-    }
+    // Deadlock detection removed — player decides when to quit/restart via the leave modal
   }
 
-  private showLossOverlay(): void {
-    const { i18n, save, sound } = getAppContext();
-    sound.badMove();
-
-    const overlayEl = this.gameOverlay?.getHostElement();
-    if (!overlayEl) return;
-
-    const container = document.createElement("div");
-    container.className = "game-overlay__rules-overlay";
-    container.setAttribute("data-loss-overlay", "true");
-
-    const backdrop = document.createElement("div");
-    backdrop.className = "game-overlay__rules-backdrop";
-
-    const panel = document.createElement("div");
-    panel.className = "game-overlay__rules-panel";
-
-    const title = document.createElement("h2");
-    title.className = "game-overlay__rules-title";
-    title.textContent = i18n.t("noMoves");
-
-    const body = document.createElement("div");
-    body.className = "modal__body";
-    body.textContent = i18n.t("noMovesSubtitle");
-
-    const buttons = document.createElement("div");
-    buttons.className = "modal__buttons";
-
-    const coins = save.load().progress.coins;
-    const cost = ECONOMY.restartCost;
-    const canAfford = coins >= cost;
-
-    const restartBtn = document.createElement("button");
-    restartBtn.className = `modal-btn modal-btn--primary${canAfford ? "" : " modal-btn--disabled"}`;
-    restartBtn.type = "button";
-    restartBtn.textContent = `${i18n.t("restart")} (💰 ${cost})`;
-    restartBtn.addEventListener("click", () => {
-      if (!this.gameState || !canAfford) return;
-      const { mode, dealId } = this.gameState;
-      save.addCoins(-cost);
-      save.clearCurrentGame();
-      this.scene.start(SCENES.game, { mode, dealId });
-    });
-
-    const homeBtn = document.createElement("button");
-    homeBtn.className = "modal-btn";
-    homeBtn.type = "button";
-    homeBtn.textContent = i18n.t("home");
-    homeBtn.addEventListener("click", () => {
-      this.scene.start(SCENES.map);
-    });
-
-    buttons.appendChild(restartBtn);
-    buttons.appendChild(homeBtn);
-    panel.appendChild(title);
-    panel.appendChild(body);
-    panel.appendChild(buttons);
-    container.appendChild(backdrop);
-    container.appendChild(panel);
-    overlayEl.appendChild(container);
-
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      container.remove();
-    });
-  }
 
   private renderTopArea(): void {
     if (!this.gameState || !this.boardLayer) return;
@@ -1006,6 +955,47 @@ export class GameScene extends Phaser.Scene {
     if (ch === 1) return "card-back-compass";
     if (ch === 2) return "card-back-map";
     return "card-back-default";
+  }
+
+  /** Create a Phaser texture from the SVG card back string */
+  private ensureCardBackTexture(): void {
+    const key = this.cardBackKey();
+    if (this.textures.exists(key)) return;
+
+    let svg: string;
+    switch (key) {
+      case "card-back-compass":
+        svg = backCompassSvg;
+        break;
+      case "card-back-map":
+        svg = backMapSvg;
+        break;
+      default:
+        svg = backDefaultSvg;
+        break;
+    }
+
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      if (this.textures.exists(key)) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = CARD_WIDTH * 2;
+      canvas.height = CARD_HEIGHT * 2;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        this.textures.addCanvas(key, canvas);
+        // Re-render board so face-down cards pick up the new texture
+        this.renderBoard();
+      }
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
   }
 
   private createFaceCardImage(
@@ -1412,6 +1402,8 @@ export class GameScene extends Phaser.Scene {
       card,
       selected: true,
     }));
+    // Disable pointer-events on DOM slots during drag to prevent them stealing the pointer
+    this.gameOverlay?.getHostElement()?.classList.add("game-overlay--dragging");
     this.renderGameOverlay();
   }
 
@@ -1482,6 +1474,7 @@ export class GameScene extends Phaser.Scene {
     this.dragPreview = undefined;
     this.draggedSelection = null;
     this.dragPreviewCards = [];
+    this.gameOverlay?.getHostElement()?.classList.remove("game-overlay--dragging");
     this.renderGameOverlay();
   }
 
@@ -1629,40 +1622,7 @@ export class GameScene extends Phaser.Scene {
   private runAutoComplete(): void {
     if (!this.gameState) return;
 
-    // Phase 1: drain stock→waste one card at a time with animation
-    if (this.gameState.stock.cards.length > 0) {
-      const nextState = drawFromStock(this.gameState);
-      const drewCard = nextState.waste.cards.length > this.gameState.waste.cards.length;
-
-      if (drewCard) {
-        const drawnCard = nextState.waste.cards[nextState.waste.cards.length - 1];
-        getAppContext().sound.cardPlace();
-
-        const stockCenterX = TABLEAU_START_X;
-        const wasteCenterX = TABLEAU_START_X + TABLEAU_GAP_X;
-        const centerY = TOP_ROW_Y;
-        const midCenterX = (stockCenterX + wasteCenterX) / 2;
-
-        this.gameState = nextState;
-
-        this.boardLayer?.removeAll(true);
-        this.renderTopArea();
-        this.renderTableau();
-
-        this.animateStockToWasteDom(drawnCard, midCenterX, centerY, wasteCenterX, () => {
-          this.boardLayer?.removeAll(true);
-          this.renderTopArea();
-          this.renderTableau();
-
-          this.time.delayedCall(40, () => {
-            this.runAutoComplete();
-          });
-        });
-        return;
-      }
-    }
-
-    // Phase 2: move cards to foundation
+    // Move cards from tableau to foundation one at a time
     const step = autoCompleteStep(this.gameState);
     if (!step) {
       if (this.gameState.status !== "won") {
@@ -1672,37 +1632,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    let sourceX: number;
-    let sourceY: number;
-    let card: Card;
-
-    if (step.source === "waste") {
-      if (step.target === "foundation") {
-        const foundationPile = step.state.foundations[step.toPile];
-        card = foundationPile.cards[foundationPile.cards.length - 1];
-      } else {
-        const tableauPile = step.state.tableau[step.toPile];
-        card = tableauPile.cards[tableauPile.cards.length - 1];
-      }
-      sourceX = TABLEAU_START_X + TABLEAU_GAP_X;
-      sourceY = TOP_ROW_Y;
-    } else {
-      const sourcePile = this.gameState.tableau[step.fromPile];
-      card = sourcePile.cards[sourcePile.cards.length - 1];
-      sourceX = TABLEAU_START_X + step.fromPile * TABLEAU_GAP_X;
-      sourceY = this.getTableauCardY(sourcePile, sourcePile.cards.length - 1);
-    }
-
-    let targetX: number;
-    let targetY: number;
-    if (step.target === "foundation") {
-      targetX = FOUNDATION_START_X + step.toPile * FOUNDATION_GAP_X;
-      targetY = TOP_ROW_Y;
-    } else {
-      targetX = TABLEAU_START_X + step.toPile * TABLEAU_GAP_X;
-      const destPile = step.state.tableau[step.toPile];
-      targetY = this.getTableauCardY(destPile, destPile.cards.length - 1);
-    }
+    // Source is always tableau → foundation now
+    const sourcePile = this.gameState.tableau[step.fromPile];
+    const card = sourcePile.cards[sourcePile.cards.length - 1];
+    const sourceX = TABLEAU_START_X + step.fromPile * TABLEAU_GAP_X;
+    const sourceY = this.getTableauCardY(sourcePile, sourcePile.cards.length - 1);
+    const targetX = FOUNDATION_START_X + step.toPile * FOUNDATION_GAP_X;
+    const targetY = TOP_ROW_Y;
 
     // Update state immediately
     this.pushHistory();
@@ -1733,7 +1669,7 @@ export class GameScene extends Phaser.Scene {
           return;
         }
 
-        this.time.delayedCall(60, () => {
+        this.time.delayedCall(30, () => {
           this.runAutoComplete();
         });
       }
@@ -2003,17 +1939,17 @@ export class GameScene extends Phaser.Scene {
       targets: startPos,
       x: targetX,
       y: targetY,
-      duration: 220,
+      duration: 110,
       ease: "Power2",
       onUpdate: () => {
         animEl.style.left = `${startPos.x}px`;
         animEl.style.top = `${startPos.y}px`;
       },
       onComplete: () => {
-        animEl.style.transition = "transform 80ms ease-out";
+        animEl.style.transition = "transform 40ms ease-out";
         animEl.style.transform = "translate(-50%, -50%) scale(0.92)";
 
-        this.time.delayedCall(80, () => {
+        this.time.delayedCall(40, () => {
           animEl.remove();
           onComplete();
         });
