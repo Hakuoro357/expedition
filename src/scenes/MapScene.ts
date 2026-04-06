@@ -19,15 +19,20 @@ import {
 import {
   ROUTE_BOTTOM_NAV_HEIGHT,
   buildRouteSheetPoints,
-  getDesktopPageControls,
 } from "@/scenes/routeSceneLayout";
 import { createRouteSceneOverlayHtml, type RouteOverlayPoint, type RouteOverlaySegment } from "@/scenes/routeSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 
 type RouteNavTarget = "archive" | "daily" | "settings";
 
+export type MapSceneData = {
+  /** Page to show when returning from another scene */
+  page?: number;
+};
+
 export class MapScene extends Phaser.Scene {
   private overlay?: CanvasOverlayHandle;
+  private overlayCleanup?: () => void;
   private content?: Phaser.GameObjects.Container;
   private currentPage = 1;
   private dragStart?: { x: number; y: number };
@@ -36,19 +41,20 @@ export class MapScene extends Phaser.Scene {
     super(SCENES.map);
   }
 
-  create(): void {
+  create(data?: MapSceneData): void {
     const { analytics, save } = getAppContext();
     const progress = save.load().progress;
     const nextDealId = getNextPlayableDealId(progress);
-    const initialPage = nextDealId ? getRouteSheetByDealId(nextDealId)?.page ?? 1 : ROUTE_SHEETS.length;
+    const defaultPage = nextDealId ? getRouteSheetByDealId(nextDealId)?.page ?? 1 : ROUTE_SHEETS.length;
 
-    this.currentPage = initialPage;
+    this.currentPage = data?.page ?? defaultPage;
     analytics.track("route_open", { page: this.currentPage });
 
     this.input.on("pointerdown", this.handlePointerDown, this);
     this.input.on("pointerup", this.handlePointerUp, this);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.overlayCleanup?.();
       this.overlay?.destroy();
       this.overlay = undefined;
       this.input.off("pointerdown", this.handlePointerDown, this);
@@ -82,7 +88,6 @@ export class MapScene extends Phaser.Scene {
     this.renderBackground(page);
     this.renderPageSurface(page);
     this.renderPoints(pageNodes, routePoints, progress);
-    this.renderNavHitAreas(canGoPrev, canGoNext);
     this.renderBottomNav();
     const overlayPoints: RouteOverlayPoint[] = pageNodes
       .map((node, idx) => {
@@ -212,30 +217,12 @@ export class MapScene extends Phaser.Scene {
         this.scene.start(SCENES.detail, {
           dealId: node.id,
           initialTab: node.entryId ? "entry" : "artifact",
-          origin: { scene: SCENES.map },
+          origin: { scene: SCENES.map, data: { page: this.currentPage } },
         });
       });
 
       this.content?.add(hitArea);
     });
-  }
-
-  private renderNavHitAreas(canGoPrev: boolean, canGoNext: boolean): void {
-    const controls = getDesktopPageControls();
-
-    if (canGoPrev) {
-      this.addPageControlHitArea(controls.left.x, controls.left.y, -1);
-    }
-
-    if (canGoNext) {
-      this.addPageControlHitArea(controls.right.x, controls.right.y, 1);
-    }
-  }
-
-  private addPageControlHitArea(x: number, y: number, delta: -1 | 1): void {
-    const hitArea = this.add.rectangle(x, y, 42, 96, 0xffffff, 0).setInteractive({ useHandCursor: true });
-    hitArea.on("pointerdown", () => this.changePage(delta));
-    this.content?.add(hitArea);
   }
 
   private renderBottomNav(): void {
@@ -266,10 +253,39 @@ export class MapScene extends Phaser.Scene {
         logicalWidth: GAME_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
-      return;
+    } else {
+      this.overlay.setHtml(html);
     }
 
-    this.overlay.setHtml(html);
+    this.bindPaginatorEvents();
+  }
+
+  private bindPaginatorEvents(): void {
+    this.overlayCleanup?.();
+    const root = this.overlay?.getInnerElement();
+    if (!root) return;
+
+    const disposers: Array<() => void> = [];
+
+    const prevBtn = root.querySelector<HTMLElement>("[data-page-prev]");
+    if (prevBtn) {
+      const onClick = (): void => this.changePage(-1);
+      prevBtn.style.pointerEvents = "auto";
+      prevBtn.addEventListener("click", onClick);
+      disposers.push(() => prevBtn.removeEventListener("click", onClick));
+    }
+
+    const nextBtn = root.querySelector<HTMLElement>("[data-page-next]");
+    if (nextBtn) {
+      const onClick = (): void => this.changePage(1);
+      nextBtn.style.pointerEvents = "auto";
+      nextBtn.addEventListener("click", onClick);
+      disposers.push(() => nextBtn.removeEventListener("click", onClick));
+    }
+
+    this.overlayCleanup = () => {
+      disposers.forEach((d) => d());
+    };
   }
 
   private handleBottomNav(target: RouteNavTarget): void {
@@ -374,21 +390,21 @@ export class MapScene extends Phaser.Scene {
     backdrop.className = "game-overlay__rules-backdrop";
 
     const panel = document.createElement("div");
-    panel.className = "game-overlay__rules-panel game-overlay__leave-panel";
+    panel.className = "game-overlay__rules-panel";
 
     const title = document.createElement("h2");
     title.className = "game-overlay__rules-title";
     title.textContent = i18n.t("resumeTitle");
 
     const body = document.createElement("div");
-    body.className = "game-overlay__rules-body game-overlay__leave-body";
+    body.className = "modal__body";
     body.textContent = i18n.t("resumeBody");
 
     const buttons = document.createElement("div");
-    buttons.className = "game-overlay__leave-buttons";
+    buttons.className = "modal__buttons modal__buttons--row";
 
     const restartBtn = document.createElement("button");
-    restartBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--confirm";
+    restartBtn.className = "modal-btn modal-btn--danger";
     restartBtn.type = "button";
     restartBtn.textContent = i18n.t("resumeRestart");
     restartBtn.addEventListener("click", () => {
@@ -398,7 +414,7 @@ export class MapScene extends Phaser.Scene {
     });
 
     const continueBtn = document.createElement("button");
-    continueBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--cancel";
+    continueBtn.className = "modal-btn modal-btn--primary";
     continueBtn.type = "button";
     continueBtn.textContent = i18n.t("resumeContinue");
     continueBtn.addEventListener("click", () => {

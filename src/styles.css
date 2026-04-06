@@ -146,19 +146,54 @@ canvas {
   fill: #1b2f2c;
 }
 
-.route-overlay__page {
+.route-overlay__paginator {
   position: absolute;
-  top: 36px;
-  left: 50%;
-  width: 220px;
-  transform: translateX(-50%);
-  text-align: center;
+  bottom: 62px;
+  left: 0;
+  right: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.route-overlay__paginator-label {
   font-family: "Trebuchet MS", Verdana, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #ceb88e;
+  min-width: 180px;
+  text-align: center;
+}
+
+.route-overlay__pager-btn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(206, 184, 142, 0.24);
+  border-radius: 10px;
+  background: rgba(16, 32, 31, 0.6);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(246, 232, 199, 0.82);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.route-overlay__pager-btn:active {
+  background: rgba(206, 184, 142, 0.12);
+}
+
+.route-overlay__pager-btn--hidden {
+  visibility: hidden;
 }
 
 .route-overlay__current-panel {
@@ -190,25 +225,6 @@ canvas {
   max-width: 232px;
 }
 
-.route-overlay__pager {
-  position: absolute;
-  top: 50%;
-  width: 24px;
-  transform: translateY(-50%);
-  text-align: center;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 34px;
-  line-height: 1;
-  color: rgba(246, 232, 199, 0.72);
-}
-
-.route-overlay__pager--prev {
-  left: 12px;
-}
-
-.route-overlay__pager--next {
-  right: 12px;
-}
 
 /* Unified app navigation bar (shared footer across all scenes) */
 .app-nav {
@@ -239,13 +255,13 @@ canvas {
   border: none;
   border-radius: 12px;
   background: transparent;
-  color: rgba(206, 184, 142, 0.48);
+  color: rgba(206, 184, 142, 0.78);
   cursor: pointer;
   transition: color 120ms ease, background-color 120ms ease;
 }
 
 .app-nav__item--active {
-  color: rgba(206, 184, 142, 0.82);
+  color: rgba(240, 223, 181, 0.95);
 }
 
 .app-nav__item:active {
@@ -524,7 +540,7 @@ canvas {
   bottom: 0;
   height: 62px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   align-items: center;
   justify-items: center;
   border-top: none;
@@ -539,19 +555,15 @@ canvas {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  width: 72px;
+  width: 64px;
   height: 52px;
   padding: 0;
   border: none;
   border-radius: 12px;
   background: transparent;
-  color: rgba(206, 184, 142, 0.48);
+  color: rgba(206, 184, 142, 0.78);
   cursor: pointer;
   transition: color 120ms ease, background-color 120ms ease;
-}
-
-.game-overlay__action--undo {
-  color: rgba(206, 184, 142, 0.82);
 }
 
 .game-overlay__action:active {
@@ -652,65 +664,36 @@ canvas {
   white-space: pre-wrap;
 }
 
-.game-overlay__rules-close {
-  align-self: center;
-  margin-top: 8px;
-}
-
-.game-overlay__leave-panel {
+/* Modal body text (centered, muted) */
+.modal__body {
   text-align: center;
-}
-
-.game-overlay__leave-body {
-  text-align: center;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
   font-size: 14px;
+  line-height: 1.5;
   color: rgba(217, 195, 141, 0.7);
 }
 
-.game-overlay__leave-buttons {
+/* Modal button row */
+.modal__buttons {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.modal__buttons--row {
+  flex-direction: row;
   justify-content: center;
-  margin-top: 4px;
 }
 
-.game-overlay__leave-btn {
-  appearance: none;
-  padding: 10px 24px;
-  border-radius: 12px;
-  font-family: "Trebuchet MS", Verdana, sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 120ms ease;
-}
-
-.game-overlay__leave-btn--cancel {
-  background: rgba(218, 201, 161, 0.1);
-  border: 1px solid rgba(218, 201, 161, 0.24);
-  color: #dac9a1;
-}
-
-.game-overlay__leave-btn--confirm {
-  background: rgba(180, 80, 60, 0.3);
-  border: 1px solid rgba(200, 100, 80, 0.4);
-  color: #e8a090;
-}
-
-.game-overlay__leave-btn--cancel:active {
-  background: rgba(218, 201, 161, 0.18);
-}
-
-.game-overlay__leave-btn--confirm:active {
-  background: rgba(180, 80, 60, 0.45);
-}
-
-.game-overlay__dialog-btn {
+/* Unified modal button */
+.modal-btn {
   appearance: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 24px;
+  width: 100%;
+  padding: 12px 24px;
   border-radius: 12px;
   border: 1px solid rgba(218, 201, 161, 0.24);
   background: rgba(218, 201, 161, 0.1);
@@ -719,11 +702,74 @@ canvas {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 120ms ease;
+  transition: background-color 120ms ease, opacity 120ms ease;
 }
 
-.game-overlay__dialog-btn:active {
+.modal-btn:active {
   background: rgba(218, 201, 161, 0.18);
+}
+
+.modal-btn--primary {
+  background: rgba(216, 176, 92, 0.2);
+  border-color: rgba(240, 223, 181, 0.34);
+  color: #f3e4b9;
+}
+
+.modal-btn--primary:active {
+  background: rgba(216, 176, 92, 0.32);
+}
+
+.modal-btn--danger {
+  background: rgba(180, 80, 60, 0.3);
+  border-color: rgba(200, 100, 80, 0.4);
+  color: #e8a090;
+}
+
+.modal-btn--danger:active {
+  background: rgba(180, 80, 60, 0.45);
+}
+
+.modal-btn--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Hint highlight glow */
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(216, 176, 92, 0.3); }
+  50% { box-shadow: 0 0 14px 5px rgba(216, 176, 92, 0.7); }
+}
+
+.game-overlay__hint-glow {
+  animation: hint-pulse 600ms ease-in-out 3;
+  border-radius: 6px;
+}
+
+/* Victory text (DOM overlay above card layer) */
+.game-overlay__victory-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateY(20px);
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 42px;
+  font-weight: 700;
+  color: #f8ebcf;
+  text-shadow: 0 0 8px rgba(58, 32, 0, 0.7), 0 2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 300;
+  transition: opacity 400ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.game-overlay__victory-text--visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) translateY(-20px);
+}
+
+.modal-btn--inline {
+  width: auto;
+  align-self: center;
 }
 
 .detail-page {
@@ -1271,6 +1317,7 @@ canvas {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 58px;
   height: 58px;
   border-radius: 50%;
@@ -1320,9 +1367,20 @@ canvas {
   color: #d9ceb0;
 }
 
+.reward-overlay__buttons {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  width: 300px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .reward-overlay__ad-status {
   position: absolute;
-  top: 612px;
+  bottom: 80px;
   left: 50%;
   width: 280px;
   transform: translateX(-50%);

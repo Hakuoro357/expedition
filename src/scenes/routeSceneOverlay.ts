@@ -100,20 +100,22 @@ export function createRouteSceneOverlayHtml({
           "  </div>",
         ].join("")
       : "";
-  const prevButton = canGoPrev
-    ? '<div class="route-overlay__pager route-overlay__pager--prev" aria-hidden="true">‹</div>'
-    : "";
-  const nextButton = canGoNext
-    ? '<div class="route-overlay__pager route-overlay__pager--next" aria-hidden="true">›</div>'
-    : "";
+  const prevArrow = canGoPrev
+    ? '<button class="route-overlay__pager-btn" data-page-prev type="button">‹</button>'
+    : '<span class="route-overlay__pager-btn route-overlay__pager-btn--hidden">‹</span>';
+  const nextArrow = canGoNext
+    ? '<button class="route-overlay__pager-btn" data-page-next type="button">›</button>'
+    : '<span class="route-overlay__pager-btn route-overlay__pager-btn--hidden">›</span>';
 
   return [
     '<div class="route-overlay">',
     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
-    `  <div class="route-overlay__page">${escapeHtml(pageLabel)}</div>`,
     activePointHtml,
-    `  ${prevButton}`,
-    `  ${nextButton}`,
+    '  <div class="route-overlay__paginator">',
+    `    ${prevArrow}`,
+    `    <span class="route-overlay__paginator-label">${escapeHtml(pageLabel)}</span>`,
+    `    ${nextArrow}`,
+    "  </div>",
     createAppNavHtml(navItems),
     "</div>",
   ].join("");

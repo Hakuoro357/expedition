@@ -56,6 +56,8 @@ export const locales = {
     resumeBody: "You have an unfinished game at this point.",
     resumeContinue: "Continue",
     resumeRestart: "Start over",
+    notEnoughCoins: "Not enough coins",
+    hint: "Hint",
   },
   ru: {
     title: "Solitaire: Expedition",
@@ -114,6 +116,8 @@ export const locales = {
     resumeBody: "У вас есть начатая партия на этой точке.",
     resumeContinue: "Продолжить",
     resumeRestart: "Начать заново",
+    notEnoughCoins: "Не хватает монет",
+    hint: "Подсказка",
   },
 } as const;
 

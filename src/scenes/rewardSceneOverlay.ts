@@ -37,6 +37,9 @@ type RewardOverlayParams = {
   foundTitle?: string;
   revealItems?: RewardRevealItem[];
   rewardLines?: string[];
+  adLabel?: string;
+  adDisabled?: boolean;
+  continueLabel?: string;
   adStatus?: string;
   navItems: AppNavItem[];
 };
@@ -48,6 +51,9 @@ export function createRewardOverlayHtml({
   foundTitle,
   revealItems,
   rewardLines,
+  adLabel,
+  adDisabled,
+  continueLabel,
   adStatus,
   navItems,
 }: RewardOverlayParams): string {
@@ -90,6 +96,14 @@ export function createRewardOverlayHtml({
           ),
           "  </div>",
         ].join(""),
+    '  <div class="reward-overlay__buttons">',
+    adLabel
+      ? `    <button class="modal-btn${adDisabled ? " modal-btn--disabled" : ""}" data-reward-ad type="button">${escapeHtml(adLabel)}</button>`
+      : "",
+    continueLabel
+      ? `    <button class="modal-btn modal-btn--primary" data-reward-continue type="button">${escapeHtml(continueLabel)}</button>`
+      : "",
+    "  </div>",
     adStatus
       ? `  <div class="reward-overlay__ad-status">${escapeHtml(adStatus)}</div>`
       : "",

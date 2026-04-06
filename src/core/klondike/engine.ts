@@ -381,14 +381,22 @@ export function autoCompleteStep(
 }
 
 /**
- * Returns true if there are no valid moves remaining:
- *  - stock and waste are both empty
- *  - no tableau card can move to foundation
- *  - no tableau stack can move to another tableau pile
- *  - waste top (if any) cannot move anywhere
+ * Returns true if there is at least one "productive" move — one that
+ * actually advances the game.  Non-productive moves (e.g. shuffling a
+ * king between two empty columns, cycling stock with no playable cards)
+ * do NOT count.
+ *
+ * Productive moves:
+ *  1. Tableau top → Foundation  (always)
+ *  2. Waste top  → Foundation / Tableau  (always)
+ *  3. Tableau → Tableau  — ONLY if moving the full face-up run starting
+ *     at firstFaceUpIdx AND there is at least one face-down card beneath
+ *     (i.e. the move reveals a hidden card)
+ *  4. Stock draw — only if ANY card currently in stock+waste could be
+ *     played to foundation or tableau.  If none can, cycling is useless.
  */
-export function hasAnyMoves(state: GameState): boolean {
-  // Check tableau → foundation
+export function hasProductiveMoves(state: GameState): boolean {
+  // 1. Tableau top → Foundation
   for (const pile of state.tableau) {
     const top = pile.cards[pile.cards.length - 1];
     if (!top?.faceUp) continue;
@@ -397,96 +405,127 @@ export function hasAnyMoves(state: GameState): boolean {
     }
   }
 
-  // Check tableau → tableau (check ALL useful sub-sequences)
+  // 2. Waste top → Foundation / Tableau
+  const wasteTop = state.waste.cards[state.waste.cards.length - 1];
+  if (wasteTop) {
+    for (let fi = 0; fi < state.foundations.length; fi++) {
+      if (canMoveCardToFoundation(wasteTop, state.foundations[fi], fi)) return true;
+    }
+    for (const pile of state.tableau) {
+      if (canMoveCardsToTableau([wasteTop], pile)) return true;
+    }
+  }
+
+  // 3. Tableau → Tableau (only if it reveals a face-down card)
   for (let si = 0; si < state.tableau.length; si++) {
     const sourcePile = state.tableau[si];
     const firstFaceUpIdx = sourcePile.cards.findIndex((c) => c.faceUp);
     if (firstFaceUpIdx === -1) continue;
 
-    // Check every sub-sequence starting from any face-up card
-    for (let startIdx = firstFaceUpIdx; startIdx < sourcePile.cards.length; startIdx++) {
-      const movingCards = sourcePile.cards.slice(startIdx);
-      
-      // A move is useful if it reveals a face-down card OR if the sub-sequence itself is valid
-      // (Actually, for detecting "any moves", we just need to find ONE valid destination)
-      // Optimization: only check moving the full open stack if we want to reveal,
-      // but strictly speaking, moving a sub-part (like just the King) is also a move.
-      // Let's check if this sub-sequence can move anywhere.
-      
-      // 1. Can it move to another tableau?
-      for (let ti = 0; ti < state.tableau.length; ti++) {
-        if (si === ti) continue;
-        if (canMoveCardsToTableau(movingCards, state.tableau[ti])) return true;
-      }
+    // Only moving the full face-up run is productive (reveals a hidden card)
+    if (firstFaceUpIdx === 0) continue; // no face-down cards beneath — no reveal
 
-      // 2. Can the BOTTOM card of this sub-sequence move to foundation?
-      // We can only move a card to foundation if it's the bottom-most open card.
-      if (startIdx === sourcePile.cards.length - 1) {
-         const card = movingCards[0]; // Only one card in this slice
-         for (let fi = 0; fi < state.foundations.length; fi++) {
-           if (canMoveCardToFoundation(card, state.foundations[fi], fi)) return true;
-         }
-      }
+    const movingCards = sourcePile.cards.slice(firstFaceUpIdx);
+    for (let ti = 0; ti < state.tableau.length; ti++) {
+      if (si === ti) continue;
+      if (canMoveCardsToTableau(movingCards, state.tableau[ti])) return true;
     }
   }
 
-  // Stock is never empty if there are cards to draw (clicking stock is a move).
-  if (state.stock.cards.length > 0) return true;
-
-  // Check ALL cards in waste (if stock is empty, we might recycle).
-  // If none can be played anywhere, cycling the draw pile won't help — game is stuck.
-  for (const card of state.waste.cards) {
-    const faceUpCard = { ...card, faceUp: true };
-    // Can it go to foundation?
-    for (let fi = 0; fi < state.foundations.length; fi++) {
-      if (canMoveCardToFoundation(faceUpCard, state.foundations[fi], fi)) return true;
-    }
-    // Can it go to tableau?
-    for (const pile of state.tableau) {
-      if (canMoveCardsToTableau([faceUpCard], pile)) return true;
+  // 4. Stock draw — check if ANY card in stock+waste is playable
+  if (state.stock.cards.length > 0) {
+    const allDrawCards = [...state.stock.cards, ...state.waste.cards];
+    for (const card of allDrawCards) {
+      const faceUpCard = { ...card, faceUp: true };
+      for (let fi = 0; fi < state.foundations.length; fi++) {
+        if (canMoveCardToFoundation(faceUpCard, state.foundations[fi], fi)) return true;
+      }
+      for (const pile of state.tableau) {
+        if (canMoveCardsToTableau([faceUpCard], pile)) return true;
+      }
     }
   }
 
   return false;
 }
 
-export function getHint(state: GameState): string | null {
+export type HintZone = "stock" | "waste" | "tableau" | "foundation";
+
+export type HintResult = {
+  from: { zone: HintZone; pileIndex: number; cardIndex: number };
+  to: { zone: HintZone; pileIndex: number };
+};
+
+export function getHint(state: GameState): HintResult | null {
   const wasteTop = state.waste.cards[state.waste.cards.length - 1];
 
+  // Waste → Foundation (highest priority)
   if (wasteTop) {
-    for (let index = 0; index < state.foundations.length; index += 1) {
-      if (canMoveCardToFoundation(wasteTop, state.foundations[index], index)) {
-        return "Move waste to foundation";
-      }
-    }
-
-    for (let index = 0; index < state.tableau.length; index += 1) {
-      if (canMoveCardsToTableau([wasteTop], state.tableau[index])) {
-        return "Move waste to tableau";
+    for (let fi = 0; fi < state.foundations.length; fi++) {
+      if (canMoveCardToFoundation(wasteTop, state.foundations[fi], fi)) {
+        return {
+          from: { zone: "waste", pileIndex: 0, cardIndex: state.waste.cards.length - 1 },
+          to: { zone: "foundation", pileIndex: fi },
+        };
       }
     }
   }
 
-  for (let sourceIndex = 0; sourceIndex < state.tableau.length; sourceIndex += 1) {
-    const pile = state.tableau[sourceIndex];
-
-    for (let cardIndex = 0; cardIndex < pile.cards.length; cardIndex += 1) {
-      const movingCards = pile.cards.slice(cardIndex);
-
-      if (!movingCards[0]?.faceUp || !isDescendingAlternating(movingCards)) {
-        continue;
+  // Tableau top → Foundation
+  for (let ti = 0; ti < state.tableau.length; ti++) {
+    const pile = state.tableau[ti];
+    const top = pile.cards[pile.cards.length - 1];
+    if (!top?.faceUp) continue;
+    for (let fi = 0; fi < state.foundations.length; fi++) {
+      if (canMoveCardToFoundation(top, state.foundations[fi], fi)) {
+        return {
+          from: { zone: "tableau", pileIndex: ti, cardIndex: pile.cards.length - 1 },
+          to: { zone: "foundation", pileIndex: fi },
+        };
       }
+    }
+  }
 
-      for (let targetIndex = 0; targetIndex < state.tableau.length; targetIndex += 1) {
-        if (sourceIndex !== targetIndex && canMoveCardsToTableau(movingCards, state.tableau[targetIndex])) {
-          return "Move tableau stack";
+  // Waste → Tableau
+  if (wasteTop) {
+    for (let ti = 0; ti < state.tableau.length; ti++) {
+      if (canMoveCardsToTableau([wasteTop], state.tableau[ti])) {
+        return {
+          from: { zone: "waste", pileIndex: 0, cardIndex: state.waste.cards.length - 1 },
+          to: { zone: "tableau", pileIndex: ti },
+        };
+      }
+    }
+  }
+
+  // Tableau → Tableau (prioritize moves that reveal face-down cards)
+  for (let si = 0; si < state.tableau.length; si++) {
+    const pile = state.tableau[si];
+    const firstFaceUpIdx = pile.cards.findIndex((c) => c.faceUp);
+    if (firstFaceUpIdx === -1) continue;
+
+    for (let startIdx = firstFaceUpIdx; startIdx < pile.cards.length; startIdx++) {
+      const movingCards = pile.cards.slice(startIdx);
+      if (!isDescendingAlternating(movingCards)) continue;
+
+      for (let ti = 0; ti < state.tableau.length; ti++) {
+        if (si === ti) continue;
+        if (canMoveCardsToTableau(movingCards, state.tableau[ti])) {
+          return {
+            from: { zone: "tableau", pileIndex: si, cardIndex: startIdx },
+            to: { zone: "tableau", pileIndex: ti },
+          };
         }
       }
     }
   }
 
-  if (state.stock.cards.length > 0 || state.waste.cards.length > 0) {
-    return "Draw from stock";
+  // Draw from stock
+  if (state.stock.cards.length > 0) {
+    return {
+      from: { zone: "stock", pileIndex: 0, cardIndex: 0 },
+      to: { zone: "waste", pileIndex: 0 },
+    };
   }
 
   return null;

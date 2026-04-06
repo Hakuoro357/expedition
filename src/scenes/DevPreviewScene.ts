@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
-import { getRewardPreviewLinks } from "@/scenes/devPreview";
+import { getDevActionLinks, getGameEndPreviewLinks, getRewardPreviewLinks } from "@/scenes/devPreview";
 import { createButtonLabelsOverlayHtml } from "@/ui/buttonLabelsOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 import { createButton } from "@/ui/createButton";
@@ -21,7 +21,9 @@ export class DevPreviewScene extends Phaser.Scene {
   }
 
   create(): void {
-    const links = getRewardPreviewLinks(getBaseUrl());
+    const baseUrl = getBaseUrl();
+    const rewardLinks = getRewardPreviewLinks(baseUrl);
+    const gameEndLinks = getGameEndPreviewLinks(baseUrl);
 
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x17302e);
     this.add
@@ -29,30 +31,33 @@ export class DevPreviewScene extends Phaser.Scene {
       .setStrokeStyle(2, 0xdac9a1);
 
     this.add
-      .text(GAME_WIDTH / 2, 100, "Reward Preview", {
+      .text(GAME_WIDTH / 2, 60, "Dev Preview", {
         fontFamily: "Georgia",
-        fontSize: "32px",
+        fontSize: "28px",
         color: "#f8ebcf",
       })
       .setOrigin(0.5);
 
+    // Section: Game End Screens
     this.add
-      .text(GAME_WIDTH / 2, 144, "Выбери готовый сценарий", {
+      .text(GAME_WIDTH / 2, 110, "Экраны окончания игры", {
         fontFamily: "Georgia",
-        fontSize: "16px",
+        fontSize: "15px",
         color: "#d9ceb0",
       })
       .setOrigin(0.5);
 
-    const buttonSpecs = links.map((link, index) => ({
-      ...link,
-      x: GAME_WIDTH / 2,
-      y: 250 + index * 86,
-      width: 280,
-      height: 56,
-    }));
+    const allSpecs: Array<{ label: string; url: string; x: number; y: number; width: number; height: number }> = [];
 
-    buttonSpecs.forEach((spec) => {
+    gameEndLinks.forEach((link, index) => {
+      const spec = {
+        ...link,
+        x: GAME_WIDTH / 2,
+        y: 155 + index * 62,
+        width: 280,
+        height: 44,
+      };
+      allSpecs.push(spec);
       createButton({
         scene: this,
         x: spec.x,
@@ -67,15 +72,76 @@ export class DevPreviewScene extends Phaser.Scene {
       });
     });
 
-    this.renderButtonsOverlay(
-      buttonSpecs.map((spec) => ({
-        label: spec.label,
+    // Section: Reward Previews
+    const rewardSectionY = 155 + gameEndLinks.length * 62 + 30;
+    this.add
+      .text(GAME_WIDTH / 2, rewardSectionY, "Экран награды", {
+        fontFamily: "Georgia",
+        fontSize: "15px",
+        color: "#d9ceb0",
+      })
+      .setOrigin(0.5);
+
+    rewardLinks.forEach((link, index) => {
+      const spec = {
+        label: link.label,
+        url: link.url,
+        x: GAME_WIDTH / 2,
+        y: rewardSectionY + 45 + index * 62,
+        width: 280,
+        height: 44,
+      };
+      allSpecs.push(spec);
+      createButton({
+        scene: this,
         x: spec.x,
         y: spec.y,
         width: spec.width,
         height: spec.height,
-      }))
-    );
+        label: spec.label,
+        hideLabel: true,
+        onClick: () => {
+          window.location.assign(spec.url);
+        },
+      });
+    });
+
+    // Section: Dev Actions
+    const actionLinks = getDevActionLinks(baseUrl);
+    const actionSectionY = rewardSectionY + 45 + rewardLinks.length * 62 + 30;
+    this.add
+      .text(GAME_WIDTH / 2, actionSectionY, "Действия", {
+        fontFamily: "Georgia",
+        fontSize: "15px",
+        color: "#d9ceb0",
+      })
+      .setOrigin(0.5);
+
+    actionLinks.forEach((link, index) => {
+      const spec = {
+        label: link.label,
+        url: link.url,
+        x: GAME_WIDTH / 2,
+        y: actionSectionY + 45 + index * 62,
+        width: 280,
+        height: 44,
+      };
+      allSpecs.push(spec);
+      createButton({
+        scene: this,
+        x: spec.x,
+        y: spec.y,
+        width: spec.width,
+        height: spec.height,
+        label: spec.label,
+        hideLabel: true,
+        onClick: () => {
+          window.location.assign(spec.url);
+        },
+      });
+    });
+
+    this.renderButtonsOverlay(allSpecs);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.buttonsOverlay?.destroy();

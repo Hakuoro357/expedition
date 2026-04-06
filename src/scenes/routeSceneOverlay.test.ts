@@ -26,13 +26,17 @@ describe("routeSceneOverlay", () => {
       ],
     });
 
-    expect(html).toContain("route-overlay__page");
+    expect(html).toContain("route-overlay__paginator");
+    expect(html).toContain("route-overlay__paginator-label");
     expect(html).toContain("Лист 1 / 4");
     expect(html).toContain("route-overlay__active-point-title");
     expect(html).toContain("Точка 3");
     expect(html).toContain("Маршрут дня");
     expect(html).toContain("app-nav");
-    expect(html).toContain("route-overlay__pager route-overlay__pager--next");
+    expect(html).toContain("data-page-next");
+    expect(html).toContain("route-overlay__pager-btn");
+    expect(html).not.toContain("data-page-prev");
+    expect(html).toContain("route-overlay__pager-btn--hidden");
     expect(html).toContain("route-overlay__current-panel");
     expect(html).toContain("route-overlay__route-svg");
     expect(html).toContain("route-overlay__route-point--current");

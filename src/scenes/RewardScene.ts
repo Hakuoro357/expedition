@@ -16,12 +16,13 @@ import {
 } from "@/scenes/rewardSceneOverlay";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
-import { createButton } from "@/ui/createButton";
 
 export type RewardSceneData = {
   mode?: GameMode;
   dealId?: string;
   preview?: boolean;
+  /** Set when returning from detail view — skips sound and save logic */
+  returnFromDetail?: boolean;
 };
 
 type RewardNavTarget = "archive" | "daily" | "settings";
@@ -29,7 +30,6 @@ type RewardNavTarget = "archive" | "daily" | "settings";
 export class RewardScene extends Phaser.Scene {
   private rewardOverlay?: CanvasOverlayHandle;
   private rewardOverlayCleanup?: () => void;
-  private rewardPrimaryButtons: Phaser.GameObjects.Container[] = [];
 
   constructor() {
     super(SCENES.reward);
@@ -87,7 +87,9 @@ export class RewardScene extends Phaser.Scene {
       void save.pushToCloud(getAppContext().sdk);
     }
 
-    sound.victory();
+    if (!data.returnFromDetail) {
+      sound.victory();
+    }
     analytics.track("deal_win_reward_applied", { mode, dealId, rewardId, coinsAwarded, artifactAwarded, preview });
 
     this.renderBackground();
@@ -112,7 +114,10 @@ export class RewardScene extends Phaser.Scene {
       ? `${i18n.t("chapter")} ${chapter.id}: ${getChapterTitle(chapter.chapterId, isRu ? "ru" : "en")} • ${chapterCompletedNodes}/${chapter.nodes.length}`
       : undefined;
 
+    const adBonus = mode === "daily" ? ECONOMY.dailyAdBonusCoins : ECONOMY.adBonusCoins;
+    let adBonusShown = false;
     let adStatusText = "";
+
     const renderOverlay = (): void => {
       this.renderRewardOverlay({
         title: i18n.t("victory"),
@@ -121,6 +126,9 @@ export class RewardScene extends Phaser.Scene {
         foundTitle: revealItems.length > 0 ? i18n.t("foundItems") : undefined,
         revealItems,
         rewardLines: revealItems.length > 0 ? [] : [i18n.t("reward")],
+        adLabel: isRu ? `Реклама (+${adBonus})` : `Ad (+${adBonus})`,
+        adDisabled: adBonusShown,
+        continueLabel: i18n.t("continue"),
         adStatus: adStatusText,
         navItems: [
           { id: "archive", label: i18n.t("archive"), active: false },
@@ -128,57 +136,44 @@ export class RewardScene extends Phaser.Scene {
           { id: "settings", label: i18n.t("settings"), active: false },
         ],
       });
-      this.bindOverlayEvents(revealItems, dealId, mode);
+      this.bindOverlayEvents(revealItems, dealId, mode, preview);
     };
 
     renderOverlay();
 
-    let adBonusShown = false;
-    const adBonus = mode === "daily" ? ECONOMY.dailyAdBonusCoins : ECONOMY.adBonusCoins;
+    // Bind button events via DOM
+    const bindButtonEvents = (): void => {
+      const root = this.rewardOverlay?.getInnerElement();
+      if (!root) return;
 
-    const continueButton = createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT - 44,
-      width: 300,
-      height: 42,
-      label: i18n.t("continue"),
-      onClick: () => {
-        analytics.track("reward_screen_continue", { dealId, mode });
-        this.scene.start(SCENES.map);
-      },
-    });
+      const adBtn = root.querySelector<HTMLElement>("[data-reward-ad]");
+      if (adBtn) {
+        adBtn.style.pointerEvents = "auto";
+        adBtn.addEventListener("click", async () => {
+          if (adBonusShown) return;
+          const rewarded = await ads.showRewardedVideo("post_win_bonus");
+          if (!rewarded) return;
+          save.addCoins(adBonus);
+          adBonusShown = true;
+          adStatusText = `+${adBonus} ${i18n.t("coins")}!`;
+          renderOverlay();
+          bindButtonEvents();
+          sound.goodMove();
+        });
+      }
 
-    const adButton = createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT - 92,
-      width: 300,
-      height: 42,
-      label: isRu ? `Реклама (+${adBonus})` : `Ad (+${adBonus})`,
-      onClick: async () => {
-        if (adBonusShown) {
-          return;
-        }
-
-        const rewarded = await ads.showRewardedVideo("post_win_bonus");
-        if (!rewarded) {
-          return;
-        }
-
-        save.addCoins(adBonus);
-        adBonusShown = true;
-        adStatusText = `+${adBonus} ${i18n.t("coins")}!`;
-        renderOverlay();
-        sound.goodMove();
-      },
-    });
-
-    this.rewardPrimaryButtons = [adButton, continueButton];
+      const continueBtn = root.querySelector<HTMLElement>("[data-reward-continue]");
+      if (continueBtn) {
+        continueBtn.style.pointerEvents = "auto";
+        continueBtn.addEventListener("click", () => {
+          analytics.track("reward_screen_continue", { dealId, mode });
+          this.scene.start(SCENES.map);
+        });
+      }
+    };
+    bindButtonEvents();
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.rewardPrimaryButtons.forEach((button) => button.destroy());
-      this.rewardPrimaryButtons = [];
       this.rewardOverlayCleanup?.();
       this.rewardOverlay?.destroy();
       this.rewardOverlay = undefined;
@@ -216,7 +211,7 @@ export class RewardScene extends Phaser.Scene {
     this.rewardOverlay.setHtml(html);
   }
 
-  private bindOverlayEvents(revealItems: RewardOverlayRevealItem[], dealId: string, mode: GameMode): void {
+  private bindOverlayEvents(revealItems: RewardOverlayRevealItem[], dealId: string, mode: GameMode, preview: boolean): void {
     if (!this.rewardOverlay) {
       return;
     }
@@ -240,7 +235,7 @@ export class RewardScene extends Phaser.Scene {
         this.scene.start(SCENES.detail, {
           dealId,
           initialTab: item.type === "artifact" ? "artifact" : "entry",
-          origin: { scene: SCENES.reward, data: { mode, dealId } },
+          origin: { scene: SCENES.reward, data: { mode, dealId, preview: preview || undefined, returnFromDetail: true } },
         });
       };
 

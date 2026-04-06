@@ -10,7 +10,6 @@ import type { Card } from "@/core/cards/types";
 import type { GameMode, GameState, Pile } from "@/core/game-state/types";
 import { createInitialDeal } from "@/core/klondike/createInitialDeal";
 import { findRandomSolvableSeed } from "@/core/klondike/randomSeed";
-import { getNodeById } from "@/data/chapters";
 import { getPointTitleByDealId } from "@/data/narrative/points";
 import { GAME_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import {
@@ -20,20 +19,20 @@ import {
   cloneGameState,
   drawFromStock,
   getGameStatus,
-  hasAnyMoves,
+  getHint,
+  hasProductiveMoves,
   moveFoundationToTableau,
   moveTableauToFoundation,
   moveTableauToTableau,
   moveWasteToFoundation,
   moveWasteToTableau,
   tryAutoMoveToFoundation,
+  type HintResult,
   type Selection,
 } from "@/core/klondike/engine";
 import { formatCard } from "@/features/board/formatCard";
 import { ensureCardFaceTexture } from "@/features/board/cardFaceTexture";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
-import { applyTextRenderQuality } from "@/app/rendering";
-import { createButton } from "@/ui/createButton";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, type GameOverlayEmptySlot, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
 import {
@@ -56,6 +55,7 @@ type GameSceneData = {
   dealId?: string;
   mode?: GameMode;
   resumeCurrentGame?: boolean;
+  devPreviewScreen?: "loss" | "autocomplete" | "win" | "rules" | "leave";
 };
 
 export class GameScene extends Phaser.Scene {
@@ -73,6 +73,8 @@ export class GameScene extends Phaser.Scene {
   private gameOverlay?: CanvasOverlayHandle;
   private gameOverlayCleanup?: () => void;
   private _emptyTableauSlots: GameOverlayEmptySlot[] = [];
+  private hintsUsed = 0;
+  private hintHighlightTimer?: Phaser.Time.TimerEvent;
 
   constructor() {
     super(SCENES.game);
@@ -95,6 +97,9 @@ export class GameScene extends Phaser.Scene {
     this.pendingFlips.clear();
     this.autoCompleting = false;
     this.animating = false;
+    this.hintsUsed = 0;
+    this.hintHighlightTimer?.destroy();
+    this.hintHighlightTimer = undefined;
     this.dragPreview?.destroy();
     this.dragPreview = undefined;
     this.draggedSelection = null;
@@ -122,6 +127,10 @@ export class GameScene extends Phaser.Scene {
 
     this.renderBoard();
 
+    if (data.devPreviewScreen) {
+      this.time.delayedCall(100, () => this.showDevPreviewScreen(data.devPreviewScreen!));
+    }
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.destroyRulesOverlay();
       this.gameOverlayCleanup?.();
@@ -129,6 +138,30 @@ export class GameScene extends Phaser.Scene {
       this.gameOverlay = undefined;
       this.gameOverlayCleanup = undefined;
     });
+  }
+
+  private showDevPreviewScreen(screen: string): void {
+    switch (screen) {
+      case "loss":
+        this.showLossOverlay();
+        break;
+      case "autocomplete":
+        this.showAutoCompleteOverlay();
+        break;
+      case "win":
+        this.playWinAnimation(() => {
+          const mode = this.gameState?.mode ?? "adventure";
+          const dealId = this.gameState?.dealId ?? "c1n1";
+          this.scene.start(SCENES.reward, { mode, dealId, preview: true });
+        });
+        break;
+      case "rules":
+        this.showRulesOverlay();
+        break;
+      case "leave":
+        this.showLeaveConfirm();
+        break;
+    }
   }
 
   private renderBottomBar(): void {
@@ -172,7 +205,8 @@ export class GameScene extends Phaser.Scene {
         active: this.selection?.kind === "foundation" && this.selection.pileIndex === index,
         hasCard: (this.gameState?.foundations[index]?.cards.length ?? 0) > 0,
       })),
-      undoLabel: i18n.t("undo"),
+      undoLabel: this.getUndoLabel(),
+      hintLabel: this.getHintLabel(),
       rulesLabel: i18n.t("rules"),
       homeLabel: i18n.t("home"),
       cards: this.getOverlayCards(),
@@ -311,7 +345,7 @@ export class GameScene extends Phaser.Scene {
     const disposers: Array<() => void> = [];
 
     root.querySelectorAll<HTMLElement>("[data-game-action]").forEach((element) => {
-      const action = element.dataset.gameAction as "undo" | "rules" | "home" | undefined;
+      const action = element.dataset.gameAction as "undo" | "hint" | "rules" | "home" | undefined;
       if (!action) {
         return;
       }
@@ -320,6 +354,9 @@ export class GameScene extends Phaser.Scene {
         switch (action) {
           case "undo":
             this.handleUndoAction();
+            return;
+          case "hint":
+            this.handleHintAction();
             return;
           case "rules":
             this.showRulesOverlay();
@@ -365,7 +402,18 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Restore game state from history
+    const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
+    const cost = isFirstUndo ? 0 : ECONOMY.undoCost;
+    if (cost > 0) {
+      const coins = save.load().progress.coins;
+      if (coins < cost) {
+        this.history.push(previousState); // put it back
+        this.setStatus(i18n.t("notEnoughCoins"));
+        sound.badMove();
+        return;
+      }
+      save.addCoins(-cost);
+    }
     this.gameState = {
       ...previousState,
       undoCount: previousState.undoCount + 1,
@@ -377,6 +425,125 @@ export class GameScene extends Phaser.Scene {
     this.pendingFlips.clear();
     sound.cardPlace();
     this.renderBoard();
+  }
+
+  private getUndoLabel(): string {
+    const { i18n } = getAppContext();
+    const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
+    if (isFirstUndo) return i18n.t("undo");
+    return `${i18n.t("undo")} 💰${ECONOMY.undoCost}`;
+  }
+
+  private getHintLabel(): string {
+    const { i18n } = getAppContext();
+    if (this.hintsUsed === 0) return i18n.t("hint");
+    return `${i18n.t("hint")} 💰${ECONOMY.hintCost}`;
+  }
+
+  private handleHintAction(): void {
+    if (!this.gameState || this.animating || this.autoCompleting) return;
+
+    const { save, sound, i18n, analytics } = getAppContext();
+    const isFirstHint = this.hintsUsed === 0;
+    const cost = isFirstHint ? 0 : ECONOMY.hintCost;
+
+    if (cost > 0) {
+      const coins = save.load().progress.coins;
+      if (coins < cost) {
+        this.setStatus(i18n.t("notEnoughCoins"));
+        sound.badMove();
+        return;
+      }
+      save.addCoins(-cost);
+    }
+
+    const hint = getHint(this.gameState);
+    if (!hint) {
+      this.setStatus(i18n.t("noMoves"));
+      sound.badMove();
+      return;
+    }
+
+    this.hintsUsed++;
+    analytics.track("hint_used", { dealId: this.gameState.dealId, cost });
+    sound.goodMove();
+    this.showHintHighlight(hint);
+    this.renderBoard();
+  }
+
+  private showHintHighlight(hint: HintResult): void {
+    // Clear any existing hint highlight
+    this.clearHintHighlight();
+
+    const root = this.gameOverlay?.getInnerElement();
+    if (!root) return;
+
+    const fromEls = this.getHintElements(root, hint.from.zone, hint.from.pileIndex, hint.from.cardIndex);
+    const toEls = this.getHintElements(root, hint.to.zone, hint.to.pileIndex, -1);
+
+    [...fromEls, ...toEls].forEach((el) => el.classList.add("game-overlay__hint-glow"));
+
+    // Auto-dismiss after 2s
+    this.hintHighlightTimer = this.time.delayedCall(2000, () => {
+      this.clearHintHighlight();
+    });
+  }
+
+  private clearHintHighlight(): void {
+    this.hintHighlightTimer?.destroy();
+    this.hintHighlightTimer = undefined;
+
+    const root = this.gameOverlay?.getInnerElement();
+    if (!root) return;
+    root.querySelectorAll(".game-overlay__hint-glow").forEach((el) => {
+      el.classList.remove("game-overlay__hint-glow");
+    });
+  }
+
+  private getHintElements(root: HTMLElement, zone: string, pileIndex: number, cardIndex: number): HTMLElement[] {
+    const els: HTMLElement[] = [];
+
+    if (zone === "stock") {
+      const stockEl = root.querySelector<HTMLElement>(".game-overlay__slot--stock");
+      if (stockEl) els.push(stockEl);
+    } else if (zone === "waste") {
+      const wasteEl = root.querySelector<HTMLElement>(".game-overlay__slot--waste");
+      if (wasteEl) els.push(wasteEl);
+      // Also highlight the waste card overlay
+      const wasteCards = root.querySelectorAll<HTMLElement>(".game-overlay__dom-card");
+      // Waste card is at the waste position
+      wasteCards.forEach((el) => {
+        const left = parseFloat(el.style.left);
+        if (left >= 50 && left <= 80) els.push(el); // ~66px = waste position
+      });
+    } else if (zone === "foundation") {
+      const foundationEl = root.querySelector<HTMLElement>(`.game-overlay__slot--foundation-${pileIndex}`);
+      if (foundationEl) els.push(foundationEl);
+    } else if (zone === "tableau") {
+      // Find card(s) in the tableau pile
+      if (cardIndex >= 0) {
+        const cardKey = `tableau-${pileIndex}-${cardIndex}`;
+        const cardEl = root.querySelector<HTMLElement>(`[data-card-key="${cardKey}"]`);
+        if (cardEl) els.push(cardEl);
+      } else {
+        // Target pile — highlight the top card or empty slot
+        const emptySlotKey = `tableau-empty-${pileIndex}`;
+        const emptyEl = root.querySelector<HTMLElement>(`[data-card-key="${emptySlotKey}"]`);
+        if (emptyEl) {
+          els.push(emptyEl);
+        } else {
+          // Find the last card in this pile
+          const pile = this.gameState?.tableau[pileIndex];
+          if (pile && pile.cards.length > 0) {
+            const lastKey = `tableau-${pileIndex}-${pile.cards.length - 1}`;
+            const lastEl = root.querySelector<HTMLElement>(`[data-card-key="${lastKey}"]`);
+            if (lastEl) els.push(lastEl);
+          }
+        }
+      }
+    }
+
+    return els;
   }
 
   private showRulesOverlay(): void {
@@ -405,7 +572,7 @@ export class GameScene extends Phaser.Scene {
     body.textContent = this.getRulesBodyText();
 
     const closeBtn = document.createElement("button");
-    closeBtn.className = "game-overlay__rules-close game-overlay__dialog-btn";
+    closeBtn.className = "modal-btn modal-btn--inline";
     closeBtn.type = "button";
     closeBtn.textContent = i18n.t("close");
     closeBtn.addEventListener("click", () => this.destroyRulesOverlay());
@@ -441,27 +608,27 @@ export class GameScene extends Phaser.Scene {
     backdrop.className = "game-overlay__rules-backdrop";
 
     const panel = document.createElement("div");
-    panel.className = "game-overlay__rules-panel game-overlay__leave-panel";
+    panel.className = "game-overlay__rules-panel";
 
     const title = document.createElement("h2");
     title.className = "game-overlay__rules-title";
     title.textContent = i18n.t("leaveTitle");
 
     const body = document.createElement("div");
-    body.className = "game-overlay__rules-body game-overlay__leave-body";
+    body.className = "modal__body";
     body.textContent = i18n.t("leaveBody");
 
     const buttons = document.createElement("div");
-    buttons.className = "game-overlay__leave-buttons";
+    buttons.className = "modal__buttons modal__buttons--row";
 
     const cancelBtn = document.createElement("button");
-    cancelBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--cancel";
+    cancelBtn.className = "modal-btn";
     cancelBtn.type = "button";
     cancelBtn.textContent = i18n.t("leaveCancel");
     cancelBtn.addEventListener("click", () => this.destroyLeaveConfirm());
 
     const confirmBtn = document.createElement("button");
-    confirmBtn.className = "game-overlay__leave-btn game-overlay__leave-btn--confirm";
+    confirmBtn.className = "modal-btn modal-btn--danger";
     confirmBtn.type = "button";
     confirmBtn.textContent = i18n.t("leaveConfirm");
     confirmBtn.addEventListener("click", () => {
@@ -559,7 +726,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Loss (no moves remaining)
-    if (!this.lossDetected && !hasAnyMoves(this.gameState)) {
+    if (!this.lossDetected && !hasProductiveMoves(this.gameState)) {
       this.lossDetected = true;
       this.showLossOverlay();
       analytics.track("deal_fail", {
@@ -573,109 +740,65 @@ export class GameScene extends Phaser.Scene {
     const { i18n, save, sound } = getAppContext();
     sound.badMove();
 
-    // Create DOM overlay for loss screen
     const overlayEl = this.gameOverlay?.getHostElement();
     if (!overlayEl) return;
 
-    const lossContainer = document.createElement("div");
-    lossContainer.className = "game-overlay__loss-screen";
-    lossContainer.style.cssText = `
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 300;
-      pointer-events: auto;
-    `;
+    const container = document.createElement("div");
+    container.className = "game-overlay__rules-overlay";
+    container.setAttribute("data-loss-overlay", "true");
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "game-overlay__rules-backdrop";
 
     const panel = document.createElement("div");
-    panel.style.cssText = `
-      background: #1c3532;
-      border: 2px solid #dac9a1;
-      border-radius: 12px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      max-width: 280px;
-    `;
+    panel.className = "game-overlay__rules-panel";
 
-    // Title
     const title = document.createElement("h2");
+    title.className = "game-overlay__rules-title";
     title.textContent = i18n.t("noMoves");
-    title.style.cssText = `
-      color: #f8ebcf;
-      font-family: 'Trebuchet MS', Verdana, sans-serif;
-      font-size: 24px;
-      margin: 0;
-    `;
 
-    // Subtitle
-    const subtitle = document.createElement("p");
-    subtitle.textContent = i18n.t("noMovesSubtitle");
-    subtitle.style.cssText = `
-      color: #c9b98a;
-      font-family: 'Trebuchet MS', Verdana, sans-serif;
-      font-size: 14px;
-      margin: 0;
-      text-align: center;
-    `;
+    const body = document.createElement("div");
+    body.className = "modal__body";
+    body.textContent = i18n.t("noMovesSubtitle");
 
-    // Buttons container
-    const btnContainer = document.createElement("div");
-    btnContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100%;
-    `;
+    const buttons = document.createElement("div");
+    buttons.className = "modal__buttons";
 
-    // Restart Button
+    const coins = save.load().progress.coins;
+    const cost = ECONOMY.restartCost;
+    const canAfford = coins >= cost;
+
     const restartBtn = document.createElement("button");
-    restartBtn.textContent = i18n.t("restart");
-    restartBtn.className = "game-overlay__dialog-btn";
-    restartBtn.style.cssText = `
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      cursor: pointer;
-    `;
+    restartBtn.className = `modal-btn modal-btn--primary${canAfford ? "" : " modal-btn--disabled"}`;
+    restartBtn.type = "button";
+    restartBtn.textContent = `${i18n.t("restart")} (💰 ${cost})`;
     restartBtn.addEventListener("click", () => {
-      if (!this.gameState) return;
+      if (!this.gameState || !canAfford) return;
       const { mode, dealId } = this.gameState;
+      save.addCoins(-cost);
       save.clearCurrentGame();
       this.scene.start(SCENES.game, { mode, dealId });
     });
 
-    // Home Button
     const homeBtn = document.createElement("button");
+    homeBtn.className = "modal-btn";
+    homeBtn.type = "button";
     homeBtn.textContent = i18n.t("home");
-    homeBtn.className = "game-overlay__dialog-btn";
-    homeBtn.style.cssText = `
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      cursor: pointer;
-    `;
     homeBtn.addEventListener("click", () => {
       this.scene.start(SCENES.map);
     });
 
-    btnContainer.appendChild(restartBtn);
-    btnContainer.appendChild(homeBtn);
+    buttons.appendChild(restartBtn);
+    buttons.appendChild(homeBtn);
     panel.appendChild(title);
-    panel.appendChild(subtitle);
-    panel.appendChild(btnContainer);
-    lossContainer.appendChild(panel);
-    overlayEl.appendChild(lossContainer);
+    panel.appendChild(body);
+    panel.appendChild(buttons);
+    container.appendChild(backdrop);
+    container.appendChild(panel);
+    overlayEl.appendChild(container);
 
-    // Cleanup on scene shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      lossContainer.remove();
+      container.remove();
     });
   }
 
@@ -1388,20 +1511,9 @@ export class GameScene extends Phaser.Scene {
     return bestIndex;
   }
 
-  private getMaxUndos(): number {
-    if (!this.gameState) return ECONOMY.maxUndosDefault;
-    const node = getNodeById(this.gameState.dealId);
-    if (node) return ECONOMY.maxUndos[node.difficulty] ?? ECONOMY.maxUndosDefault;
-    return ECONOMY.maxUndosDefault;
-  }
-
   private pushHistory(): void {
     if (!this.gameState) return;
     this.history.push(cloneGameState(this.gameState));
-    const max = this.getMaxUndos();
-    if (this.history.length > max) {
-      this.history.splice(0, this.history.length - max);
-    }
   }
 
   private getTableauCardY(pile: Pile, cardIndex: number): number {
@@ -1456,82 +1568,101 @@ export class GameScene extends Phaser.Scene {
     const { i18n, sound } = getAppContext();
     sound.goodMove();
 
-    const overlay = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5)
-      .setDepth(500)
-      .setInteractive();
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (!overlayEl) return;
 
-    const panel = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 300, 200, 0x1c3532, 1)
-      .setStrokeStyle(2, 0xdac9a1)
-      .setDepth(501);
+    const container = document.createElement("div");
+    container.className = "game-overlay__rules-overlay";
+    container.setAttribute("data-autocomplete-overlay", "true");
 
-    const title = applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, i18n.t("autoCompleteTitle"), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "24px",
-        fontStyle: "bold",
-        color: "#f8ebcf",
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(502);
+    const backdrop = document.createElement("div");
+    backdrop.className = "game-overlay__rules-backdrop";
 
-    const body = applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 25, i18n.t("autoCompleteBody"), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "15px",
-        color: "#c9b98a",
-        align: "center",
-        wordWrap: { width: 260 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(502);
+    const panel = document.createElement("div");
+    panel.className = "game-overlay__rules-panel";
 
-    const btn1 = createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT / 2 + 30,
-      width: 230,
-      height: 48,
-      label: `✨ ${i18n.t("autoComplete")}`,
-      depth: 502,
-      onClick: () => {
-        destroyModal();
-        this.autoCompleting = true;
-        this.runAutoComplete();
-      },
+    const title = document.createElement("h2");
+    title.className = "game-overlay__rules-title";
+    title.textContent = i18n.t("autoCompleteTitle");
+
+    const body = document.createElement("div");
+    body.className = "modal__body";
+    body.textContent = i18n.t("autoCompleteBody");
+
+    const buttons = document.createElement("div");
+    buttons.className = "modal__buttons";
+
+    const autoBtn = document.createElement("button");
+    autoBtn.className = "modal-btn modal-btn--primary";
+    autoBtn.type = "button";
+    autoBtn.textContent = `✨ ${i18n.t("autoComplete")}`;
+    autoBtn.addEventListener("click", () => {
+      container.remove();
+      this.autoCompleting = true;
+      this.runAutoComplete();
     });
 
-    const btn2 = createButton({
-      scene: this,
-      x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT / 2 + 86,
-      width: 230,
-      height: 48,
-      label: i18n.t("continue"),
-      depth: 502,
-      onClick: () => {
-        destroyModal();
-        this.autoCompleting = true;
-      },
+    const continueBtn = document.createElement("button");
+    continueBtn.className = "modal-btn";
+    continueBtn.type = "button";
+    continueBtn.textContent = i18n.t("continue");
+    continueBtn.addEventListener("click", () => {
+      container.remove();
+      this.autoCompleting = true;
     });
 
-    const destroyModal = () => {
-      overlay.destroy();
-      panel.destroy();
-      title.destroy();
-      body.destroy();
-      btn1.destroy();
-      btn2.destroy();
-    };
+    buttons.appendChild(autoBtn);
+    buttons.appendChild(continueBtn);
+    panel.appendChild(title);
+    panel.appendChild(body);
+    panel.appendChild(buttons);
+    container.appendChild(backdrop);
+    container.appendChild(panel);
+    overlayEl.appendChild(container);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      container.remove();
+    });
   }
 
   /** Automatically move all cards to foundation one-by-one with fly animation */
   private runAutoComplete(): void {
     if (!this.gameState) return;
 
+    // Phase 1: drain stock→waste one card at a time with animation
+    if (this.gameState.stock.cards.length > 0) {
+      const nextState = drawFromStock(this.gameState);
+      const drewCard = nextState.waste.cards.length > this.gameState.waste.cards.length;
+
+      if (drewCard) {
+        const drawnCard = nextState.waste.cards[nextState.waste.cards.length - 1];
+        getAppContext().sound.cardPlace();
+
+        const stockCenterX = TABLEAU_START_X;
+        const wasteCenterX = TABLEAU_START_X + TABLEAU_GAP_X;
+        const centerY = TOP_ROW_Y;
+        const midCenterX = (stockCenterX + wasteCenterX) / 2;
+
+        this.gameState = nextState;
+
+        this.boardLayer?.removeAll(true);
+        this.renderTopArea();
+        this.renderTableau();
+
+        this.animateStockToWasteDom(drawnCard, midCenterX, centerY, wasteCenterX, () => {
+          this.boardLayer?.removeAll(true);
+          this.renderTopArea();
+          this.renderTableau();
+
+          this.time.delayedCall(40, () => {
+            this.runAutoComplete();
+          });
+        });
+        return;
+      }
+    }
+
+    // Phase 2: move cards to foundation
     const step = autoCompleteStep(this.gameState);
     if (!step) {
       if (this.gameState.status !== "won") {
@@ -1930,33 +2061,22 @@ export class GameScene extends Phaser.Scene {
       }
     ).setDepth(201);
 
-    // 4. "Victory!" text
+    // 4. "Victory!" text as DOM overlay (above card DOM layer)
     const { i18n } = getAppContext();
-    const victoryText = applyTextRenderQuality(
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, i18n.t("victory"), {
-        fontFamily: "'Trebuchet MS', Verdana, sans-serif",
-        fontSize: "42px",
-        fontStyle: "bold",
-        color: "#f8ebcf",
-        stroke: "#3a2000",
-        strokeThickness: 4,
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(202)
-      .setAlpha(0);
-    this.tweens.add({
-      targets: victoryText,
-      alpha: 1,
-      y: GAME_HEIGHT / 2 - 80,
-      duration: 400,
-      ease: "Back.Out",
-    });
+    const victoryEl = document.createElement("div");
+    victoryEl.className = "game-overlay__victory-text";
+    victoryEl.textContent = i18n.t("victory");
+    const overlayEl = this.gameOverlay?.getHostElement();
+    if (overlayEl) {
+      overlayEl.appendChild(victoryEl);
+      void victoryEl.offsetHeight; // Force reflow
+      victoryEl.classList.add("game-overlay__victory-text--visible");
+    }
 
     // 5. Cleanup after 1.5s
     this.time.delayedCall(1500, () => {
       emitter.destroy();
-      victoryText.destroy();
+      victoryEl.remove();
       flash.destroy();
       onComplete();
     });

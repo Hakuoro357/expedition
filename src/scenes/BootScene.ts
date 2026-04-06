@@ -7,6 +7,7 @@ import {
   getAllCardFaceDefinitions,
 } from "@/assets/cards/cardFaceSvg";
 import { ARTIFACTS } from "@/data/artifacts";
+import { CHAPTERS } from "@/data/chapters";
 import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
 import { getDevScenePreview } from "@/scenes/devPreview";
 import { AnalyticsService } from "@/services/analytics/AnalyticsService";
@@ -83,7 +84,30 @@ export class BootScene extends Phaser.Scene {
     }
 
     if (preview?.scene === "reward-list") {
-      this.scene.start(SCENES.devPreview);
+      this.scene.start(SCENES.devPreview, preview);
+      return;
+    }
+
+    if (preview?.scene === "game-end") {
+      this.scene.start(SCENES.game, { devPreviewScreen: preview.screen });
+      return;
+    }
+
+    if (preview?.scene === "unlock-all") {
+      const { save } = getAppContext();
+      const allNodes = CHAPTERS.flatMap((ch) => ch.nodes);
+      const allNodeIds = allNodes.map((n) => n.id);
+      const allArtifactIds = allNodes.map((n) => n.artifactId).filter((id): id is string => id != null);
+      save.updateProgress((p) => ({
+        ...p,
+        completedNodes: allNodeIds,
+        unlockedNodes: allNodeIds,
+        currentChapter: CHAPTERS.length,
+        artifacts: allArtifactIds,
+        coins: Math.max(p.coins, 500),
+      }));
+      console.log(`[dev] Unlocked all: ${allNodeIds.length} nodes, ${allArtifactIds.length} artifacts`);
+      this.scene.start(SCENES.map);
       return;
     }
 

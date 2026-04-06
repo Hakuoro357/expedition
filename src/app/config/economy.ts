@@ -14,10 +14,12 @@ export const ECONOMY = {
   /** Extra coins awarded on chapter completion */
   chapterCompleteCoins: 150,
 
-  /** Max undos per game by difficulty */
-  maxUndos: { easy: 5, medium: 3, hard: 1 } as Record<string, number>,
-  /** Default max undos for daily / quick-play */
-  maxUndosDefault: 3,
+  /** Cost to restart after losing */
+  restartCost: 25,
+  /** Cost per undo */
+  undoCost: 5,
+  /** Cost per hint (after first free one) */
+  hintCost: 5,
 
   /** Starting coins for a brand new player */
   startingCoins: 50,

@@ -1,10 +1,11 @@
 import homeIconHtml from "../assets/ui/nav-icons/home.svg?raw";
 import undoIconHtml from "../assets/ui/nav-icons/undo.svg?raw";
+import hintIconHtml from "../assets/ui/nav-icons/hint.svg?raw";
 import rulesIconHtml from "../assets/ui/nav-icons/rules.svg?raw";
 import type { Card } from "@/core/cards/types";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 
-type GameActionId = "undo" | "rules" | "home";
+type GameActionId = "undo" | "hint" | "rules" | "home";
 type GameFoundationSlot = {
   suitSymbol: string;
   active: boolean;
@@ -44,6 +45,8 @@ function getActionIconHtml(id: GameActionId): string {
   switch (id) {
     case "undo":
       return undoIconHtml;
+    case "hint":
+      return hintIconHtml;
     case "rules":
       return rulesIconHtml;
     case "home":
@@ -60,6 +63,7 @@ type GameSceneOverlayParams = {
   wasteActive: boolean;
   foundationSlots: GameFoundationSlot[];
   undoLabel: string;
+  hintLabel: string;
   rulesLabel: string;
   homeLabel: string;
   cards: GameOverlayCard[];
@@ -211,6 +215,7 @@ export function createGameSceneOverlayHtml({
   wasteActive,
   foundationSlots,
   undoLabel,
+  hintLabel,
   rulesLabel,
   homeLabel,
   cards,
@@ -222,6 +227,7 @@ export function createGameSceneOverlayHtml({
 }: GameSceneOverlayParams): string {
   const items: Array<{ id: GameActionId; label: string }> = [
     { id: "undo", label: undoLabel },
+    { id: "hint", label: hintLabel },
     { id: "rules", label: rulesLabel },
     { id: "home", label: homeLabel },
   ];
