@@ -8,6 +8,7 @@ const RANKS: Rank[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const FACE_CARDS_BY_LOCALE: Record<Locale, Record<number, string>> = {
   en: { 1: "A", 11: "J", 12: "Q", 13: "K" },
   ru: { 1: "Т", 11: "В", 12: "Д", 13: "К" },
+  tr: { 1: "A", 11: "V", 12: "K", 13: "P" },
 };
 
 const ALL_LOCALES = Object.keys(locales) as Locale[];

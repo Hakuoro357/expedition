@@ -12,4 +12,5 @@ export type NarrativePoint = {
   rewardId: RewardId;
   titleRu: string;
   titleEn: string;
+  titleTr?: string;
 };

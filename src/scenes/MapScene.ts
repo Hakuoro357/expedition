@@ -45,7 +45,8 @@ export class MapScene extends Phaser.Scene {
 
   create(data?: MapSceneData): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
-    const { analytics, save } = getAppContext();
+    const { analytics, save, sound } = getAppContext();
+    sound.playBgm("map");
     const progress = save.load().progress;
     const nextDealId = getNextPlayableDealId(progress);
     const defaultPage = nextDealId ? getRouteSheetByDealId(nextDealId)?.page ?? 1 : ROUTE_SHEETS.length;
@@ -368,7 +369,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private changePage(delta: -1 | 1): void {
-    const { save } = getAppContext();
+    const { save, sound } = getAppContext();
     const progress = save.load().progress;
     const nextPage = this.currentPage + delta;
 
@@ -380,6 +381,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
 
+    sound.pageTurn();
     this.currentPage = nextPage;
     this.render();
   }
@@ -405,7 +407,7 @@ export class MapScene extends Phaser.Scene {
     this.changePage(deltaX > 0 ? -1 : 1);
   }
 
-  private getPageLabel(locale: "ru" | "en", page: number): string {
+  private getPageLabel(locale: "ru" | "en" | "tr", page: number): string {
     return getRouteSheetTitle(page, locale);
   }
 

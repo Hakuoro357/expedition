@@ -15,6 +15,8 @@ export function createInitialProgressState(locale: Locale = "ru"): ProgressState
     streakCount: 0,
     lastLoginDate: null,
     prologueShown: false,
+    sfxVolume: 0.8,
+    musicVolume: 0.6,
   };
 }
 

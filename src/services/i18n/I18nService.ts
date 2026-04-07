@@ -18,8 +18,10 @@ export class I18nService {
     return this.locale;
   }
 
-  getNarrativeLocale(): "ru" | "global" {
-    return this.locale === "ru" ? "ru" : "global";
+  getNarrativeLocale(): "ru" | "tr" | "global" {
+    if (this.locale === "ru") return "ru";
+    if (this.locale === "tr") return "tr";
+    return "global";
   }
 
   t(key: TranslationKey): string {

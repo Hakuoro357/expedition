@@ -80,6 +80,10 @@ export class BootScene extends Phaser.Scene {
 
     const saveState = getAppContext().save.load();
     i18n.setLocale(saveState.progress.locale);
+    sound.setSfxVolume(saveState.progress.sfxVolume ?? 0.8);
+    sound.setMusicVolume(saveState.progress.musicVolume ?? 0.6);
+    // Kick off audio loading in background — does not block scene start.
+    void sound.loadAll();
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
 
     // Сообщаем порталу Яндекса что игра готова — скрывает спиннер загрузки.

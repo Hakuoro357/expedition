@@ -1,5 +1,6 @@
 import { narrativeEntriesGlobal } from "@/data/narrative/entries.global";
 import { narrativeEntriesRu } from "@/data/narrative/entries.ru";
+import { narrativeEntriesTr } from "@/data/narrative/entries.tr";
 
 export type NarrativeEntry = {
   speakerEntityId: string;
@@ -7,12 +8,15 @@ export type NarrativeEntry = {
   body: string;
 };
 
-export function getNarrativeEntry(entryId: string, locale: "ru" | "global") {
-  return (locale === "ru"
-    ? narrativeEntriesRu[entryId as keyof typeof narrativeEntriesRu]
-    : narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as
-    | NarrativeEntry
-    | undefined;
+export function getNarrativeEntry(entryId: string, locale: "ru" | "global" | "tr") {
+  if (locale === "ru") {
+    return narrativeEntriesRu[entryId as keyof typeof narrativeEntriesRu] as NarrativeEntry | undefined;
+  }
+  if (locale === "tr") {
+    return (narrativeEntriesTr[entryId as keyof typeof narrativeEntriesTr] ??
+      narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as NarrativeEntry | undefined;
+  }
+  return narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal] as NarrativeEntry | undefined;
 }
 
 function truncateAtWord(value: string, maxLength: number): string {
@@ -26,7 +30,7 @@ function truncateAtWord(value: string, maxLength: number): string {
   return `${trimmed}…`;
 }
 
-export function getNarrativeEntryExcerpt(entryId: string, locale: "ru" | "global"): string | null {
+export function getNarrativeEntryExcerpt(entryId: string, locale: "ru" | "global" | "tr"): string | null {
   const entry = getNarrativeEntry(entryId, locale);
   if (!entry) {
     return null;

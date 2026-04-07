@@ -37,36 +37,36 @@ const REWARD_IDS: string[] = [
 ];
 
 const POINT_TITLES = [
-  { ru: "Карта пока не врёт", en: "The Map Isn't Lying Yet" },
-  { ru: "Ящик без описи", en: "Crate Without Inventory" },
-  { ru: "Линия по хребту", en: "Line Along the Ridge" },
-  { ru: "Стоянка в сумерках", en: "Camp at Dusk" },
-  { ru: "Второй кадр", en: "Second Frame" },
-  { ru: "Чужая точность", en: "Foreign Precision" },
-  { ru: "Отдельно от архива", en: "Separate from the Archive" },
-  { ru: "Цифры не сошлись", en: "The Numbers Don't Match" },
-  { ru: "Странный знак", en: "Strange Marker" },
-  { ru: "Два маршрута", en: "Two Routes" },
-  { ru: "Другой дневник", en: "A Different Diary" },
-  { ru: "Полсантиметра южнее", en: "Half a Centimeter South" },
-  { ru: "Последовательность", en: "The Sequence" },
-  { ru: "Восемьсот метров", en: "Eight Hundred Meters" },
-  { ru: "Решение без слов", en: "Decision Without Words" },
-  { ru: "Между страницами", en: "Between the Pages" },
-  { ru: "Ложная линия", en: "False Line" },
-  { ru: "Вслух", en: "Out Loud" },
-  { ru: "Послание", en: "The Message" },
-  { ru: "Не могу назвать правильным", en: "Can't Call It Right" },
-  { ru: "Единодушие маршрута", en: "Unanimous Route" },
-  { ru: "Слишком точная запись", en: "Too Precise an Entry" },
-  { ru: "Место для тайника", en: "A Place for the Cache" },
-  { ru: "Других не осталось", en: "No Others Left" },
-  { ru: "Графы не предусмотрено", en: "No Column for That" },
-  { ru: "Групповой снимок", en: "Group Photograph" },
-  { ru: "Цифры сошлись", en: "The Numbers Add Up" },
-  { ru: "Шаг за шагом", en: "Step by Step" },
-  { ru: "По линиям смысла", en: "Along the Lines of Meaning" },
-  { ru: "Единственный ключ", en: "The Only Key" },
+  { ru: "Карта пока не врёт", en: "The Map Isn't Lying Yet", tr: "Harita Henüz Yalan Söylemiyor" },
+  { ru: "Ящик без описи", en: "Crate Without Inventory", tr: "Kayıtsız Sandık" },
+  { ru: "Линия по хребту", en: "Line Along the Ridge", tr: "Sırt Boyunca Çizgi" },
+  { ru: "Стоянка в сумерках", en: "Camp at Dusk", tr: "Alacakaranlıkta Kamp" },
+  { ru: "Второй кадр", en: "Second Frame", tr: "İkinci Kare" },
+  { ru: "Чужая точность", en: "Foreign Precision", tr: "Yabancı Bir Kesinlik" },
+  { ru: "Отдельно от архива", en: "Separate from the Archive", tr: "Arşivden Ayrı" },
+  { ru: "Цифры не сошлись", en: "The Numbers Don't Match", tr: "Sayılar Tutmuyor" },
+  { ru: "Странный знак", en: "Strange Marker", tr: "Tuhaf Bir İşaret" },
+  { ru: "Два маршрута", en: "Two Routes", tr: "İki Rota" },
+  { ru: "Другой дневник", en: "A Different Diary", tr: "Başka Bir Günlük" },
+  { ru: "Полсантиметра южнее", en: "Half a Centimeter South", tr: "Yarım Santim Güney" },
+  { ru: "Последовательность", en: "The Sequence", tr: "Sıra" },
+  { ru: "Восемьсот метров", en: "Eight Hundred Meters", tr: "Sekiz Yüz Metre" },
+  { ru: "Решение без слов", en: "Decision Without Words", tr: "Sözsüz Karar" },
+  { ru: "Между страницами", en: "Between the Pages", tr: "Sayfalar Arasında" },
+  { ru: "Ложная линия", en: "False Line", tr: "Yanlış Çizgi" },
+  { ru: "Вслух", en: "Out Loud", tr: "Yüksek Sesle" },
+  { ru: "Послание", en: "The Message", tr: "Mesaj" },
+  { ru: "Не могу назвать правильным", en: "Can't Call It Right", tr: "Doğru Diyemem" },
+  { ru: "Единодушие маршрута", en: "Unanimous Route", tr: "Oybirliğiyle Rota" },
+  { ru: "Слишком точная запись", en: "Too Precise an Entry", tr: "Fazla Kesin Bir Kayıt" },
+  { ru: "Место для тайника", en: "A Place for the Cache", tr: "Zula İçin Bir Yer" },
+  { ru: "Других не осталось", en: "No Others Left", tr: "Başkası Kalmadı" },
+  { ru: "Графы не предусмотрено", en: "No Column for That", tr: "Bunun İçin Sütun Yok" },
+  { ru: "Групповой снимок", en: "Group Photograph", tr: "Grup Fotoğrafı" },
+  { ru: "Цифры сошлись", en: "The Numbers Add Up", tr: "Sayılar Tutuyor" },
+  { ru: "Шаг за шагом", en: "Step by Step", tr: "Adım Adım" },
+  { ru: "По линиям смысла", en: "Along the Lines of Meaning", tr: "Anlamın İzinde" },
+  { ru: "Единственный ключ", en: "The Only Key", tr: "Tek Anahtar" },
 ] as const;
 
 export const NARRATIVE_POINTS: NarrativePoint[] = REWARD_IDS.map((rewardId, index) => {
@@ -83,6 +83,7 @@ export const NARRATIVE_POINTS: NarrativePoint[] = REWARD_IDS.map((rewardId, inde
     rewardId,
     titleRu: title?.ru ?? `Точка ${index + 1}`,
     titleEn: title?.en ?? `Point ${index + 1}`,
+    titleTr: title?.tr ?? `Nokta ${index + 1}`,
   };
 });
 
@@ -94,26 +95,34 @@ export function getPointByPointId(pointId: string): NarrativePoint | undefined {
   return NARRATIVE_POINTS.find((point) => point.pointId === pointId);
 }
 
+type PointLocale = "ru" | "en" | "global" | "tr";
+
+function pickPointTitle(point: NarrativePoint, locale: PointLocale): string {
+  if (locale === "ru") return point.titleRu;
+  if (locale === "tr") return point.titleTr ?? point.titleEn;
+  return point.titleEn;
+}
+
 export function getPointTitleByPointId(
   pointId: string,
-  locale: "ru" | "en" | "global",
+  locale: PointLocale,
 ): string | undefined {
   const point = getPointByPointId(pointId);
   if (!point) {
     return undefined;
   }
 
-  return locale === "ru" ? point.titleRu : point.titleEn;
+  return pickPointTitle(point, locale);
 }
 
 export function getPointTitleByDealId(
   dealId: string,
-  locale: "ru" | "en" | "global",
+  locale: PointLocale,
 ): string | undefined {
   const point = getPointByDealId(dealId);
   if (!point) {
     return undefined;
   }
 
-  return locale === "ru" ? point.titleRu : point.titleEn;
+  return pickPointTitle(point, locale);
 }

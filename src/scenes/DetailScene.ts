@@ -45,6 +45,7 @@ export class DetailScene extends Phaser.Scene {
 
   create(data: DetailSceneData): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
+    getAppContext().sound.playBgm("map");
     this.dealId = data.dealId ?? "";
     const node = this.dealId ? getNodeById(this.dealId) : undefined;
 

@@ -12,22 +12,48 @@ function escapeHtml(value: string): string {
 type SettingsSceneOverlayParams = {
   title: string;
   languageLabel: string;
-  soundLabel: string;
   resetLabel: string;
   ruLabel: string;
   enLabel: string;
-  soundToggleLabel: string;
+  trLabel: string;
+  sfxLabel: string;
+  musicLabel: string;
+  /** 0..1 */
+  sfxVolume: number;
+  /** 0..1 */
+  musicVolume: number;
   navItems: AppNavItem[];
 };
+
+function renderSlider(
+  kind: "sfx" | "music",
+  label: string,
+  volume: number,
+): string {
+  const clamped = Math.max(0, Math.min(1, volume));
+  const percent = Math.round(clamped * 100);
+  return [
+    '    <section class="settings-page__section">',
+    '      <div class="settings-page__slider-row">',
+    `        <span class="settings-page__slider-label">${escapeHtml(label)}</span>`,
+    `        <span class="settings-page__slider-value" data-settings-volume-value="${kind}">${percent}%</span>`,
+    "      </div>",
+    `      <input class="settings-page__slider" type="range" min="0" max="100" step="1" value="${percent}" data-settings-volume="${kind}" />`,
+    "    </section>",
+  ].join("");
+}
 
 export function createSettingsSceneOverlayHtml({
   title,
   languageLabel,
-  soundLabel,
   resetLabel,
   ruLabel,
   enLabel,
-  soundToggleLabel,
+  trLabel,
+  sfxLabel,
+  musicLabel,
+  sfxVolume,
+  musicVolume,
   navItems,
 }: SettingsSceneOverlayParams): string {
   return [
@@ -39,14 +65,11 @@ export function createSettingsSceneOverlayHtml({
     '      <div class="settings-page__row settings-page__row--double">',
     `        <button class="settings-page__action" data-settings-action="locale-ru" type="button">${escapeHtml(ruLabel)}</button>`,
     `        <button class="settings-page__action" data-settings-action="locale-en" type="button">${escapeHtml(enLabel)}</button>`,
+    `        <button class="settings-page__action" data-settings-action="locale-tr" type="button">${escapeHtml(trLabel)}</button>`,
     "      </div>",
     "    </section>",
-    '    <section class="settings-page__section">',
-    `      <div class="settings-page__label">${escapeHtml(soundLabel)}</div>`,
-    '      <div class="settings-page__row">',
-    `        <button class="settings-page__action settings-page__action--wide" data-settings-action="toggle-sound" type="button">${escapeHtml(soundToggleLabel)}</button>`,
-    "      </div>",
-    "    </section>",
+    renderSlider("sfx", sfxLabel, sfxVolume),
+    renderSlider("music", musicLabel, musicVolume),
     '    <section class="settings-page__section">',
     `      <div class="settings-page__label">${escapeHtml(resetLabel)}</div>`,
     '      <div class="settings-page__row">',

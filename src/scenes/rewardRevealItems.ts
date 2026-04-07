@@ -25,7 +25,7 @@ export type BuildRewardRevealItemsParams = {
   dealId: string;
   rewardId: string;
   artifactAwarded: string | null;
-  locale: "ru" | "global";
+  locale: "ru" | "global" | "tr";
 };
 
 export function buildRewardRevealItems({
@@ -35,8 +35,9 @@ export function buildRewardRevealItems({
   locale,
 }: BuildRewardRevealItemsParams): RewardRevealItem[] {
   const items: RewardRevealItem[] = [];
-  const narrativeLocale = locale === "ru" ? "ru" : "global";
+  const narrativeLocale = locale;
   const isRu = locale === "ru";
+  const isTr = locale === "tr";
   const node = getNodeById(dealId);
   const validatedReward = node?.rewardId === rewardId ? getRewardById(rewardId) : undefined;
   const expectedArtifactId = validatedReward?.collectibleArtifactId ?? node?.artifactId ?? null;
@@ -50,7 +51,7 @@ export function buildRewardRevealItems({
         type: "entry",
         id: node.entryId,
         title: getPointTitleByPointId(node.pointId, locale) ?? node.pointId,
-        badgeLabel: isRu ? "Запись" : "Entry",
+        badgeLabel: isRu ? "Запись" : isTr ? "Kayıt" : "Entry",
         subtitle: getNarrativeEntryExcerpt(node.entryId, narrativeLocale) ?? entry.body,
         mediaUrl: resolvePortraitUrl(speaker.portraitKey),
       });
@@ -68,9 +69,9 @@ export function buildRewardRevealItems({
       items.push({
         type: "artifact",
         id: artifact.id,
-        title: isRu ? artifact.titleRu : artifact.titleEn,
-        badgeLabel: isRu ? "Артефакт" : "Artifact",
-        subtitle: isRu ? artifact.descriptionRu : artifact.descriptionEn,
+        title: isRu ? artifact.titleRu : isTr ? (artifact.titleTr ?? artifact.titleEn) : artifact.titleEn,
+        badgeLabel: isRu ? "Артефакт" : isTr ? "Eser" : "Artifact",
+        subtitle: isRu ? artifact.descriptionRu : isTr ? (artifact.descriptionTr ?? artifact.descriptionEn) : artifact.descriptionEn,
         mediaUrl: resolveArtifactGridUrl(artifact.imageKey),
       });
     }

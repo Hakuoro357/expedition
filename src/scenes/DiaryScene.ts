@@ -43,9 +43,14 @@ export class DiaryScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
-    const { i18n, save } = getAppContext();
+    const { i18n, save, sound } = getAppContext();
+    sound.playBgm("map");
     const { progress } = save.load();
+    // Гейтим dev-флаг ?preview=all-artifacts: в продакшен-сборке его быть
+    // не должно, иначе игрок может одним URL-параметром "разлочить" весь архив
+    // визуально (без реального сейва, но с раскрытием спойлеров).
     const previewAllArtifacts =
+      import.meta.env.DEV &&
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("preview") === "all-artifacts";
     const narrativeLocale = i18n.getNarrativeLocale();
@@ -77,7 +82,7 @@ export class DiaryScene extends Phaser.Scene {
     });
   }
 
-  private buildArchiveEntries(locale: "ru" | "global"): ArchiveEntryItem[] {
+  private buildArchiveEntries(locale: "ru" | "global" | "tr"): ArchiveEntryItem[] {
     const { save } = getAppContext();
     const { progress } = save.load();
 
@@ -291,16 +296,31 @@ export class DiaryScene extends Phaser.Scene {
         this.scene.start(SCENES.map);
         return;
       case "daily": {
-        const progress = save.load().progress;
+        const saveState = save.load();
+        const progress = saveState.progress;
         const dailyKey = getDailyDateKey();
 
         if (progress.dailyClaimedOn === dailyKey) {
           return;
         }
 
+        // Если у игрока есть незавершённая дневная партия — продолжаем её,
+        // а не создаём новый расклад поверх (иначе теряется прогресс).
+        const dailyDealId = `daily-${dailyKey}`;
+        const savedGame = saveState.currentGame;
+        if (
+          savedGame &&
+          savedGame.dealId === dailyDealId &&
+          savedGame.status !== "won" &&
+          savedGame.status !== "lost"
+        ) {
+          this.scene.start(SCENES.game, { resumeCurrentGame: true });
+          return;
+        }
+
         this.scene.start(SCENES.game, {
           mode: "daily",
-          dealId: `daily-${dailyKey}`,
+          dealId: dailyDealId,
         });
         return;
       }

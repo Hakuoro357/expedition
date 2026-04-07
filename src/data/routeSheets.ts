@@ -8,8 +8,10 @@ export type RouteSheet = {
   dealIds: string[];
   titleRu: string;
   titleEn: string;
+  titleTr: string;
   summaryRu: string;
   summaryEn: string;
+  summaryTr: string;
   background: {
     topColor: number;
     bottomColor: number;
@@ -24,24 +26,28 @@ function buildRouteSheets(): RouteSheet[] {
   let cursor = 0;
   const titles = [
     {
-      ru: "Начало пути", en: "Journey Start",
+      ru: "Начало пути", en: "Journey Start", tr: "Yolun Başlangıcı",
       summaryRu: "Маршрут восстановлен. Первые записи дневника указывают на систему ориентиров, которой нет на официальной карте.",
       summaryEn: "The route is restored. Early diary entries point to a marker system absent from the official map.",
+      summaryTr: "Rota yeniden kuruldu. İlk günlük sayfaları, resmi haritada bulunmayan bir işaret sistemine işaret ediyor.",
     },
     {
-      ru: "Каменная гряда", en: "Stone Ridge",
+      ru: "Каменная гряда", en: "Stone Ridge", tr: "Taş Sırtı",
       summaryRu: "Два маршрута становятся видимыми. Записи осторожнее, а карта всё дальше расходится с отчётом.",
       summaryEn: "Two routes become visible. The notes grow cautious as the map diverges further from the report.",
+      summaryTr: "İki rota görünür hale geliyor. Notlar temkinleşiyor, harita ise rapordan giderek uzaklaşıyor.",
     },
     {
-      ru: "Разорванный маршрут", en: "Broken Route",
+      ru: "Разорванный маршрут", en: "Broken Route", tr: "Kopmuş Rota",
       summaryRu: "Сокрытие маршрута — уже факт. Фальшивые фрагменты и ключевая фотография меняют всё.",
       summaryEn: "The concealment of the route is now proven. False fragments and a key photograph change everything.",
+      summaryTr: "Rotanın gizlendiği artık kanıtlanmış durumda. Sahte parçalar ve önemli bir fotoğraf her şeyi değiştiriyor.",
     },
     {
-      ru: "Последняя стоянка", en: "Last Camp",
+      ru: "Последняя стоянка", en: "Last Camp", tr: "Son Kamp",
       summaryRu: "Архив собран. Настоящий путь, тайник и судьба экспедиции — восстановлены полностью.",
       summaryEn: "The archive is complete. The true route, the cache, and the expedition's fate — fully restored.",
+      summaryTr: "Arşiv tamamlandı. Gerçek yol, zula ve seferin kaderi — tamamen yeniden kuruldu.",
     },
   ] as const;
   const backgrounds = [
@@ -61,8 +67,10 @@ function buildRouteSheets(): RouteSheet[] {
       dealIds,
       titleRu: title?.ru ?? `Лист ${index + 1}`,
       titleEn: title?.en ?? `Sheet ${index + 1}`,
+      titleTr: title?.tr ?? `Sayfa ${index + 1}`,
       summaryRu: title?.summaryRu ?? "",
       summaryEn: title?.summaryEn ?? "",
+      summaryTr: title?.summaryTr ?? "",
       background: backgrounds[index] ?? backgrounds[0],
     };
   });
@@ -78,19 +86,25 @@ export function getRouteSheetByDealId(dealId: string): RouteSheet | undefined {
   return ROUTE_SHEETS.find((sheet) => sheet.dealIds.includes(dealId));
 }
 
-export function getRouteSheetTitle(page: number, locale: "ru" | "en"): string {
+export function getRouteSheetTitle(page: number, locale: "ru" | "en" | "tr"): string {
   const sheet = getRouteSheetByPage(page);
   if (!sheet) {
-    return locale === "ru" ? `Лист ${page}` : `Sheet ${page}`;
+    if (locale === "ru") return `Лист ${page}`;
+    if (locale === "tr") return `Sayfa ${page}`;
+    return `Sheet ${page}`;
   }
 
-  return locale === "ru" ? sheet.titleRu : sheet.titleEn;
+  if (locale === "ru") return sheet.titleRu;
+  if (locale === "tr") return sheet.titleTr;
+  return sheet.titleEn;
 }
 
-export function getRouteSheetSummary(page: number, locale: "ru" | "en"): string {
+export function getRouteSheetSummary(page: number, locale: "ru" | "en" | "tr"): string {
   const sheet = getRouteSheetByPage(page);
   if (!sheet) return "";
-  return locale === "ru" ? sheet.summaryRu : sheet.summaryEn;
+  if (locale === "ru") return sheet.summaryRu;
+  if (locale === "tr") return sheet.summaryTr;
+  return sheet.summaryEn;
 }
 
 export function getNextPlayableDealId(progress: ProgressState): string | null {

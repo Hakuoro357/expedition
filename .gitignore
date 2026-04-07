@@ -13,3 +13,6 @@ TEMP_*
 *.tmp.mjs
 *.tmp.txt
 
+# Audio source files (unprocessed originals from Suno/ElevenLabs)
+public/audio/**/original/
+

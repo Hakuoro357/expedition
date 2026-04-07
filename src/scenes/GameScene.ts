@@ -88,13 +88,19 @@ export class GameScene extends Phaser.Scene {
 
   create(data: GameSceneData): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
-    const saveState = getAppContext().save.load();
+    const ctx = getAppContext();
+    ctx.sound.playBgm("game");
+    if (!data.resumeCurrentGame) {
+      ctx.sound.cardDeal();
+    }
+    const saveState = ctx.save.load();
     const restoredState = data.resumeCurrentGame ? saveState.currentGame : null;
     const mode = restoredState?.mode ?? data.mode ?? "adventure";
     const dealId = restoredState?.dealId ?? data.dealId ?? "c1n1";
 
-    // Use provided seed (restart same deal), or find a random solvable seed for new games
-    const seed = data.seed ?? (!restoredState && mode !== "daily" ? findRandomSolvableSeed() : undefined);
+    // Use provided seed (restart same deal). For adventure/daily, createInitialDeal resolves
+    // the canonical per-node/per-date seed. Only quick-play / sandbox modes fall back to random.
+    const seed = data.seed ?? (!restoredState && mode !== "daily" && mode !== "adventure" ? findRandomSolvableSeed() : undefined);
     this.gameState = restoredState ? cloneGameState(restoredState) : createInitialDeal(mode, dealId, seed);
     this.history = [];
     this.selection = null;
@@ -482,7 +488,7 @@ export class GameScene extends Phaser.Scene {
 
     this.hintsUsed++;
     analytics.track("hint_used", { dealId: this.gameState.dealId, cost });
-    sound.goodMove();
+    sound.hint();
     this.showHintHighlight(hint);
     this.renderBoard();
   }
@@ -789,7 +795,7 @@ export class GameScene extends Phaser.Scene {
         // Animate drawn card from stock to waste using Phaser container with SVG texture
         this.animating = true;
         const drawnCard = nextState.waste.cards[nextState.waste.cards.length - 1];
-        getAppContext().sound.cardPlace();
+        getAppContext().sound.cardFlip();
 
         // Center coordinates for Phaser animation
         const stockCenterX = TABLEAU_START_X;
@@ -804,7 +810,7 @@ export class GameScene extends Phaser.Scene {
         });
       } else {
         // Recycle waste -> stock, no fly animation needed
-        getAppContext().sound.cardPlace();
+        getAppContext().sound.stockRecycle();
         this.applyState(nextState);
       }
     });
@@ -1723,10 +1729,14 @@ export class GameScene extends Phaser.Scene {
     this.gameState = { ...step.state, status: getGameStatus(step.state) };
     getAppContext().save.updateCurrentGame(this.gameState);
 
-    // Re-render board without the moved card
+    // Re-render board без перемещённой карты. Важно: face-up карты
+    // рендерятся через DOM overlay (getOverlayCards), поэтому без
+    // renderGameOverlay() визуально карта остаётся на исходной стопке,
+    // хотя state уже обновлён — и игрок видит "дубликаты".
     this.boardLayer?.removeAll(true);
     this.renderTopArea();
     this.renderTableau();
+    this.renderGameOverlay();
 
     // Fly animation using DOM overlay
     getAppContext().sound.cardPlace();
@@ -1741,16 +1751,18 @@ export class GameScene extends Phaser.Scene {
         this.boardLayer?.removeAll(true);
         this.renderTopArea();
         this.renderTableau();
+        this.renderGameOverlay();
 
         if (this.gameState?.status === "won") {
           this.renderBoard();
           return;
         }
 
-        this.time.delayedCall(30, () => {
+        this.time.delayedCall(15, () => {
           this.runAutoComplete();
         });
-      }
+      },
+      { flyDuration: 55, settleDuration: 20 },
     );
   }
 
@@ -1776,9 +1788,9 @@ export class GameScene extends Phaser.Scene {
     const targetX = FOUNDATION_START_X + foundationIndex * FOUNDATION_GAP_X;
     const targetY = TOP_ROW_Y;
 
+    getAppContext().sound.goodMove();
     this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetY, () => {
       this.animating = false;
-      getAppContext().sound.goodMove();
       this.applyState(nextState, skipHistory);
     });
   }
@@ -1797,6 +1809,7 @@ export class GameScene extends Phaser.Scene {
     this.animating = true;
     const targetX = TABLEAU_START_X + targetPileIndex * TABLEAU_GAP_X;
 
+    getAppContext().sound.cardPlace();
     if (stackCards && stackCards.length > 1) {
       this.animateFlyStackToTableau(
         sourceX,
@@ -1806,14 +1819,12 @@ export class GameScene extends Phaser.Scene {
         targetCardY,
         () => {
           this.animating = false;
-          getAppContext().sound.cardPlace();
           this.applyState(nextState, true);
         }
       );
     } else {
       this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetCardY, () => {
         this.animating = false;
-        getAppContext().sound.cardPlace();
         this.applyState(nextState, true);
       });
     }
@@ -1983,8 +1994,11 @@ export class GameScene extends Phaser.Scene {
     card: Card,
     targetX: number,
     targetY: number,
-    onComplete: () => void
+    onComplete: () => void,
+    options?: { flyDuration?: number; settleDuration?: number },
   ): void {
+    const flyDuration = options?.flyDuration ?? 110;
+    const settleDuration = options?.settleDuration ?? 40;
     const svgMarkup = createCardFaceSvgMarkup(card, true, getAppContext().i18n.currentLocale());
 
     const animEl = document.createElement("div");
@@ -2017,17 +2031,17 @@ export class GameScene extends Phaser.Scene {
       targets: startPos,
       x: targetX,
       y: targetY,
-      duration: 110,
+      duration: flyDuration,
       ease: "Power2",
       onUpdate: () => {
         animEl.style.left = `${startPos.x}px`;
         animEl.style.top = `${startPos.y}px`;
       },
       onComplete: () => {
-        animEl.style.transition = "transform 40ms ease-out";
+        animEl.style.transition = `transform ${settleDuration}ms ease-out`;
         animEl.style.transform = "translate(-50%, -50%) scale(0.92)";
 
-        this.time.delayedCall(40, () => {
+        this.time.delayedCall(settleDuration, () => {
           animEl.remove();
           onComplete();
         });

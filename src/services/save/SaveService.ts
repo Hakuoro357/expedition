@@ -20,12 +20,20 @@ export function createDefaultSaveState(): SaveState {
  * откатиться на дефолт. Используется и для localStorage, и для облачных сейвов
  * (последние могут прийти в любом виде).
  */
-function isFiniteNumber(x: unknown): x is number {
-  return typeof x === "number" && Number.isFinite(x);
-}
-
 function isStringArray(x: unknown): x is string[] {
   return Array.isArray(x) && x.every((v) => typeof v === "string");
+}
+
+// Защитные верхние границы — на случай подмены сейва (локального или облачного).
+// Числа за этими пределами не имеют игрового смысла и почти наверняка означают
+// либо повреждение, либо попытку накрутить прогресс/монеты.
+const MAX_COINS = 1_000_000;
+const MAX_NODES = 1_000;
+const MAX_STREAK = 10_000;
+const MAX_CHAPTER = 100;
+
+function isBoundedInt(x: unknown, min: number, max: number): x is number {
+  return typeof x === "number" && Number.isFinite(x) && x >= min && x <= max && Math.floor(x) === x;
 }
 
 function isValidSaveState(value: unknown): value is SaveState {
@@ -35,13 +43,13 @@ function isValidSaveState(value: unknown): value is SaveState {
 
   const progress = v.progress as Record<string, unknown> | undefined;
   if (!progress || typeof progress !== "object") return false;
-  if (!isFiniteNumber(progress.currentChapter)) return false;
-  if (!isStringArray(progress.unlockedNodes)) return false;
-  if (!isStringArray(progress.completedNodes)) return false;
-  if (!isStringArray(progress.artifacts)) return false;
-  if (!isFiniteNumber(progress.coins)) return false;
-  if (progress.locale !== "ru" && progress.locale !== "en") return false;
-  if (!isFiniteNumber(progress.streakCount)) return false;
+  if (!isBoundedInt(progress.currentChapter, 1, MAX_CHAPTER)) return false;
+  if (!isStringArray(progress.unlockedNodes) || progress.unlockedNodes.length > MAX_NODES) return false;
+  if (!isStringArray(progress.completedNodes) || progress.completedNodes.length > MAX_NODES) return false;
+  if (!isStringArray(progress.artifacts) || progress.artifacts.length > MAX_NODES) return false;
+  if (!isBoundedInt(progress.coins, 0, MAX_COINS)) return false;
+  if (progress.locale !== "ru" && progress.locale !== "en" && progress.locale !== "tr") return false;
+  if (!isBoundedInt(progress.streakCount, 0, MAX_STREAK)) return false;
   if (
     progress.dailyClaimedOn !== null &&
     typeof progress.dailyClaimedOn !== "undefined" &&
@@ -59,6 +67,18 @@ function isValidSaveState(value: unknown): value is SaveState {
   if (
     typeof progress.prologueShown !== "undefined" &&
     typeof progress.prologueShown !== "boolean"
+  ) {
+    return false;
+  }
+  if (
+    typeof progress.sfxVolume !== "undefined" &&
+    (typeof progress.sfxVolume !== "number" || Number.isNaN(progress.sfxVolume))
+  ) {
+    return false;
+  }
+  if (
+    typeof progress.musicVolume !== "undefined" &&
+    (typeof progress.musicVolume !== "number" || Number.isNaN(progress.musicVolume))
   ) {
     return false;
   }
@@ -307,12 +327,30 @@ export class SaveService {
   }
 
   /**
-   * Отправляет текущее локальное сохранение в облако.
-   * "Fire and forget" — не ожидать результата.
+   * Отправляет текущее локальное сохранение в облако. Перед отправкой
+   * подтягивает актуальное облачное состояние и сливает с локальным,
+   * чтобы не затереть прогресс, сделанный на другом устройстве между
+   * прошлым `loadFromCloud` и этим пушем.
    */
   async pushToCloud(sdk: YandexSdkService): Promise<void> {
+    try {
+      const json = await sdk.getCloudSave();
+      if (json) {
+        let cloudState: unknown;
+        try {
+          cloudState = JSON.parse(json);
+        } catch {
+          cloudState = null;
+        }
+        if (isValidSaveState(cloudState)) {
+          const merged = mergeSaveStates(this.load(), cloudState);
+          this.save(merged);
+        }
+      }
+    } catch (error) {
+      console.warn("[save] pre-push merge failed, pushing local state as-is", error);
+    }
     const state = this.load();
-    const json = JSON.stringify(state);
-    await sdk.setCloudSave(json);
+    await sdk.setCloudSave(JSON.stringify(state));
   }
 }

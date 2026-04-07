@@ -16,7 +16,7 @@ export const rewardTextsGlobal = {
   reward_chapter_piece_01: { title: "Chapter Key Fragment", description: "The hidden layer of the first chapter opens." },
   reward_diary_page_damaged_01: { title: "Damaged Diary Page", description: "The tone of the record changes." },
   reward_map_variant_02: { title: "Double-Line Map", description: "Two paths become visible at once." },
-  reward_levin_note_01: { title: "Levin’s Note", description: "The scale of the find becomes clearer." },
+  reward_levin_note_01: { title: "Mercer’s Note", description: "The scale of the find becomes clearer." },
   reward_hidden_camp_marker_01: { title: "Hidden Camp Marker", description: "A deliberate shift in the route is confirmed." },
   reward_torn_paper_01: { title: "Torn Working Sheet", description: "The records stop behaving like a whole." },
   reward_anonymous_note_01: { title: "Unsigned Note", description: "An internal voice emerges from the archive." },

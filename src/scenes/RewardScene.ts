@@ -39,6 +39,7 @@ export class RewardScene extends Phaser.Scene {
   create(data: RewardSceneData): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     const { ads, analytics, i18n, save, sound } = getAppContext();
+    sound.playBgm("map");
     const mode = data.mode ?? "adventure";
     const dealId = data.dealId ?? "";
     const preview = data.preview === true;
@@ -76,10 +77,8 @@ export class RewardScene extends Phaser.Scene {
         rewardId = result.rewardId;
         coinsAwarded = result.coinsAwarded;
         artifactAwarded = result.artifactAwarded;
-      } else {
-        save.addCoins(ECONOMY.winCoins);
-        coinsAwarded = ECONOMY.winCoins;
       }
+      // Replaying an already-completed node: no coins, no reward re-grant.
     } else if (mode === "daily") {
       const dateKey = getDailyDateKey();
       const progress = save.load().progress;

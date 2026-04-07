@@ -18,7 +18,7 @@ describe("narrative text packs", () => {
 
   it("returns narrative entries through helper", () => {
     expect(getNarrativeEntry("entry_01", "ru")?.body).toContain("Выход");
-    expect(getNarrativeEntry("entry_01", "global")?.body).toContain("departure");
+    expect(getNarrativeEntry("entry_01", "global")?.body).toContain("Departure");
   });
 
   it("builds a short excerpt from a canonical entry", () => {

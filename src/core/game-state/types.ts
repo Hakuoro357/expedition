@@ -32,13 +32,17 @@ export type ProgressState = {
   coins: number;
   artifacts: string[];
   dailyClaimedOn: string | null;
-  locale: "ru" | "en";
+  locale: "ru" | "en" | "tr";
   /** Consecutive daily login streak (days) */
   streakCount: number;
   /** ISO date string of the last daily login */
   lastLoginDate: string | null;
   /** Whether the intro prologue has been shown to the player */
   prologueShown?: boolean;
+  /** SFX volume 0..1 (persisted across sessions) */
+  sfxVolume?: number;
+  /** BGM volume 0..1 (persisted across sessions) */
+  musicVolume?: number;
   /** Dev-only: all route points are playable */
   devAllPlayable?: boolean;
 };

@@ -34,6 +34,6 @@ describe("rewardSceneDetailOverlay", () => {
 
   it("returns localized speaker names", () => {
     expect(getNarrativeSpeakerName("photographer_archivist", "ru")).toBe("Климова");
-    expect(getNarrativeSpeakerName("photographer_archivist", "global")).toBe("Klimova");
+    expect(getNarrativeSpeakerName("photographer_archivist", "global")).toBe("Reed");
   });
 });
