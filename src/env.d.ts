@@ -36,6 +36,11 @@ interface YaGamesSDK {
   adv?: YaGamesAdv;
   getPlayer?: () => Promise<YaGamesPlayer>;
   getPayments?: () => Promise<YaGamesPayments>;
+  environment?: {
+    i18n?: {
+      lang?: string;
+    };
+  };
 }
 
 interface YaGamesGlobal {

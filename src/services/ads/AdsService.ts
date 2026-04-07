@@ -19,7 +19,15 @@ export class AdsService {
     }
 
     this.analytics.track("rewarded_offer_shown", { placement });
-    const rewarded = await this.sdk.showRewardedVideo();
+    // Яндекс ожидает паузу геймплея перед показом рекламы и
+    // возобновление после — иначе нарушается аудит частоты ad-показов.
+    this.sdk.gameplayStop();
+    let rewarded = false;
+    try {
+      rewarded = await this.sdk.showRewardedVideo();
+    } finally {
+      this.sdk.gameplayStart();
+    }
 
     if (rewarded) {
       this.lastRewardedAt = Date.now();

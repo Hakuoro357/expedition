@@ -37,6 +37,8 @@ export type ProgressState = {
   streakCount: number;
   /** ISO date string of the last daily login */
   lastLoginDate: string | null;
+  /** Whether the intro prologue has been shown to the player */
+  prologueShown?: boolean;
   /** Dev-only: all route points are playable */
   devAllPlayable?: boolean;
 };

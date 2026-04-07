@@ -4,6 +4,7 @@ export const GAME_HEIGHT = 844;
 export const SCENES = {
   boot: "boot",
   devPreview: "dev-preview",
+  prologue: "prologue",
   map: "map",
   detail: "detail",
   game: "game",

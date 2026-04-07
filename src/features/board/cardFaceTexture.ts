@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 import type { Card } from "@/core/cards/types";
 import { formatRank, formatSuit } from "@/features/board/formatCard";
+import type { Locale } from "@/services/i18n/locales";
 
 const CARD_TEXTURE_SCALE = 4;
 const CARD_BACKGROUND = "#f7ecd8";
@@ -9,8 +10,8 @@ const CARD_SELECTED_BORDER = "#e3a34f";
 const CARD_RED = "#a93f48";
 const CARD_BLACK = "#1b1b1b";
 
-function getCardFaceTextureKey(card: Card, isSelected: boolean): string {
-  return `card-face-${card.rank}-${card.suit}-${isSelected ? "selected" : "default"}`;
+function getCardFaceTextureKey(card: Card, isSelected: boolean, locale: Locale): string {
+  return `card-face-${locale}-${card.rank}-${card.suit}-${isSelected ? "selected" : "default"}`;
 }
 
 export function ensureCardFaceTexture(
@@ -19,8 +20,9 @@ export function ensureCardFaceTexture(
   width: number,
   height: number,
   isSelected = false,
+  locale: Locale = "en",
 ): string {
-  const key = getCardFaceTextureKey(card, isSelected);
+  const key = getCardFaceTextureKey(card, isSelected, locale);
   if (scene.textures.exists(key)) {
     return key;
   }
@@ -32,7 +34,7 @@ export function ensureCardFaceTexture(
   const ctx = texture.context;
   const scaledWidth = width * CARD_TEXTURE_SCALE;
   const scaledHeight = height * CARD_TEXTURE_SCALE;
-  const label = `${formatRank(card)}${formatSuit(card)}`;
+  const label = `${formatRank(card, locale)}${formatSuit(card)}`;
   const textColor = card.color === "red" ? CARD_RED : CARD_BLACK;
 
   ctx.save();

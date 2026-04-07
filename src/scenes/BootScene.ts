@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { getAppContext, setAppContext } from "@/app/config/appContext";
-import { SCENES } from "@/app/config/gameConfig";
+import { SAVE_KEY, SCENES } from "@/app/config/gameConfig";
 import {
   CARD_FACE_ASSET_HEIGHT,
   CARD_FACE_ASSET_WIDTH,
@@ -56,22 +56,34 @@ export class BootScene extends Phaser.Scene {
     const sdk = new YandexSdkService();
     await sdk.init();
 
-    // Подтягиваем облачное сохранение до инициализации контекста,
-    // чтобы остальные сервисы сразу видели актуальный прогресс.
-    const tempSave = new SaveService();
-    await tempSave.loadFromCloud(sdk);
-
     const analytics = new AnalyticsService();
     const i18n = new I18nService();
     const save = new SaveService();
     const sound = new SoundService();
     const ads = new AdsService(sdk, analytics);
 
+    // Подтягиваем облачное сохранение до инициализации контекста,
+    // чтобы остальные сервисы сразу видели актуальный прогресс.
+    // Важно: проверяем наличие локального сейва ДО merge, иначе
+    // вернувшийся облачный игрок будет принят за нового.
+    const hasExistingSave = window.localStorage.getItem(SAVE_KEY) !== null;
+    await save.loadFromCloud(sdk);
+
     setAppContext({ analytics, ads, i18n, save, sound, sdk });
+
+    if (!hasExistingSave) {
+      const detected = sdk.detectLocale();
+      if (detected) {
+        save.updateProgress((p) => ({ ...p, locale: detected }));
+      }
+    }
 
     const saveState = getAppContext().save.load();
     i18n.setLocale(saveState.progress.locale);
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
+
+    // Сообщаем порталу Яндекса что игра готова — скрывает спиннер загрузки.
+    sdk.signalReady();
 
     const preview =
       typeof window !== "undefined"
@@ -121,6 +133,12 @@ export class BootScene extends Phaser.Scene {
       }));
       console.log("[dev] All points playable: pages unlocked, no nodes completed");
       this.scene.start(SCENES.map);
+      return;
+    }
+
+    // First-time launch: show prologue, then go straight to first deal
+    if (!saveState.progress.prologueShown) {
+      this.scene.start(SCENES.prologue);
       return;
     }
 

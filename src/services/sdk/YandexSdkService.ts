@@ -1,3 +1,5 @@
+import type { Locale } from "@/services/i18n/locales";
+
 export class YandexSdkService {
   private sdk: YaGamesSDK | null = null;
   private initialized = false;
@@ -20,6 +22,48 @@ export class YandexSdkService {
 
   isAvailable(): boolean {
     return this.sdk !== null;
+  }
+
+  /** Сообщает Яндексу что игра загружена и интерактивна. Скрывает загрузочный спиннер портала. */
+  signalReady(): void {
+    try {
+      this.sdk?.features?.LoadingAPI?.ready();
+    } catch (error) {
+      console.warn("[sdk] LoadingAPI.ready failed", error);
+    }
+  }
+
+  /** Сигнализирует начало активного геймплея (для пауз рекламы). */
+  gameplayStart(): void {
+    try {
+      this.sdk?.features?.GameplayAPI?.start();
+    } catch (error) {
+      console.warn("[sdk] GameplayAPI.start failed", error);
+    }
+  }
+
+  /** Сигнализирует остановку активного геймплея. */
+  gameplayStop(): void {
+    try {
+      this.sdk?.features?.GameplayAPI?.stop();
+    } catch (error) {
+      console.warn("[sdk] GameplayAPI.stop failed", error);
+    }
+  }
+
+  /**
+   * Возвращает определённый язык, ограниченный поддерживаемыми Locale.
+   * Турецкий пока не поддержан в Locale union — будет добавлен вместе
+   * с пакетом турецкой локализации; до тех пор tr-игроки получают en.
+   */
+  detectLocale(): Locale | null {
+    const raw =
+      this.sdk?.environment?.i18n?.lang ??
+      (typeof navigator !== "undefined" ? navigator.language : "");
+    if (!raw) return null;
+    const lang = raw.slice(0, 2).toLowerCase();
+    if (lang === "ru") return "ru";
+    return "en";
   }
 
   /** Возвращает кешированного player или загружает его. null если SDK недоступен. */
@@ -68,11 +112,17 @@ export class YandexSdkService {
     }
 
     return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const settle = (value: boolean): void => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
       adv.showRewardedVideo?.({
         callbacks: {
-          onRewarded: () => resolve(true),
-          onClose: () => resolve(false),
-          onError: () => resolve(false)
+          onRewarded: () => settle(true),
+          onClose: () => settle(false),
+          onError: () => settle(false)
         }
       });
     });

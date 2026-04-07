@@ -14,6 +14,102 @@ export function createDefaultSaveState(): SaveState {
   };
 }
 
+/**
+ * Проверяет минимальную целостность объекта SaveState. Не пытается лечить
+ * частично корректные данные — если что-то критичное не на месте, безопаснее
+ * откатиться на дефолт. Используется и для localStorage, и для облачных сейвов
+ * (последние могут прийти в любом виде).
+ */
+function isFiniteNumber(x: unknown): x is number {
+  return typeof x === "number" && Number.isFinite(x);
+}
+
+function isStringArray(x: unknown): x is string[] {
+  return Array.isArray(x) && x.every((v) => typeof v === "string");
+}
+
+function isValidSaveState(value: unknown): value is SaveState {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (v.version !== 1) return false;
+
+  const progress = v.progress as Record<string, unknown> | undefined;
+  if (!progress || typeof progress !== "object") return false;
+  if (!isFiniteNumber(progress.currentChapter)) return false;
+  if (!isStringArray(progress.unlockedNodes)) return false;
+  if (!isStringArray(progress.completedNodes)) return false;
+  if (!isStringArray(progress.artifacts)) return false;
+  if (!isFiniteNumber(progress.coins)) return false;
+  if (progress.locale !== "ru" && progress.locale !== "en") return false;
+  if (!isFiniteNumber(progress.streakCount)) return false;
+  if (
+    progress.dailyClaimedOn !== null &&
+    typeof progress.dailyClaimedOn !== "undefined" &&
+    typeof progress.dailyClaimedOn !== "string"
+  ) {
+    return false;
+  }
+  if (
+    progress.lastLoginDate !== null &&
+    typeof progress.lastLoginDate !== "undefined" &&
+    typeof progress.lastLoginDate !== "string"
+  ) {
+    return false;
+  }
+  if (
+    typeof progress.prologueShown !== "undefined" &&
+    typeof progress.prologueShown !== "boolean"
+  ) {
+    return false;
+  }
+
+  // currentGame может быть null или объектом — глубже не проверяем,
+  // т.к. в случае повреждения геймскрин просто разложит новую партию.
+  if (v.currentGame !== null && typeof v.currentGame !== "object") return false;
+  return true;
+}
+
+function unionStrings(a: string[], b: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of a) if (!seen.has(x)) { seen.add(x); out.push(x); }
+  for (const x of b) if (!seen.has(x)) { seen.add(x); out.push(x); }
+  return out;
+}
+
+function laterDateString(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a >= b ? a : b;
+}
+
+export function mergeSaveStates(local: SaveState, cloud: SaveState): SaveState {
+  const lp = local.progress;
+  const cp = cloud.progress;
+  return {
+    version: 1,
+    progress: {
+      currentChapter: Math.max(lp.currentChapter, cp.currentChapter),
+      unlockedNodes: unionStrings(lp.unlockedNodes, cp.unlockedNodes),
+      completedNodes: unionStrings(lp.completedNodes, cp.completedNodes),
+      coins: Math.max(lp.coins, cp.coins),
+      artifacts: unionStrings(lp.artifacts, cp.artifacts),
+      dailyClaimedOn: laterDateString(lp.dailyClaimedOn, cp.dailyClaimedOn),
+      // Локаль игрока — приоритет у локальной (он явно её выбрал на этом устройстве).
+      locale: lp.locale,
+      streakCount: Math.max(lp.streakCount, cp.streakCount),
+      lastLoginDate: laterDateString(lp.lastLoginDate, cp.lastLoginDate),
+      prologueShown: Boolean(lp.prologueShown || cp.prologueShown),
+      // devAllPlayable — чисто локальный dev-флаг. Никогда не подтягиваем
+      // его из облака, чтобы случайный sync с dev-устройства не разлочил
+      // всё на проде у обычного игрока.
+      devAllPlayable: lp.devAllPlayable,
+    },
+    // Текущая партия — отдаём приоритет локальной, чтобы не потерять in-progress.
+    currentGame: local.currentGame ?? cloud.currentGame,
+  };
+}
+
 export class SaveService {
   load(): SaveState {
     try {
@@ -23,9 +119,10 @@ export class SaveService {
         return createDefaultSaveState();
       }
 
-      const parsed = JSON.parse(rawValue) as SaveState;
+      const parsed = JSON.parse(rawValue) as unknown;
 
-      if (parsed.version !== 1) {
+      if (!isValidSaveState(parsed)) {
+        console.warn("[save] localStorage state failed schema validation, resetting");
         return createDefaultSaveState();
       }
 
@@ -170,8 +267,16 @@ export class SaveService {
   }
 
   /**
-   * Загружает облачное сохранение и, если оно новее локального (больше completedNodes),
-   * записывает его в localStorage. Вызывается один раз при старте в BootScene.
+   * Загружает облачное сохранение и сливает с локальным по полям:
+   * - completedNodes / unlockedNodes / artifacts → объединение
+   * - coins → max
+   * - currentChapter / streakCount → max
+   * - dailyClaimedOn / lastLoginDate / locale / prologueShown → берём более свежие
+   * - currentGame → берём облачную партию только если локальной нет
+   *
+   * Это устраняет потерю прогресса при двух устройствах: ни одна сторона не
+   * перезатирает другую целиком, и манипулированный сейв не может уменьшить
+   * монеты или украсть артефакты у другой стороны.
    */
   async loadFromCloud(sdk: YandexSdkService): Promise<void> {
     const json = await sdk.getCloudSave();
@@ -179,23 +284,26 @@ export class SaveService {
       console.log("[save] no cloud save found");
       return;
     }
+    let cloudState: unknown;
     try {
-      const cloudState = JSON.parse(json) as SaveState;
-      if (cloudState.version !== 1) return;
-
-      const localState = this.load();
-      const cloudProgress = cloudState.progress.completedNodes.length;
-      const localProgress = localState.progress.completedNodes.length;
-
-      if (cloudProgress > localProgress) {
-        this.save(cloudState);
-        console.log(`[save] cloud save loaded (${cloudProgress} nodes vs local ${localProgress})`);
-      } else {
-        console.log(`[save] local save is up to date (${localProgress} nodes)`);
-      }
+      cloudState = JSON.parse(json);
     } catch (error) {
       console.warn("[save] failed to parse cloud save", error);
+      return;
     }
+    if (!isValidSaveState(cloudState)) {
+      console.warn("[save] cloud save failed schema validation, ignoring");
+      return;
+    }
+
+    const localState = this.load();
+    const merged = mergeSaveStates(localState, cloudState);
+    this.save(merged);
+    console.log(
+      `[save] cloud merged (local ${localState.progress.completedNodes.length} ` +
+      `+ cloud ${cloudState.progress.completedNodes.length} → ` +
+      `${merged.progress.completedNodes.length} nodes)`,
+    );
   }
 
   /**

@@ -1,15 +1,6 @@
-import type { Card, Rank, Suit } from "@/core/cards/types";
-
-const FACE_CARDS: Record<number, string> = {
-  1: "A",
-  11: "J",
-  12: "Q",
-  13: "K",
-};
-
-function getRankLabel(rank: Rank): string {
-  return FACE_CARDS[rank] ?? String(rank);
-}
+import type { Card, Suit } from "@/core/cards/types";
+import type { Locale } from "@/services/i18n/locales";
+import { getRankLabel } from "@/assets/cards/cardFaceSvg";
 
 function getSuitFill(suit: Suit): string {
   return suit === "diamonds" || suit === "hearts" ? "#b14955" : "#161616";
@@ -99,8 +90,8 @@ function createCornerIndexMarkup(rankLabel: string, suit: Suit, suitFill: string
   `.trim();
 }
 
-export function createCardFaceSvgMarkup(card: Card, selected = false): string {
-  const rankLabel = getRankLabel(card.rank);
+export function createCardFaceSvgMarkup(card: Card, selected = false, locale: Locale = "en"): string {
+  const rankLabel = getRankLabel(card.rank, locale);
   const suitFill = getSuitFill(card.suit);
   const stroke = selected ? "#e3a34f" : "#dac9a1";
   const cornerIndexMarkup = createCornerIndexMarkup(rankLabel, card.suit, suitFill);

@@ -58,6 +58,7 @@ export const locales = {
     resumeRestart: "Start over",
     notEnoughCoins: "Not enough coins",
     hint: "Hint",
+    prologueButton: "I study the first page",
   },
   ru: {
     title: "Solitaire: Expedition",
@@ -118,6 +119,7 @@ export const locales = {
     resumeRestart: "Начать заново",
     notEnoughCoins: "Не хватает монет",
     hint: "Подсказка",
+    prologueButton: "Изучаю первый листок",
   },
 } as const;
 

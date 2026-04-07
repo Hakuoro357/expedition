@@ -7,6 +7,7 @@ import { DetailScene } from "@/scenes/DetailScene";
 import { DiaryScene } from "@/scenes/DiaryScene";
 import { GameScene } from "@/scenes/GameScene";
 import { MapScene } from "@/scenes/MapScene";
+import { PrologueScene } from "@/scenes/PrologueScene";
 import { RewardScene } from "@/scenes/RewardScene";
 import { SettingsScene } from "@/scenes/SettingsScene";
 
@@ -34,6 +35,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     scene: [
       BootScene,
       DevPreviewScene,
+      PrologueScene,
       MapScene,
       DetailScene,
       GameScene,

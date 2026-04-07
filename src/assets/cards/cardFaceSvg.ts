@@ -1,14 +1,16 @@
 import type { CardColor, Rank, Suit } from "@/core/cards/types";
 import { SUITS } from "@/core/cards/types";
+import type { Locale } from "@/services/i18n/locales";
+import { locales } from "@/services/i18n/locales";
 
 const RANKS: Rank[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
-const FACE_CARDS: Record<number, string> = {
-  1: "A",
-  11: "J",
-  12: "Q",
-  13: "K",
+const FACE_CARDS_BY_LOCALE: Record<Locale, Record<number, string>> = {
+  en: { 1: "A", 11: "J", 12: "Q", 13: "K" },
+  ru: { 1: "Т", 11: "В", 12: "Д", 13: "К" },
 };
+
+const ALL_LOCALES = Object.keys(locales) as Locale[];
 
 const CARD_RED = "#a93f48";
 const CARD_BLACK = "#1b1b1b";
@@ -16,8 +18,9 @@ const CARD_BLACK = "#1b1b1b";
 export const CARD_FACE_ASSET_WIDTH = 176;
 export const CARD_FACE_ASSET_HEIGHT = 280;
 
-function getRankLabel(rank: Rank): string {
-  return FACE_CARDS[rank] ?? String(rank);
+export function getRankLabel(rank: Rank, locale: Locale): string {
+  const map = FACE_CARDS_BY_LOCALE[locale] ?? FACE_CARDS_BY_LOCALE.en;
+  return map[rank] ?? String(rank);
 }
 
 function getSuitShapeMarkup(suit: Suit, color: string, scale = 1): string {
@@ -60,13 +63,13 @@ function getColorBySuit(suit: Suit): CardColor {
   return suit === "diamonds" || suit === "hearts" ? "red" : "black";
 }
 
-export function getCardFaceTextureKey(rank: Rank, suit: Suit): string {
-  return `card-face-svg-${rank}-${suit}`;
+export function getCardFaceTextureKey(rank: Rank, suit: Suit, locale: Locale): string {
+  return `card-face-svg-${locale}-${rank}-${suit}`;
 }
 
-export function getCardFaceSvgDataUri(rank: Rank, suit: Suit): string {
+export function getCardFaceSvgDataUri(rank: Rank, suit: Suit, locale: Locale): string {
   const textColor = getColorBySuit(suit) === "red" ? CARD_RED : CARD_BLACK;
-  const rankLabel = getRankLabel(rank);
+  const rankLabel = getRankLabel(rank, locale);
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 280">
   <rect width="176" height="280" rx="12" fill="#f7ecd8"/>
@@ -94,11 +97,13 @@ export function getCardFaceSvgDataUri(rank: Rank, suit: Suit): string {
 export function getAllCardFaceDefinitions(): Array<{ key: string; uri: string }> {
   const faces: Array<{ key: string; uri: string }> = [];
 
-  SUITS.forEach((suit) => {
-    RANKS.forEach((rank) => {
-      faces.push({
-        key: getCardFaceTextureKey(rank, suit),
-        uri: getCardFaceSvgDataUri(rank, suit),
+  ALL_LOCALES.forEach((locale) => {
+    SUITS.forEach((suit) => {
+      RANKS.forEach((rank) => {
+        faces.push({
+          key: getCardFaceTextureKey(rank, suit, locale),
+          uri: getCardFaceSvgDataUri(rank, suit, locale),
+        });
       });
     });
   });

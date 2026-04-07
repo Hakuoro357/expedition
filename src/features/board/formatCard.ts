@@ -1,11 +1,6 @@
 import type { Card } from "@/core/cards/types";
-
-const FACE_CARDS: Record<number, string> = {
-  1: "A",
-  11: "J",
-  12: "Q",
-  13: "K"
-};
+import type { Locale } from "@/services/i18n/locales";
+import { getRankLabel } from "@/assets/cards/cardFaceSvg";
 
 const SUIT_SYMBOLS: Record<Card["suit"], string> = {
   clubs: "♣",
@@ -14,13 +9,12 @@ const SUIT_SYMBOLS: Record<Card["suit"], string> = {
   spades: "♠"
 };
 
-export function formatCard(card: Card): string {
-  const rank = FACE_CARDS[card.rank] ?? String(card.rank);
-  return `${rank}${SUIT_SYMBOLS[card.suit]}`;
+export function formatCard(card: Card, locale: Locale = "en"): string {
+  return `${getRankLabel(card.rank, locale)}${SUIT_SYMBOLS[card.suit]}`;
 }
 
-export function formatRank(card: Card): string {
-  return FACE_CARDS[card.rank] ?? String(card.rank);
+export function formatRank(card: Card, locale: Locale = "en"): string {
+  return getRankLabel(card.rank, locale);
 }
 
 export function formatSuit(card: Card): string {

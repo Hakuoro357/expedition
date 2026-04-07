@@ -3,6 +3,7 @@ import undoIconHtml from "../assets/ui/nav-icons/undo.svg?raw";
 import hintIconHtml from "../assets/ui/nav-icons/hint.svg?raw";
 import rulesIconHtml from "../assets/ui/nav-icons/rules.svg?raw";
 import type { Card } from "@/core/cards/types";
+import type { Locale } from "@/services/i18n/locales";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 
 type GameActionId = "undo" | "hint" | "rules" | "home";
@@ -72,6 +73,7 @@ type GameSceneOverlayParams = {
   cardBackSvg?: string;
   faceDownCards?: GameOverlayFaceDownCard[];
   emptyTableauSlots?: GameOverlayEmptySlot[];
+  locale?: Locale;
 };
 
 function createTopRowHtml(
@@ -111,7 +113,7 @@ function createTopRowHtml(
   ].join("");
 }
 
-function createCardsHtml(cards: GameOverlayCard[]): string {
+function createCardsHtml(cards: GameOverlayCard[], locale: Locale): string {
   if (cards.length === 0) {
     return "";
   }
@@ -125,14 +127,14 @@ function createCardsHtml(cards: GameOverlayCard[]): string {
           data-card-key="${escapeHtml(key)}"
           style="left:${left}px;top:${top}px;"
         >
-          ${createCardFaceSvgMarkup(card, selected)}
+          ${createCardFaceSvgMarkup(card, selected, locale)}
         </div>`,
     ),
     "</div>",
   ].join("");
 }
 
-function createDragCardsHtml(cards: GameOverlayCard[]): string {
+function createDragCardsHtml(cards: GameOverlayCard[], locale: Locale): string {
   if (cards.length === 0) {
     return "";
   }
@@ -146,7 +148,7 @@ function createDragCardsHtml(cards: GameOverlayCard[]): string {
           data-card-key="${escapeHtml(key)}"
           style="left:${left}px;top:${top}px;"
         >
-          ${createCardFaceSvgMarkup(card, selected)}
+          ${createCardFaceSvgMarkup(card, selected, locale)}
         </div>`,
     ),
     "</div>",
@@ -224,6 +226,7 @@ export function createGameSceneOverlayHtml({
   cardBackSvg,
   faceDownCards,
   emptyTableauSlots,
+  locale = "en",
 }: GameSceneOverlayParams): string {
   const items: Array<{ id: GameActionId; label: string }> = [
     { id: "undo", label: undoLabel },
@@ -243,8 +246,8 @@ export function createGameSceneOverlayHtml({
     `  <div class="game-overlay__status" data-game-status="true"></div>`,
     `  ${createEmptyTableauSlotsHtml(emptyTableauSlots ?? [])}`,
     `  ${createFaceDownCardsHtml(faceDownCards ?? [], cardBackSvg)}`,
-    `  ${createCardsHtml(cards)}`,
-    `  ${createDragCardsHtml(dragCards)}`,
+    `  ${createCardsHtml(cards, locale)}`,
+    `  ${createDragCardsHtml(dragCards, locale)}`,
     '  <div class="game-overlay__nav">',
     ...items.map(
       (item) => `    <button class="game-overlay__action game-overlay__action--${escapeHtml(item.id)}" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(item.label)}"><span class="game-overlay__action-icon">${getActionIconHtml(item.id)}</span><span class="game-overlay__action-label">${escapeHtml(item.label)}</span></button>`,

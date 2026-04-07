@@ -84,6 +84,12 @@ export function createCanvasAnchoredOverlay({
   host.appendChild(inner);
   parent.appendChild(host);
 
+  // Текущий масштаб overlay относительно logical размера. Обновляется
+  // только в updateLayout и читается через getScale — никаких отдельных
+  // путей подсчёта, чтобы не было гонки "размер уже сменился, а getScale
+  // ещё отдаёт старое значение".
+  let currentScale = 1;
+
   const updateLayout = (): void => {
     const frame = computeCanvasOverlayFrame(
       canvas.getBoundingClientRect(),
@@ -95,8 +101,10 @@ export function createCanvasAnchoredOverlay({
     host.style.top = `${frame.top}px`;
     host.style.width = `${frame.width}px`;
     host.style.height = `${frame.height}px`;
-    innerStyle.transform = "none";
-    innerStyle.setProperty("zoom", String(frame.scale));
+    // transform:scale работает во всех браузерах (Firefox/Safari/Chrome),
+    // в отличие от non-standard `zoom`, который раньше применялся здесь.
+    innerStyle.transform = `scale(${frame.scale})`;
+    currentScale = frame.scale;
   };
 
   const setHtml = (nextHtml: string): void => {
@@ -121,29 +129,9 @@ export function createCanvasAnchoredOverlay({
 
   updateLayout();
 
-  let currentScale = 1;
-
-  const origUpdateLayout = updateLayout;
-  const updateLayoutWithScale = (): void => {
-    origUpdateLayout();
-    const frame = computeCanvasOverlayFrame(
-      canvas.getBoundingClientRect(),
-      parent.getBoundingClientRect(),
-      logicalWidth
-    );
-    currentScale = frame.scale;
-  };
-
-  const wrappedUpdateLayout = (): void => {
-    updateLayoutWithScale();
-  };
-
-  // Initial scale capture
-  updateLayoutWithScale();
-
   const getInnerElement = (): HTMLDivElement => inner;
   const getHostElement = (): HTMLDivElement => host;
   const getScale = (): number => currentScale;
 
-  return { setHtml, updateLayout: wrappedUpdateLayout, setVisible, getInnerElement, getHostElement, getScale, destroy };
+  return { setHtml, updateLayout, setVisible, getInnerElement, getHostElement, getScale, destroy };
 }

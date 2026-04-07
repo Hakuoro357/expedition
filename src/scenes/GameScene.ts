@@ -69,6 +69,9 @@ export class GameScene extends Phaser.Scene {
   private dragPreview?: Phaser.GameObjects.Container;
   private draggedSelection: Selection | null = null;
   private dragPreviewCards: GameOverlayCard[] = [];
+  /** Кэш DOM-узлов drag-карт, заполняется при старте драга чтобы
+   * updateDragPreview не дёргал querySelectorAll на каждый pointer-move. */
+  private dragPreviewNodes: HTMLElement[] = [];
   private pendingFlips: Set<string> = new Set();
   private autoCompleting = false;
   private animating = false;
@@ -107,10 +110,12 @@ export class GameScene extends Phaser.Scene {
     this.dragPreview = undefined;
     this.draggedSelection = null;
     this.dragPreviewCards = [];
+    this.dragPreviewNodes = [];
 
-    const { analytics, save } = getAppContext();
+    const { analytics, save, sdk } = getAppContext();
     analytics.track("deal_start", { mode, dealId });
     save.updateCurrentGame(this.gameState);
+    sdk.gameplayStart();
 
     // Ensure card back texture is loaded for Phaser rendering
     this.ensureCardBackTexture();
@@ -143,6 +148,7 @@ export class GameScene extends Phaser.Scene {
       this.gameOverlay?.destroy();
       this.gameOverlay = undefined;
       this.gameOverlayCleanup = undefined;
+      getAppContext().sdk.gameplayStop();
     });
   }
 
@@ -221,6 +227,7 @@ export class GameScene extends Phaser.Scene {
       cardBackSvg: fixCardBackSvgAspect(cardBackSvg),
       faceDownCards: this.getOverlayFaceDownCards(),
       emptyTableauSlots: this._emptyTableauSlots,
+      locale: i18n.currentLocale(),
     });
 
     if (!this.gameOverlay) {
@@ -231,11 +238,12 @@ export class GameScene extends Phaser.Scene {
         logicalWidth: GAME_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
+      // Делегированный click-обработчик ставится один раз на стабильный
+      // root overlay; повторные setHtml() не пересоздают listener.
+      this.bindGameOverlayEvents();
     } else {
       this.gameOverlay.setHtml(html);
     }
-
-    this.bindGameOverlayEvents();
   }
 
   private getOverlayCards(): GameOverlayCard[] {
@@ -343,18 +351,29 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Перевязывать обработчики при каждом ререндере overlay небезопасно:
+    // setHtml() пересоздаёт DOM-узлы, и если клик пришёл между сменой
+    // innerHTML и повторным querySelectorAll, он попадает в "потерянную"
+    // ноду без слушателя. Делегация от стабильного root решает обе
+    // проблемы — одна привязка, один cleanup, никакого race.
+    if (this.gameOverlayCleanup) {
+      return;
+    }
+
     const root = this.gameOverlay.getInnerElement();
-    this.gameOverlayCleanup?.();
 
-    const disposers: Array<() => void> = [];
+    const onClick = (event: Event): void => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
 
-    root.querySelectorAll<HTMLElement>("[data-game-action]").forEach((element) => {
-      const action = element.dataset.gameAction as "undo" | "hint" | "rules" | "home" | undefined;
-      if (!action) {
-        return;
-      }
-
-      const onClick = (): void => {
+      const actionEl = target.closest<HTMLElement>("[data-game-action]");
+      if (actionEl) {
+        const action = actionEl.dataset.gameAction as
+          | "undo"
+          | "hint"
+          | "rules"
+          | "home"
+          | undefined;
         switch (action) {
           case "undo":
             this.handleUndoAction();
@@ -369,30 +388,22 @@ export class GameScene extends Phaser.Scene {
             this.showLeaveConfirm();
             return;
         }
-      };
+        return;
+      }
 
-      element.style.pointerEvents = "auto";
-      element.addEventListener("click", onClick);
-      disposers.push(() => element.removeEventListener("click", onClick));
-    });
+      const emptySlot = target.closest<HTMLElement>(".game-overlay__empty-slot");
+      if (emptySlot) {
+        const key = emptySlot.dataset.cardKey ?? "";
+        const pileIndex = parseInt(key.replace("tableau-empty-", ""), 10);
+        if (!Number.isNaN(pileIndex)) {
+          this.handleTableauClick(pileIndex, 0);
+        }
+      }
+    };
 
-    // Handle clicks on empty tableau slots
-    root.querySelectorAll<HTMLElement>(".game-overlay__empty-slot").forEach((element) => {
-      const key = element.dataset.cardKey;
-      if (!key) return;
-      const pileIndex = parseInt(key.replace("tableau-empty-", ""), 10);
-      if (isNaN(pileIndex)) return;
-
-      const onClick = (): void => {
-        this.handleTableauClick(pileIndex, 0);
-      };
-      element.style.pointerEvents = "auto";
-      element.addEventListener("click", onClick);
-      disposers.push(() => element.removeEventListener("click", onClick));
-    });
-
+    root.addEventListener("click", onClick);
     this.gameOverlayCleanup = () => {
-      disposers.forEach((dispose) => dispose());
+      root.removeEventListener("click", onClick);
     };
   }
 
@@ -827,7 +838,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.selection = { kind: "waste" };
-        this.setStatus(`${formatCard(wasteTop)}`);
+        this.setStatus(`${formatCard(wasteTop, getAppContext().i18n.currentLocale())}`);
         this.renderBoard();
       },
       wasteTop,
@@ -1004,10 +1015,11 @@ export class GameScene extends Phaser.Scene {
     card: Card,
     isSelected: boolean,
   ): Phaser.GameObjects.Image {
-    const svgTextureKey = getSvgCardFaceTextureKey(card.rank, card.suit);
+    const locale = getAppContext().i18n.currentLocale();
+    const svgTextureKey = getSvgCardFaceTextureKey(card.rank, card.suit, locale);
     const textureKey = this.textures.exists(svgTextureKey)
       ? svgTextureKey
-      : ensureCardFaceTexture(this, card, CARD_WIDTH, CARD_HEIGHT, isSelected);
+      : ensureCardFaceTexture(this, card, CARD_WIDTH, CARD_HEIGHT, isSelected, locale);
     return this.add.image(x, y, textureKey).setDisplaySize(CARD_WIDTH, CARD_HEIGHT).setOrigin(0.5);
   }
 
@@ -1204,7 +1216,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       this.selection = { kind: "tableau", pileIndex, cardIndex };
-      this.setStatus(`${formatCard(card)}`);
+      this.setStatus(`${formatCard(card, getAppContext().i18n.currentLocale())}`);
       this.renderBoard();
       return;
     }
@@ -1284,7 +1296,7 @@ export class GameScene extends Phaser.Scene {
         const clickedCard = clickedPile?.cards[cardIndex];
         if (clickedCard?.faceUp) {
           this.selection = { kind: "tableau", pileIndex, cardIndex };
-          this.setStatus(`${formatCard(clickedCard)}`);
+          this.setStatus(`${formatCard(clickedCard, getAppContext().i18n.currentLocale())}`);
           this.renderBoard();
           return;
         }
@@ -1405,18 +1417,51 @@ export class GameScene extends Phaser.Scene {
     // Disable pointer-events on DOM slots during drag to prevent them stealing the pointer
     this.gameOverlay?.getHostElement()?.classList.add("game-overlay--dragging");
     this.renderGameOverlay();
+
+    // После полного ререндера фиксируем ссылки на drag-узлы — дальнейшие
+    // pointer-move будут обновлять только их style без querySelectorAll.
+    const root = this.gameOverlay?.getInnerElement();
+    this.dragPreviewNodes = root
+      ? Array.from(root.querySelectorAll<HTMLElement>(".game-overlay__dom-card--drag"))
+      : [];
   }
 
   private updateDragPreview(x: number, y: number): void {
     if (this.dragPreviewCards.length === 0) {
       return;
     }
+    const left = x - CARD_WIDTH / 2;
+    const baseTop = y - CARD_HEIGHT / 2;
+    const stepY = Math.min(FACE_UP_GAP_Y, 18);
     this.dragPreviewCards = this.dragPreviewCards.map((previewCard, index) => ({
       ...previewCard,
-      left: x - CARD_WIDTH / 2,
-      top: y - CARD_HEIGHT / 2 + index * Math.min(FACE_UP_GAP_Y, 18),
+      left,
+      top: baseTop + index * stepY,
     }));
-    this.renderGameOverlay();
+
+    // Перетаскивание происходит на каждом фрейме pointer-move. Полный
+    // renderGameOverlay() при каждом мув-евенте перепарсивает innerHTML
+    // всего overlay — заметно подвисает на слабых мобилках. Двигаем
+    // drag-карты прямой манипуляцией стилей по закешированным узлам;
+    // полный ререндер случается только в start/end драга.
+    if (this.dragPreviewNodes.length !== this.dragPreviewCards.length) {
+      // Кэш потерял синхронизацию (например, кто-то сделал ререндер
+      // overlay в середине драга) — пересобираем один раз.
+      const root = this.gameOverlay?.getInnerElement();
+      this.dragPreviewNodes = root
+        ? Array.from(root.querySelectorAll<HTMLElement>(".game-overlay__dom-card--drag"))
+        : [];
+      if (this.dragPreviewNodes.length !== this.dragPreviewCards.length) {
+        return;
+      }
+    }
+    for (let i = 0; i < this.dragPreviewCards.length; i++) {
+      const node = this.dragPreviewNodes[i];
+      const card = this.dragPreviewCards[i];
+      if (!node || !card) continue;
+      node.style.left = `${card.left}px`;
+      node.style.top = `${card.top}px`;
+    }
   }
 
   private finishDrag(worldX: number, worldY: number): void {
@@ -1474,6 +1519,7 @@ export class GameScene extends Phaser.Scene {
     this.dragPreview = undefined;
     this.draggedSelection = null;
     this.dragPreviewCards = [];
+    this.dragPreviewNodes = [];
     this.gameOverlay?.getHostElement()?.classList.remove("game-overlay--dragging");
     this.renderGameOverlay();
   }
@@ -1773,7 +1819,7 @@ export class GameScene extends Phaser.Scene {
         z-index: ${100 + index};
       `;
 
-      const svgMarkup = createCardFaceSvgMarkup(card, true);
+      const svgMarkup = createCardFaceSvgMarkup(card, true, getAppContext().i18n.currentLocale());
       animEl.innerHTML = svgMarkup;
       const svgEl = animEl.querySelector("svg");
       if (svgEl) {
@@ -1878,7 +1924,7 @@ export class GameScene extends Phaser.Scene {
 
       this.time.delayedCall(80, () => {
         // Swap to face-up
-        const svgMarkup = createCardFaceSvgMarkup(card, true);
+        const svgMarkup = createCardFaceSvgMarkup(card, true, getAppContext().i18n.currentLocale());
         animEl.innerHTML = `<div style="width:100%;height:100%;">${svgMarkup}</div>`;
         const faceSvgEl = animEl.querySelector("svg");
         if (faceSvgEl) {
@@ -1907,7 +1953,7 @@ export class GameScene extends Phaser.Scene {
     targetY: number,
     onComplete: () => void
   ): void {
-    const svgMarkup = createCardFaceSvgMarkup(card, true);
+    const svgMarkup = createCardFaceSvgMarkup(card, true, getAppContext().i18n.currentLocale());
 
     const animEl = document.createElement("div");
     animEl.className = "game-overlay__fly-anim";
