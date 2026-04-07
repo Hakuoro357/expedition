@@ -59,6 +59,7 @@ export const locales = {
     notEnoughCoins: "Not enough coins",
     hint: "Hint",
     prologueButton: "I study the first page",
+    rotatePrompt: "Please rotate your device to portrait mode",
   },
   ru: {
     title: "Solitaire: Expedition",
@@ -120,6 +121,7 @@ export const locales = {
     notEnoughCoins: "Не хватает монет",
     hint: "Подсказка",
     prologueButton: "Изучаю первый листок",
+    rotatePrompt: "Поверни устройство в портретный режим",
   },
 } as const;
 

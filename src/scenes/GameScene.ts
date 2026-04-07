@@ -1063,10 +1063,41 @@ export class GameScene extends Phaser.Scene {
     }
 
     cardContainer.setSize(CARD_WIDTH, CARD_HEIGHT);
-    cardContainer.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT),
-      Phaser.Geom.Rectangle.Contains
-    );
+    // Hit area для контейнера в Phaser задаётся в local-координатах, где
+    // (0,0) = левый верхний угол визуального бокса, а (W,H) = правый нижний
+    // (см. setSize). По бокам расширяем на 4px (между колонками 8px зазор).
+    //
+    // Особый случай — face-up карта в середине стопки tableau (есть карты
+    // сверху над ней). Если давать ей полный hit area, он перекрывается с
+    // hit area следующей карты, и Phaser в overlap-зоне всегда выбирает
+    // верхнюю по display order — то есть нижнюю видимую карту. В итоге
+    // тап по «корешку» средней карты не работает: всегда берётся нижняя.
+    // Решение: для средних карт ограничиваем hit area только полоской,
+    // которая реально не закрыта следующей картой (FACE_UP_GAP_Y) + чуть
+    // запаса вверх, чтобы пальцем удобнее попадать. Нижняя face-up карта
+    // (stackCards.length === 1) и face-down карты получают полный hit area.
+    const hitPadX = 4;
+    const isMiddleStackCard = dragSelection !== null && stackCards.length > 1;
+    let hitRect: Phaser.Geom.Rectangle;
+    if (isMiddleStackCard) {
+      const stripPadTop = 4;
+      const stripHeight = FACE_UP_GAP_Y + stripPadTop;
+      hitRect = new Phaser.Geom.Rectangle(
+        -hitPadX,
+        -stripPadTop,
+        CARD_WIDTH + hitPadX * 2,
+        stripHeight,
+      );
+    } else {
+      const hitPadBottom = 6;
+      hitRect = new Phaser.Geom.Rectangle(
+        -hitPadX,
+        0,
+        CARD_WIDTH + hitPadX * 2,
+        CARD_HEIGHT + hitPadBottom,
+      );
+    }
+    cardContainer.setInteractive(hitRect, Phaser.Geom.Rectangle.Contains);
 
     // pointerup + flag wasDragged: tap triggers onClick, drag does not
     let wasDragged = false;

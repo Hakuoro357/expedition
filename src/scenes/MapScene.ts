@@ -23,6 +23,7 @@ import {
 } from "@/scenes/routeSceneLayout";
 import { createRouteSceneOverlayHtml, type RouteOverlayPoint, type RouteOverlaySegment } from "@/scenes/routeSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { lockClicksFor } from "@/ui/ghostClickGuard";
 
 type RouteNavTarget = "archive" | "daily" | "settings";
 
@@ -224,6 +225,8 @@ export class MapScene extends Phaser.Scene {
         .circle(point.x, point.y, radius + 10, 0xffffff, 0)
         .setInteractive({ useHandCursor: true });
       hitArea.on("pointerdown", () => {
+        // Глушим ghost-click до scene.start (см. renderBottomNav).
+        lockClicksFor(350);
         if (state === "current") {
           this.handleCurrentNodeClick(node.id);
           return;
@@ -252,7 +255,17 @@ export class MapScene extends Phaser.Scene {
       const hitArea = this.add.rectangle(item.x, y, 104, ROUTE_BOTTOM_NAV_HEIGHT, 0xffffff, 0).setInteractive({
         useHandCursor: true,
       });
-      hitArea.on("pointerdown", () => this.handleBottomNav(item.target));
+      hitArea.on("pointerdown", () => {
+        // Phaser pointerdown срабатывает на touchstart раньше, чем
+        // браузер успевает доставить синтетический DOM click. Если мы
+        // запустим scene.start здесь, новый overlay смонтируется уже
+        // ПОСЛЕ touchend → ghost-click пробьёт в кнопку, оказавшуюся
+        // под пальцем (например, «Назад» в нижнем меню архива на той же
+        // позиции, что и «Архив» на карте). Глушим клики заранее — на
+        // 350мс хватает на любой scene transition.
+        lockClicksFor(350);
+        this.handleBottomNav(item.target);
+      });
       this.content?.add(hitArea);
     });
   }
@@ -420,6 +433,13 @@ export class MapScene extends Phaser.Scene {
     const host = this.overlay?.getHostElement();
     if (!host) return;
 
+    // Глушим Phaser input на сцене карты, пока модалка открыта.
+    // Иначе клик по кнопкам модалки может пробить через canvas в
+    // hit-area соседней (пройденной) точки маршрута, и параллельно
+    // со стартом GameScene уедет ещё и DetailScene с этой точкой —
+    // в результате игрок видит запись из дневника поверх игры.
+    this.input.enabled = false;
+
     const container = document.createElement("div");
     container.className = "game-overlay__rules-overlay";
     container.setAttribute("data-resume-overlay", "true");
@@ -477,6 +497,8 @@ export class MapScene extends Phaser.Scene {
   }
 
   private destroyResumeDialog(): void {
+    // Возвращаем Phaser input после закрытия модалки (см. showResumeDialog).
+    this.input.enabled = true;
     const host = this.overlay?.getHostElement();
     if (!host) return;
     const existing = host.querySelector('[data-resume-overlay="true"]');

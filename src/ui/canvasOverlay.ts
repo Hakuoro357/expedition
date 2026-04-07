@@ -1,5 +1,7 @@
 import type Phaser from "phaser";
 
+import { lockClicksFor } from "@/ui/ghostClickGuard";
+
 type RectLike = {
   left: number;
   top: number;
@@ -83,6 +85,11 @@ export function createCanvasAnchoredOverlay({
 
   host.appendChild(inner);
   parent.appendChild(host);
+
+  // Глушим клики на ~300 мс после монтажа нового overlay, чтобы
+  // на мобильных синтетический ghost-click от тапа в предыдущей
+  // сцене не пробил кнопку, оказавшуюся под пальцем после ребилда.
+  lockClicksFor(300);
 
   // Текущий масштаб overlay относительно logical размера. Обновляется
   // только в updateLayout и читается через getScale — никаких отдельных

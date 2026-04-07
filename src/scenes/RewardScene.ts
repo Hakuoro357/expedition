@@ -49,7 +49,15 @@ export class RewardScene extends Phaser.Scene {
     let coinsAwarded = 0;
     let rewardId: string | null = null;
     let artifactAwarded: string | null = null;
-    if (preview) {
+    if (data.returnFromDetail) {
+      // Возврат из карточки записи/артефакта: награды уже начислены
+      // и пушнуты в облако при первом показе. Просто восстанавливаем
+      // отображение reveal-items по данным узла, без мутаций сейва.
+      if (mode === "adventure" && node) {
+        rewardId = node.rewardId ?? null;
+        artifactAwarded = node.artifactId ?? null;
+      }
+    } else if (preview) {
       if (mode === "adventure" && node) {
         rewardId = node.rewardId ?? null;
         artifactAwarded = node.artifactId ?? null;
@@ -84,7 +92,7 @@ export class RewardScene extends Phaser.Scene {
       coinsAwarded = ECONOMY.winCoins;
     }
 
-    if (!preview) {
+    if (!preview && !data.returnFromDetail) {
       void save.pushToCloud(getAppContext().sdk);
     }
 
