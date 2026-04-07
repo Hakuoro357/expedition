@@ -26,9 +26,9 @@ export class BootScene extends Phaser.Scene {
     this.load.svg("bg-chapter1", "assets/backgrounds/bg-chapter1.svg", { width: 390, height: 844 });
     this.load.svg("bg-chapter2", "assets/backgrounds/bg-chapter2.svg", { width: 390, height: 844 });
     this.load.svg("bg-chapter3", "assets/backgrounds/bg-chapter3.svg", { width: 390, height: 844 });
-    this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 44, height: 70 });
-    this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 44, height: 70 });
-    this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 44, height: 70 });
+    this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 48, height: 76 });
+    this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 48, height: 76 });
+    this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 48, height: 76 });
     getAllCardFaceDefinitions().forEach(({ key, uri }) => {
       this.load.svg(key, uri, { width: CARD_FACE_ASSET_WIDTH, height: CARD_FACE_ASSET_HEIGHT });
     });

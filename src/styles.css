@@ -504,8 +504,8 @@ canvas {
 
 .game-overlay__empty-slot {
   position: absolute;
-  width: 44px;
-  height: 70px;
+  width: 48px;
+  height: 76px;
   border: 2px solid rgba(218, 201, 161, 0.9);
   background: rgba(31, 59, 57, 0.86);
   border-radius: 4.5px;
@@ -526,15 +526,15 @@ canvas {
 
 .game-overlay__dom-card {
   position: absolute;
-  width: 44px;
-  height: 70px;
+  width: 48px;
+  height: 76px;
   pointer-events: none;
 }
 
 .game-overlay__dom-card-svg {
   display: block;
-  width: 44px;
-  height: 70px;
+  width: 48px;
+  height: 76px;
   overflow: visible;
   shape-rendering: geometricPrecision;
 }
@@ -564,8 +564,8 @@ canvas {
 
 .game-overlay__slot {
   position: absolute;
-  width: 44px;
-  height: 70px;
+  width: 48px;
+  height: 76px;
   border: 2px solid rgba(218, 201, 161, 0.9);
   background: rgba(31, 59, 57, 0.86);
   display: flex;
@@ -583,10 +583,10 @@ canvas {
 }
 
 .game-overlay__slot--stock {
-  left: 17px;
-  top: 101px;
-  width: 44px !important;
-  height: 70px !important;
+  left: 15px;
+  top: 100px;
+  width: 48px !important;
+  height: 76px !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -623,28 +623,28 @@ canvas {
 }
 
 .game-overlay__slot--waste {
-  left: 69px;
-  top: 101px;
+  left: 67px;
+  top: 100px;
 }
 
 .game-overlay__slot--foundation-0 {
-  left: 173px;
-  top: 101px;
+  left: 171px;
+  top: 100px;
 }
 
 .game-overlay__slot--foundation-1 {
-  left: 225px;
-  top: 101px;
+  left: 223px;
+  top: 100px;
 }
 
 .game-overlay__slot--foundation-2 {
-  left: 277px;
-  top: 101px;
+  left: 275px;
+  top: 100px;
 }
 
 .game-overlay__slot--foundation-3 {
-  left: 329px;
-  top: 101px;
+  left: 327px;
+  top: 100px;
 }
 
 .game-overlay__slot-count {

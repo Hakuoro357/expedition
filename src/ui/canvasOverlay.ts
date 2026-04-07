@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 
+import { GAME_OFFSET_X } from "@/app/config/gameConfig";
 import { lockClicksFor } from "@/ui/ghostClickGuard";
 
 type RectLike = {
@@ -78,7 +79,10 @@ export function createCanvasAnchoredOverlay({
   innerStyle.position = "absolute";
   innerStyle.left = "0";
   innerStyle.top = "0";
-  innerStyle.width = `${logicalWidth}px`;
+  // Inner content was authored against the 390-wide "inner" area; we size
+  // the overlay to that and shift it right by GAME_OFFSET_X * scale so it
+  // sits centered inside the wider canvas (GAME_WIDTH).
+  innerStyle.width = `${logicalWidth - GAME_OFFSET_X * 2}px`;
   innerStyle.height = `${logicalHeight}px`;
   innerStyle.transformOrigin = "top left";
   inner.innerHTML = html;
@@ -110,7 +114,9 @@ export function createCanvasAnchoredOverlay({
     host.style.height = `${frame.height}px`;
     // transform:scale работает во всех браузерах (Firefox/Safari/Chrome),
     // в отличие от non-standard `zoom`, который раньше применялся здесь.
-    innerStyle.transform = `scale(${frame.scale})`;
+    // translateX shifts the inner content right by GAME_OFFSET_X logical px
+    // so the 390-wide content area is centered inside the 430-wide canvas.
+    innerStyle.transform = `translateX(${GAME_OFFSET_X * frame.scale}px) scale(${frame.scale})`;
     currentScale = frame.scale;
   };
 

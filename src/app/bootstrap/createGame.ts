@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT } from "@/app/config/gameConfig";
 import { getGameResolution } from "@/app/rendering";
 import { BootScene } from "@/scenes/BootScene";
 import { DevPreviewScene } from "@/scenes/DevPreviewScene";
@@ -16,7 +16,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
   const config: Phaser.Types.Core.GameConfig & { resolution?: number } = {
     type: Phaser.AUTO,
     parent,
-    width: GAME_WIDTH,
+    width: GAME_CANVAS_WIDTH,
     height: GAME_HEIGHT,
     resolution,
     autoRound: true,

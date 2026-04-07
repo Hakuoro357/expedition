@@ -1,13 +1,13 @@
-export const GAME_CARD_WIDTH = 44;
-export const GAME_CARD_HEIGHT = 70;
+export const GAME_CARD_WIDTH = 48;
+export const GAME_CARD_HEIGHT = 76;
 export const GAME_TABLEAU_START_X = 39;
 export const GAME_TABLEAU_GAP_X = 52;
-export const GAME_TABLEAU_START_Y = 226;
-export const GAME_FACE_UP_GAP_Y = 18;
-export const GAME_FACE_DOWN_GAP_Y = 18;
+export const GAME_TABLEAU_START_Y = 232;
+export const GAME_FACE_UP_GAP_Y = 20;
+export const GAME_FACE_DOWN_GAP_Y = 20;
 export const GAME_FOUNDATION_START_X = 195;
 export const GAME_FOUNDATION_GAP_X = 52;
-export const GAME_TOP_ROW_Y = 136;
+export const GAME_TOP_ROW_Y = 138;
 
 export function getGameTableauX(pileIndex: number): number {
   return GAME_TABLEAU_START_X + pileIndex * GAME_TABLEAU_GAP_X;

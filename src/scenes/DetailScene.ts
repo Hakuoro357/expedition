@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { getArtifactById } from "@/data/artifacts";
 import { resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
 import { getNodeById } from "@/data/chapters";
@@ -44,6 +44,7 @@ export class DetailScene extends Phaser.Scene {
   }
 
   create(data: DetailSceneData): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     this.dealId = data.dealId ?? "";
     const node = this.dealId ? getNodeById(this.dealId) : undefined;
 
@@ -128,7 +129,7 @@ export class DetailScene extends Phaser.Scene {
         scene: this,
         html,
         className: "detail-page-root",
-        logicalWidth: GAME_WIDTH,
+        logicalWidth: GAME_CANVAS_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
     } else {

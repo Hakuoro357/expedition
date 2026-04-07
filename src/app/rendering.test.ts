@@ -18,7 +18,7 @@ describe("rendering helpers", () => {
   });
 
   it("derives scaled bitmap size for the game canvas", () => {
-    expect(getScaledGameSize(1)).toEqual({ scale: 1, width: 390, height: 844 });
-    expect(getScaledGameSize(1.75)).toEqual({ scale: 1.75, width: 683, height: 1477 });
+    expect(getScaledGameSize(1)).toEqual({ scale: 1, width: 430, height: 844 });
+    expect(getScaledGameSize(1.75)).toEqual({ scale: 1.75, width: 753, height: 1477 });
   });
 });

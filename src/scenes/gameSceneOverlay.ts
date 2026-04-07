@@ -83,10 +83,10 @@ function createTopRowHtml(
   foundationSlots: GameFoundationSlot[],
   stockCardBackSvg?: string,
 ): string {
-  // Stock slot: use same class as tableau cards (.game-overlay__dom-card) to guarantee 44x70 size.
+  // Stock slot: use same class as tableau cards (.game-overlay__dom-card) to guarantee 48x76 size.
   // Position it manually since .game-overlay__dom-card is absolute.
-  const stockLeft = 17; // Matches TABLEAU_START_X - CARD_WIDTH/2
-  const stockTop = 101; // Matches TOP_ROW_Y - CARD_HEIGHT/2
+  const stockLeft = 15; // Matches TABLEAU_START_X - CARD_WIDTH/2
+  const stockTop = 100; // Matches TOP_ROW_Y - CARD_HEIGHT/2
 
   // stockCardBackSvg is already processed by fixCardBackSvgAspect
   const stockHtml = stockCardBackSvg
@@ -155,7 +155,7 @@ function createDragCardsHtml(cards: GameOverlayCard[], locale: Locale): string {
   ].join("");
 }
 
-// Fix SVG aspect ratio to match card dimensions (44x70 ≈ 0.63).
+// Fix SVG aspect ratio to match card dimensions (48x76 ≈ 0.63).
 // Original viewBox is 0 0 300 420 (≈ 0.71). Without this, SVG adds letterboxing.
 export function fixCardBackSvgAspect(svg: string): string {
   // 1. Force stretch to container dimensions by disabling aspect ratio preservation.

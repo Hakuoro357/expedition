@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { PROLOGUE_TEXT } from "@/data/narrative/prologue";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 
@@ -16,6 +16,7 @@ export class PrologueScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     const { i18n, save, analytics } = getAppContext();
     analytics.track("prologue_open", {});
 
@@ -32,7 +33,7 @@ export class PrologueScene extends Phaser.Scene {
       scene: this,
       html,
       className: "prologue-overlay-root",
-      logicalWidth: GAME_WIDTH,
+      logicalWidth: GAME_CANVAS_WIDTH,
       logicalHeight: GAME_HEIGHT,
     });
 

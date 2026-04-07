@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ECONOMY } from "@/app/config/economy";
 import type { GameMode } from "@/core/game-state/types";
 import { CHAPTERS, getNodeById } from "@/data/chapters";
@@ -37,6 +37,7 @@ export class RewardScene extends Phaser.Scene {
   }
 
   create(data: RewardSceneData): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     const { ads, analytics, i18n, save, sound } = getAppContext();
     const mode = data.mode ?? "adventure";
     const dealId = data.dealId ?? "";
@@ -218,7 +219,7 @@ export class RewardScene extends Phaser.Scene {
         scene: this,
         html,
         className: "reward-overlay-root",
-        logicalWidth: GAME_WIDTH,
+        logicalWidth: GAME_CANVAS_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
       return;

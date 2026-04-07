@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { createInitialProgressState } from "@/core/game-state/progress";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
@@ -19,6 +19,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     this.renderBackground();
     this.renderOverlay();
 
@@ -69,7 +70,7 @@ export class SettingsScene extends Phaser.Scene {
         scene: this,
         html,
         className: "settings-page-root",
-        logicalWidth: GAME_WIDTH,
+        logicalWidth: GAME_CANVAS_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
     } else {

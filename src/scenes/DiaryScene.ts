@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ARTIFACTS, type Artifact } from "@/data/artifacts";
 import { CHAPTERS, getNodeByArtifactId, getNodeByEntryId } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
@@ -42,6 +42,7 @@ export class DiaryScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     const { i18n, save } = getAppContext();
     const { progress } = save.load();
     const previewAllArtifacts =
@@ -207,7 +208,7 @@ export class DiaryScene extends Phaser.Scene {
         scene: this,
         html,
         className: "archive-overlay-root",
-        logicalWidth: GAME_WIDTH,
+        logicalWidth: GAME_CANVAS_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
     } else {

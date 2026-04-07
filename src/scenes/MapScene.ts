@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { applyTextRenderQuality } from "@/app/rendering";
 import { getNodeById, type ChapterNode } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
@@ -44,6 +44,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   create(data?: MapSceneData): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     const { analytics, save } = getAppContext();
     const progress = save.load().progress;
     const nextDealId = getNextPlayableDealId(progress);
@@ -278,7 +279,7 @@ export class MapScene extends Phaser.Scene {
         scene: this,
         html,
         className: "route-overlay-root",
-        logicalWidth: GAME_WIDTH,
+        logicalWidth: GAME_CANVAS_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
     } else {

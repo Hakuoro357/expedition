@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT } from "@/app/config/gameConfig";
 
 export function getGameResolution(devicePixelRatio = 1): number {
   return Math.max(1, Math.min(devicePixelRatio || 1, 2));
@@ -17,7 +17,7 @@ export function getScaledGameSize(devicePixelRatio = 1): {
   const scale = getGameResolution(devicePixelRatio);
   return {
     scale,
-    width: Math.round(GAME_WIDTH * scale),
+    width: Math.round(GAME_CANVAS_WIDTH * scale),
     height: Math.round(GAME_HEIGHT * scale),
   };
 }

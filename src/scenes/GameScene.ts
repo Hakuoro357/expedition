@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
-import { GAME_HEIGHT, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ECONOMY } from "@/app/config/economy";
 import { getCardFaceTextureKey as getSvgCardFaceTextureKey } from "@/assets/cards/cardFaceSvg";
 import backDefaultSvg from "@/assets/cards/back-default.svg?raw";
@@ -87,6 +87,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data: GameSceneData): void {
+    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     const saveState = getAppContext().save.load();
     const restoredState = data.resumeCurrentGame ? saveState.currentGame : null;
     const mode = restoredState?.mode ?? data.mode ?? "adventure";
@@ -235,7 +236,7 @@ export class GameScene extends Phaser.Scene {
         scene: this,
         html,
         className: "game-overlay-root",
-        logicalWidth: GAME_WIDTH,
+        logicalWidth: GAME_CANVAS_WIDTH,
         logicalHeight: GAME_HEIGHT,
       });
       // Делегированный click-обработчик ставится один раз на стабильный
@@ -1076,7 +1077,7 @@ export class GameScene extends Phaser.Scene {
     // которая реально не закрыта следующей картой (FACE_UP_GAP_Y) + чуть
     // запаса вверх, чтобы пальцем удобнее попадать. Нижняя face-up карта
     // (stackCards.length === 1) и face-down карты получают полный hit area.
-    const hitPadX = 4;
+    const hitPadX = 2;
     const isMiddleStackCard = dragSelection !== null && stackCards.length > 1;
     let hitRect: Phaser.Geom.Rectangle;
     if (isMiddleStackCard) {
@@ -1441,7 +1442,7 @@ export class GameScene extends Phaser.Scene {
     this.dragPreviewCards = cards.map((card, index) => ({
       key: `drag-${card.id}-${index}`,
       left: pointerX - CARD_WIDTH / 2,
-      top: pointerY - CARD_HEIGHT / 2 + index * Math.min(FACE_UP_GAP_Y, 18),
+      top: pointerY - CARD_HEIGHT / 2 + index * FACE_UP_GAP_Y,
       card,
       selected: true,
     }));
@@ -1837,7 +1838,7 @@ export class GameScene extends Phaser.Scene {
 
     const animEls: HTMLElement[] = [];
     stackCards.forEach((card, index) => {
-      const yOffset = index * Math.min(FACE_UP_GAP_Y, 18);
+      const yOffset = index * FACE_UP_GAP_Y;
       const animEl = document.createElement("div");
       animEl.className = "game-overlay__dom-card game-overlay__stack-anim-card";
       const cardLeft = getGameCardLeft(sourceX) * scale;

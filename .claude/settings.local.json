@@ -5,7 +5,16 @@
       "Bash(npm run:*)",
       "Bash(npx vitest:*)",
       "Bash(npx tsx:*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cd /tmp)",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -l \"createAppNavHtml\\\\|game-overlay__nav\\\\|route-overlay__nav\" /c/Users/RobotComp.ru/games/Yandex/01-solitaire-expedition/src/scenes/*.ts)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(find C:UsersRobotComp.rugamesYandex01-solitaire-expedition/src -type f -name *.ts)",
+      "Bash(grep -r \"route-overlay__pager\\\\|dragStart\\\\|handlePointer\\\\|changePage\" C:UsersRobotComp.rugamesYandex01-solitaire-expeditionsrc --include=*.ts --include=*.tsx --include=*.css -n)"
     ]
   }
 }
