@@ -1,4 +1,5 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
+import { safeImageUrl } from "@/ui/safeUrl";
 
 export type DetailSceneTabId = "entry" | "artifact";
 
@@ -38,7 +39,7 @@ function escapeHtml(value: string): string {
 
 function createPortraitHtml(initials: string, accent: string, portraitUrl?: string): string {
   return portraitUrl
-    ? `<div class="detail-page__portrait" style="--archive-portrait-accent:${escapeHtml(accent)}"><img class="detail-page__portrait-image" src="${escapeHtml(portraitUrl)}" alt=""></div>`
+    ? `<div class="detail-page__portrait" style="--archive-portrait-accent:${escapeHtml(accent)}"><img class="detail-page__portrait-image" src="${escapeHtml(safeImageUrl(portraitUrl))}" alt=""></div>`
     : `<div class="detail-page__portrait" style="--archive-portrait-accent:${escapeHtml(accent)}">${escapeHtml(initials)}</div>`;
 }
 
@@ -79,7 +80,7 @@ export function createDetailSceneOverlayHtml({
           '<div class="detail-page__content detail-page__content--artifact">',
           `  <div class="detail-page__eyebrow">${escapeHtml(artifact.title)}</div>`,
           artifact.imageUrl
-            ? `  <img class="detail-page__artifact-image" src="${escapeHtml(artifact.imageUrl)}" alt="">`
+            ? `  <img class="detail-page__artifact-image" src="${escapeHtml(safeImageUrl(artifact.imageUrl))}" alt="">`
             : "",
           `  <div class="detail-page__artifact-description">${escapeHtml(artifact.description)}</div>`,
           "</div>",

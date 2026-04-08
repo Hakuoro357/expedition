@@ -1,3 +1,5 @@
+import { safeImageUrl } from "@/ui/safeUrl";
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -22,7 +24,7 @@ function createPortraitHtml(
   portraitUrl?: string,
 ): string {
   return portraitUrl
-    ? `<div class="archive-entry-detail-overlay__portrait" style="--archive-portrait-accent:${escapeHtml(accent)}"><img class="archive-entry-detail-overlay__portrait-image" src="${escapeHtml(portraitUrl)}" alt=""></div>`
+    ? `<div class="archive-entry-detail-overlay__portrait" style="--archive-portrait-accent:${escapeHtml(accent)}"><img class="archive-entry-detail-overlay__portrait-image" src="${escapeHtml(safeImageUrl(portraitUrl))}" alt=""></div>`
     : `<div class="archive-entry-detail-overlay__portrait" style="--archive-portrait-accent:${escapeHtml(accent)}">${escapeHtml(initials)}</div>`;
 }
 

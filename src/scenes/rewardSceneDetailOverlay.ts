@@ -1,4 +1,5 @@
 import { getNarrativeSpeakerProfile, type NarrativeSpeakerLocale } from "@/data/narrative/speakers";
+import { safeImageUrl } from "@/ui/safeUrl";
 
 function escapeHtml(value: string): string {
   return value
@@ -35,7 +36,7 @@ function createPortraitHtml(portraitUrl?: string): string {
     return "";
   }
 
-  return `  <div class="reward-detail-overlay__portrait"><img class="reward-detail-overlay__portrait-image" src="${escapeHtml(portraitUrl)}" alt=""></div>`;
+  return `  <div class="reward-detail-overlay__portrait"><img class="reward-detail-overlay__portrait-image" src="${escapeHtml(safeImageUrl(portraitUrl))}" alt=""></div>`;
 }
 
 export function createRewardEntryDetailHtml({

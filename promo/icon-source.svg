@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="78%">
+      <stop offset="0%"  stop-color="#33514a"/>
+      <stop offset="55%" stop-color="#172825"/>
+      <stop offset="100%" stop-color="#0c1517"/>
+    </radialGradient>
+    <radialGradient id="parchment" cx="50%" cy="40%" r="75%">
+      <stop offset="0%"  stop-color="#f4e3b2"/>
+      <stop offset="60%" stop-color="#dcc079"/>
+      <stop offset="100%" stop-color="#a07e36"/>
+    </radialGradient>
+    <linearGradient id="compassN" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c52a1a"/>
+      <stop offset="100%" stop-color="#7a1408"/>
+    </linearGradient>
+    <linearGradient id="compassNlight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"  stop-color="#e8503a"/>
+      <stop offset="50%" stop-color="#c52a1a"/>
+      <stop offset="100%" stop-color="#7a1408"/>
+    </linearGradient>
+    <linearGradient id="compassDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#7a5418"/>
+      <stop offset="100%" stop-color="#3d2808"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+      <feOffset dx="0" dy="6" result="shadow"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="paperGrain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/>
+      <feColorMatrix values="0 0 0 0 0.3
+                             0 0 0 0 0.2
+                             0 0 0 0 0.05
+                             0 0 0 0.18 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- subtle gold inner border -->
+  <rect x="12" y="12" width="488" height="488" rx="86"
+        fill="none" stroke="#c9962a" stroke-opacity="0.4" stroke-width="2"/>
+
+  <!-- ===== Parchment map ===== -->
+  <g transform="translate(256 256) rotate(-3)" filter="url(#softShadow)">
+    <!-- ragged-edge parchment -->
+    <path d="M -190 -178
+             Q -200 -170 -198 -150
+             L -204 -110
+             Q -212  -80 -200  -50
+             L -208  -10
+             Q -202   30 -206   70
+             L -198  120
+             Q -210  150 -190  170
+             L -150  178
+             Q -110  186  -70  176
+             L  -20  186
+             Q   30  178  70  186
+             L  120  176
+             Q  160  186 188  170
+             Q  208  150 196  120
+             L  204   70
+             Q  208   30 200  -10
+             L  208  -50
+             Q  202  -80 196 -110
+             L  202 -150
+             Q  204 -170 188 -180
+             L  150 -184
+             Q  110 -190  60 -180
+             L   10 -188
+             Q  -40 -180 -90 -188
+             L -150 -180 Z"
+          fill="url(#parchment)" stroke="#5d4416" stroke-width="3"/>
+
+    <!-- inner thin border -->
+    <rect x="-178" y="-160" width="356" height="324" rx="6"
+          fill="none" stroke="#7a5a1c" stroke-width="1.5" stroke-opacity="0.7"/>
+
+    <!-- ===== Faux map content (route + points + mountains) ===== -->
+    <g opacity="0.55" stroke="#6b4010" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <!-- mountains top-right -->
+      <path d="M 60 -120 L 90 -150 L 115 -125 L 140 -148 L 165 -118" stroke-width="2.2"/>
+      <path d="M 80 -120 L 95 -134 L 110 -120" stroke-width="1.6"/>
+      <path d="M 130 -125 L 145 -138 L 158 -122" stroke-width="1.6"/>
+      <!-- river / coastline bottom-left -->
+      <path d="M -180 80 Q -140 70 -110 95 T -40 110 Q -10 100 10 130" stroke-width="2"/>
+      <path d="M -170 100 Q -130 90 -100 115" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <!-- forest dots -->
+      <circle cx="-130" cy="-80" r="3"/>
+      <circle cx="-115" cy="-95" r="3"/>
+      <circle cx="-100" cy="-78" r="3"/>
+      <circle cx="-118" cy="-65" r="3"/>
+      <circle cx="-85"  cy="-90" r="3"/>
+    </g>
+
+    <!-- dashed expedition route -->
+    <path d="M -150 130 Q -100 80 -60 90 T 30 30 Q 60 0 100 -30 T 160 -90"
+          fill="none" stroke="#8c1d1d" stroke-width="3" stroke-dasharray="6 5" opacity="0.85"/>
+
+    <!-- route waypoints -->
+    <g fill="#8c1d1d" stroke="#3a0808" stroke-width="1.5">
+      <circle cx="-150" cy="130" r="5"/>
+      <circle cx="-60"  cy="90"  r="5"/>
+      <circle cx="30"   cy="30"  r="5"/>
+      <circle cx="100"  cy="-30" r="5"/>
+      <circle cx="160"  cy="-90" r="6"/>
+    </g>
+    <!-- final point flag -->
+    <g transform="translate(160 -90)">
+      <line x1="0" y1="0" x2="0" y2="-22" stroke="#3a0808" stroke-width="2"/>
+      <polygon points="0,-22 16,-17 0,-12" fill="#c52a1a" stroke="#3a0808" stroke-width="1"/>
+    </g>
+
+    <!-- ===== Compass rose (dominant) ===== -->
+    <g transform="translate(0 0)">
+      <!-- outer ring -->
+      <circle r="118" fill="#f0dba0" fill-opacity="0.85" stroke="#5d4416" stroke-width="3"/>
+      <circle r="108" fill="none" stroke="#8a6a2a" stroke-width="1.5" opacity="0.7"/>
+      <circle r="62"  fill="none" stroke="#8a6a2a" stroke-width="1" opacity="0.55"/>
+
+      <!-- tick marks -->
+      <g stroke="#5d4416" stroke-width="1.5">
+        <line x1="0" y1="-118" x2="0" y2="-108"/>
+        <line x1="0" y1="118"  x2="0" y2="108"/>
+        <line x1="-118" y1="0" x2="-108" y2="0"/>
+        <line x1="118"  y1="0" x2="108"  y2="0"/>
+      </g>
+      <g stroke="#7a5a1c" stroke-width="1" opacity="0.6">
+        <line x1="-83" y1="-83" x2="-76" y2="-76"/>
+        <line x1="83"  y1="-83" x2="76"  y2="-76"/>
+        <line x1="-83" y1="83"  x2="-76" y2="76"/>
+        <line x1="83"  y1="83"  x2="76"  y2="76"/>
+      </g>
+
+      <!-- diagonal arms (small) -->
+      <polygon points="0,0 -18,-18 -68,-68 -22,-12" fill="#c8a360" stroke="#5d4416" stroke-width="1"/>
+      <polygon points="0,0  18,-18  68,-68  12,-22" fill="#a17a2a" stroke="#5d4416" stroke-width="1"/>
+      <polygon points="0,0  18, 18  68, 68  22, 12" fill="#c8a360" stroke="#5d4416" stroke-width="1"/>
+      <polygon points="0,0 -18, 18 -68, 68 -12, 22" fill="#a17a2a" stroke="#5d4416" stroke-width="1"/>
+
+      <!-- E/W/S arms (dark) -->
+      <polygon points="0,0 -16,-12 -110,0 -16,12" fill="url(#compassDark)" stroke="#3d2808" stroke-width="1.5"/>
+      <polygon points="0,0  16,-12  110,0  16,12" fill="#a17a2a" stroke="#3d2808" stroke-width="1.5"/>
+      <polygon points="0,0 -12, 16 0, 110  12, 16" fill="url(#compassDark)" stroke="#3d2808" stroke-width="1.5"/>
+
+      <!-- NORTH arrow (red, dominant) -->
+      <polygon points="0,0 -16,-12 0,-115 16,-12" fill="url(#compassNlight)" stroke="#3a0808" stroke-width="2"/>
+      <polygon points="0,-115 -16,-12 0,-30" fill="#7a1408" opacity="0.55"/>
+
+      <!-- center hub -->
+      <circle r="14" fill="#3a0808" stroke="#f0dba0" stroke-width="2"/>
+      <circle r="6"  fill="#f0dba0"/>
+
+      <!-- N label -->
+      <text x="0" y="-128" text-anchor="middle" font-family="Georgia, serif"
+            font-size="22" font-weight="bold" fill="#3a0808">N</text>
+    </g>
+  </g>
+</svg>

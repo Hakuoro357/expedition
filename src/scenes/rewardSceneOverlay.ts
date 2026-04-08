@@ -1,4 +1,5 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
+import { safeImageUrl } from "@/ui/safeUrl";
 
 function escapeHtml(value: string): string {
   return value
@@ -27,7 +28,7 @@ function createMediaHtml(item: RewardRevealItem): string {
     return "";
   }
 
-  return `<img class="reward-overlay__found-card-media-image" src="${escapeHtml(item.mediaUrl)}" alt="">`;
+  return `<img class="reward-overlay__found-card-media-image" src="${escapeHtml(safeImageUrl(item.mediaUrl))}" alt="">`;
 }
 
 type RewardOverlayParams = {

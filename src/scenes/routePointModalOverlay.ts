@@ -1,3 +1,5 @@
+import { safeImageUrl } from "@/ui/safeUrl";
+
 type RoutePointModalTab = "entry" | "artifact";
 
 type EntryPanel = {
@@ -43,7 +45,7 @@ function createEntryPortraitHtml(portraitUrl?: string): string {
     return "";
   }
 
-  return `<div class="route-point-modal__entry-portrait"><img class="route-point-modal__entry-portrait-image" src="${escapeHtml(portraitUrl)}" alt=""></div>`;
+  return `<div class="route-point-modal__entry-portrait"><img class="route-point-modal__entry-portrait-image" src="${escapeHtml(safeImageUrl(portraitUrl))}" alt=""></div>`;
 }
 
 export function createRoutePointModalHtml({

@@ -1,4 +1,5 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
+import { safeImageUrl } from "@/ui/safeUrl";
 
 function escapeHtml(value: string): string {
   return value
@@ -41,7 +42,7 @@ function createPortraitHtml(
   portraitUrl?: string,
 ): string {
   return portraitUrl
-    ? `<span class="${baseClass}" style="--archive-portrait-accent:${escapeHtml(accent)}"><img class="${baseClass}-image" src="${escapeHtml(portraitUrl)}" alt=""></span>`
+    ? `<span class="${baseClass}" style="--archive-portrait-accent:${escapeHtml(accent)}"><img class="${baseClass}-image" src="${escapeHtml(safeImageUrl(portraitUrl))}" alt=""></span>`
     : `<span class="${baseClass}" style="--archive-portrait-accent:${escapeHtml(accent)}">${escapeHtml(initials)}</span>`;
 }
 

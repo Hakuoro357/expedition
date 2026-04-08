@@ -1,10 +1,17 @@
 import { SAVE_KEY } from "@/app/config/gameConfig";
 import { createInitialProgressState } from "@/core/game-state/progress";
 import type { GameState, ProgressState, SaveState } from "@/core/game-state/types";
-import { getNextNodeId, isLastNodeInChapter, getFirstNodeOfChapter, getNodeById } from "@/data/chapters";
+import { CHAPTERS, getNextNodeId, isLastNodeInChapter, getFirstNodeOfChapter, getNodeById } from "@/data/chapters";
+import { ARTIFACTS } from "@/data/artifacts";
 import { getRewardById } from "@/data/narrative/rewards";
 import { ECONOMY } from "@/app/config/economy";
 import type { YandexSdkService } from "@/services/sdk/YandexSdkService";
+
+// Static id sets used to scrub merged saves from cloud-injected ghost ids.
+const KNOWN_NODE_IDS: ReadonlySet<string> = new Set(
+  CHAPTERS.flatMap((c) => c.nodes.map((n) => n.id)),
+);
+const KNOWN_ARTIFACT_IDS: ReadonlySet<string> = new Set(ARTIFACTS.map((a) => a.id));
 
 export function createDefaultSaveState(): SaveState {
   return {
@@ -83,10 +90,95 @@ function isValidSaveState(value: unknown): value is SaveState {
     return false;
   }
 
-  // currentGame может быть null или объектом — глубже не проверяем,
-  // т.к. в случае повреждения геймскрин просто разложит новую партию.
-  if (v.currentGame !== null && typeof v.currentGame !== "object") return false;
+  // currentGame: либо null, либо валидный GameState. На повреждённую партию
+  // отвечаем сбросом в null, а не выкидыванием всего сейва — иначе один кривой
+  // обjект из облака стирает прогресс с этого устройства.
+  if (v.currentGame !== null && v.currentGame !== undefined) {
+    if (!isValidGameState(v.currentGame)) {
+      v.currentGame = null;
+    }
+  }
   return true;
+}
+
+const VALID_GAME_MODES = new Set(["adventure", "daily", "quick-play"]);
+const VALID_GAME_STATUSES = new Set(["idle", "in_progress", "won", "lost"]);
+const DEAL_ID_RE = /^c\d{1,3}n\d{1,3}$/;
+const MAX_PILE_CARDS = 64;
+const MAX_FOUNDATIONS = 8;
+const MAX_TABLEAU = 12;
+const MAX_UNDOS = 100_000;
+
+function isValidPile(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const p = value as Record<string, unknown>;
+  if (typeof p.id !== "string" || p.id.length > 64) return false;
+  if (p.type !== "stock" && p.type !== "waste" && p.type !== "tableau" && p.type !== "foundation") {
+    return false;
+  }
+  if (!Array.isArray(p.cards) || p.cards.length > MAX_PILE_CARDS) return false;
+  // Карты дальше не валидируем поэлементно — формат стабильный, а ошибочный
+  // GameState всё равно отбрасывается на следующем шаге.
+  return true;
+}
+
+function isValidGameState(value: unknown): value is GameState {
+  if (!value || typeof value !== "object") return false;
+  const g = value as Record<string, unknown>;
+  if (typeof g.mode !== "string" || !VALID_GAME_MODES.has(g.mode)) return false;
+  if (typeof g.dealId !== "string" || !DEAL_ID_RE.test(g.dealId)) return false;
+  if (typeof g.status !== "string" || !VALID_GAME_STATUSES.has(g.status)) return false;
+  if (!isBoundedInt(g.undoCount, 0, MAX_UNDOS)) return false;
+  if (typeof g.seed !== "undefined" && typeof g.seed !== "number") return false;
+  if (!isValidPile(g.stock) || !isValidPile(g.waste)) return false;
+  if (!Array.isArray(g.foundations) || g.foundations.length > MAX_FOUNDATIONS) return false;
+  if (!g.foundations.every(isValidPile)) return false;
+  if (!Array.isArray(g.tableau) || g.tableau.length > MAX_TABLEAU) return false;
+  if (!g.tableau.every(isValidPile)) return false;
+  return true;
+}
+
+/**
+ * Чистит progress от мусора, который мог приехать из облака:
+ * - выкидывает unlocked/completed/artifact id'шники, которых нет в статической
+ *   таблице глав (защита от инжекта несуществующих узлов);
+ * - кэпит длины массивов, чтобы merge не мог их разрастить через unionStrings;
+ * - клампит coins/streak/chapter в их валидные диапазоны.
+ */
+function sanitizeProgress(progress: ProgressState): ProgressState {
+  const filterNodes = (ids: string[]): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of ids) {
+      if (KNOWN_NODE_IDS.has(id) && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+        if (out.length >= MAX_NODES) break;
+      }
+    }
+    return out;
+  };
+  const filterArtifacts = (ids: string[]): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of ids) {
+      if (KNOWN_ARTIFACT_IDS.has(id) && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+        if (out.length >= MAX_NODES) break;
+      }
+    }
+    return out;
+  };
+  return {
+    ...progress,
+    currentChapter: Math.max(1, Math.min(MAX_CHAPTER, progress.currentChapter | 0)),
+    coins: Math.max(0, Math.min(MAX_COINS, progress.coins | 0)),
+    streakCount: Math.max(0, Math.min(MAX_STREAK, progress.streakCount | 0)),
+    unlockedNodes: filterNodes(progress.unlockedNodes),
+    completedNodes: filterNodes(progress.completedNodes),
+    artifacts: filterArtifacts(progress.artifacts),
+  };
 }
 
 function unionStrings(a: string[], b: string[]): string[] {
@@ -106,9 +198,7 @@ function laterDateString(a: string | null, b: string | null): string | null {
 export function mergeSaveStates(local: SaveState, cloud: SaveState): SaveState {
   const lp = local.progress;
   const cp = cloud.progress;
-  return {
-    version: 1,
-    progress: {
+  const mergedProgress: ProgressState = {
       currentChapter: Math.max(lp.currentChapter, cp.currentChapter),
       unlockedNodes: unionStrings(lp.unlockedNodes, cp.unlockedNodes),
       completedNodes: unionStrings(lp.completedNodes, cp.completedNodes),
@@ -124,8 +214,12 @@ export function mergeSaveStates(local: SaveState, cloud: SaveState): SaveState {
       // его из облака, чтобы случайный sync с dev-устройства не разлочил
       // всё на проде у обычного игрока.
       devAllPlayable: lp.devAllPlayable,
-    },
+  };
+  return {
+    version: 1,
+    progress: sanitizeProgress(mergedProgress),
     // Текущая партия — отдаём приоритет локальной, чтобы не потерять in-progress.
+    // Облачная партия проходит ту же валидацию через isValidSaveState на входе.
     currentGame: local.currentGame ?? cloud.currentGame,
   };
 }
