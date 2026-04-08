@@ -65,11 +65,15 @@ export class BootScene extends Phaser.Scene {
 
     setAppContext({ analytics, ads, i18n, save, sound, sdk });
 
-    if (!hasExistingSave) {
-      const detected = sdk.detectLocale();
-      if (detected) {
-        save.updateProgress((p) => ({ ...p, locale: detected }));
-      }
+    // Требование Яндекса 2.14: автоопределение языка через SDK должно
+    // выполняться на КАЖДОМ старте игры, у всех игр, даже если в игре
+    // только один язык. Их debug-панель проверяет факт чтения
+    // environment.i18n.lang на старте — поэтому detectLocale() вызываем
+    // безусловно. Применяем результат только для новых пользователей,
+    // у возвращающихся приоритет за сохранённым выбором.
+    const detectedLocale = sdk.detectLocale();
+    if (!hasExistingSave && detectedLocale) {
+      save.updateProgress((p) => ({ ...p, locale: detectedLocale }));
     }
 
     const saveState = getAppContext().save.load();
