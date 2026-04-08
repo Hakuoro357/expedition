@@ -30,7 +30,12 @@ export type SfxKey =
 export type BgmScene = "map" | "game";
 
 /** Internal track keys (1:1 with mp3 files). */
-type BgmTrack = "map" | "game_a" | "game_b";
+type BgmTrack =
+  | "map"
+  | "game_c" // Grasslight Dorian — favourite, weighted ×3 in playlist
+  | "game_d" // Grasslight Dorian (1) — favourite, weighted ×3 in playlist
+  | "game_e" // Tundra Breathwork
+  | "game_f"; // Tundra Breathwork (1)
 
 const SFX_FILES: Record<SfxKey, string> = {
   card_place: "audio/sfx/sfx_card_place.mp3",
@@ -51,13 +56,22 @@ const SFX_FILES: Record<SfxKey, string> = {
 
 const BGM_FILES: Record<BgmTrack, string> = {
   map: "audio/music/bgm_map.mp3",
-  game_a: "audio/music/bgm_game_a.mp3",
-  game_b: "audio/music/bgm_game_b.mp3",
+  game_c: "audio/music/bgm_game_c.mp3",
+  game_d: "audio/music/bgm_game_d.mp3",
+  game_e: "audio/music/bgm_game_e.mp3",
+  game_f: "audio/music/bgm_game_f.mp3",
 };
 
+// Дубликаты в плейлисте = вес. Grasslight (c, d) × 3, Tundra (e, f) × 1.
+// Случайный выбор автоматически даст ~75% времени любимым трекам.
 const SCENE_PLAYLISTS: Record<BgmScene, BgmTrack[]> = {
   map: ["map"],
-  game: ["game_a", "game_b"],
+  game: [
+    "game_c", "game_c", "game_c",
+    "game_d", "game_d", "game_d",
+    "game_e",
+    "game_f",
+  ],
 };
 
 /** Maximum SFX channel gain (user slider 0..1 is multiplied by this). */
@@ -83,9 +97,9 @@ export class SoundService {
   private musicVolume = 0.6;
   private sfxBuffers: Partial<Record<SfxKey, AudioBuffer>> = {};
   private bgmBuffers: Partial<Record<BgmTrack, AudioBuffer>> = {};
+  private bgmLoadPromises: Partial<Record<BgmTrack, Promise<AudioBuffer | null>>> = {};
   private currentBgm: BgmHandle | null = null;
   private currentScene: BgmScene | null = null;
-  private playlistIndex = 0;
   private masterGain: GainNode | null = null;
   private sfxBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
@@ -143,7 +157,10 @@ export class SoundService {
     return this.ctx;
   }
 
-  /** Load all audio files into AudioBuffers. Safe to call multiple times. */
+  /**
+   * Load SFX into AudioBuffers. BGM грузится лениво (см. ensureBgmTrack)
+   * — не задерживает старт игры на 5+ МБ музыки.
+   */
   async loadAll(): Promise<void> {
     if (this.loadPromise) return this.loadPromise;
     const ctx = this.getContext();
@@ -151,31 +168,15 @@ export class SoundService {
 
     this.loadPromise = (async () => {
       const sfxEntries = Object.entries(SFX_FILES) as [SfxKey, string][];
-      const bgmEntries = Object.entries(BGM_FILES) as [BgmTrack, string][];
 
-      const loadBuffer = async (url: string): Promise<AudioBuffer | null> => {
-        try {
-          const response = await fetch(url);
-          if (!response.ok) return null;
-          const arrayBuffer = await response.arrayBuffer();
-          return await ctx.decodeAudioData(arrayBuffer);
-        } catch {
-          return null;
-        }
-      };
-
-      await Promise.all([
-        ...sfxEntries.map(async ([key, url]) => {
-          const buffer = await loadBuffer(url);
+      await Promise.all(
+        sfxEntries.map(async ([key, url]) => {
+          const buffer = await this.fetchAndDecode(url);
           if (buffer) this.sfxBuffers[key] = buffer;
         }),
-        ...bgmEntries.map(async ([key, url]) => {
-          const buffer = await loadBuffer(url);
-          if (buffer) this.bgmBuffers[key] = buffer;
-        }),
-      ]);
+      );
 
-      // If a scene was requested before buffers were ready, kick it off now.
+      // If a scene was requested before SFX were ready, kick it off now.
       if (this.pendingScene && this.musicVolume > 0) {
         const scene = this.pendingScene;
         this.pendingScene = null;
@@ -184,6 +185,50 @@ export class SoundService {
     })();
 
     return this.loadPromise;
+  }
+
+  /** Generic fetch + decodeAudioData with error swallowing. */
+  private async fetchAndDecode(url: string): Promise<AudioBuffer | null> {
+    const ctx = this.ctx;
+    if (!ctx) return null;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const arrayBuffer = await response.arrayBuffer();
+      return await ctx.decodeAudioData(arrayBuffer);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Случайный выбор следующего трека из плейлиста с весами (через дубликаты).
+   * Если задан `exclude` — гарантированно не повторим текущий, чтобы не было
+   * скучного «играет дважды подряд». Падение к exclude-only только если в
+   * плейлисте этот трек единственный (например, single-song playlist).
+   */
+  private pickRandomBgmTrack(playlist: BgmTrack[], exclude: BgmTrack | null): BgmTrack {
+    const candidates = exclude ? playlist.filter((t) => t !== exclude) : playlist;
+    const pool = candidates.length > 0 ? candidates : playlist;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /**
+   * Lazy-load одного BGM-трека. Возвращает буфер (готовый или дождётся
+   * параллельной загрузки). Идемпотентно: повторные вызовы не перезагружают.
+   */
+  private ensureBgmTrack(track: BgmTrack): Promise<AudioBuffer | null> {
+    if (this.bgmBuffers[track]) return Promise.resolve(this.bgmBuffers[track]!);
+    let pending = this.bgmLoadPromises[track];
+    if (!pending) {
+      pending = (async () => {
+        const buffer = await this.fetchAndDecode(BGM_FILES[track]);
+        if (buffer) this.bgmBuffers[track] = buffer;
+        return buffer;
+      })();
+      this.bgmLoadPromises[track] = pending;
+    }
+    return pending;
   }
 
   // ============================================================
@@ -297,16 +342,40 @@ export class SoundService {
     const playlist = SCENE_PLAYLISTS[scene];
     if (playlist.length === 0) return;
 
-    // Buffers not loaded yet? Remember and let loadAll() trigger us.
-    const anyLoaded = playlist.some((track) => this.bgmBuffers[track]);
-    if (!anyLoaded) {
-      this.pendingScene = scene;
+    this.currentScene = scene;
+    // Случайный первый трек (не последовательно), чтобы каждая игровая сессия
+    // начиналась с новой композиции. Повтор предыдущего трека невозможен —
+    // chain-логика тоже использует pickRandomBgmTrack(exclude).
+    const firstTrack = this.pickRandomBgmTrack(playlist, null);
+
+    // Превентивно подгружаем уникальные треки плейлиста в фоне,
+    // чтобы chain-кроссфейд не споткнулся.
+    const uniqueTracks = Array.from(new Set(playlist));
+    for (const track of uniqueTracks) {
+      if (track !== firstTrack) void this.ensureBgmTrack(track);
+    }
+
+    if (this.bgmBuffers[firstTrack]) {
+      this.startTrack(firstTrack, SCENE_CROSSFADE_SEC);
       return;
     }
 
-    this.currentScene = scene;
-    this.playlistIndex = 0;
-    this.startTrack(playlist[0], SCENE_CROSSFADE_SEC);
+    // Lazy-load первого трека и стартуем как только готов,
+    // если за это время сцена не сменилась.
+    void this.ensureBgmTrack(firstTrack).then((buffer) => {
+      if (!buffer) return;
+      if (this.currentScene !== scene) return;
+      if (this.musicVolume <= 0) {
+        this.pendingScene = scene;
+        return;
+      }
+      const ctx = this.ctx;
+      if (!ctx || ctx.state === "suspended") {
+        this.pendingScene = scene;
+        return;
+      }
+      this.startTrack(firstTrack, SCENE_CROSSFADE_SEC);
+    });
   }
 
   /**
@@ -366,8 +435,14 @@ export class SoundService {
           handle.chainTimeout = null;
           // Guard: only chain if this is still the active track.
           if (this.currentBgm !== handle || this.currentScene !== scene) return;
-          this.playlistIndex = (this.playlistIndex + 1) % playlist.length;
-          this.startTrack(playlist[this.playlistIndex], CHAIN_CROSSFADE_SEC);
+          // Случайный выбор с no-repeat: исключаем текущий трек.
+          const nextTrack = this.pickRandomBgmTrack(playlist, track);
+          // Ждём lazy-load если ещё не готов (обычно уже готов после prefetch).
+          void this.ensureBgmTrack(nextTrack).then((nextBuffer) => {
+            if (!nextBuffer) return;
+            if (this.currentBgm !== handle || this.currentScene !== scene) return;
+            this.startTrack(nextTrack, CHAIN_CROSSFADE_SEC);
+          });
         }, chainDelayMs);
       } else {
         // Single-track playlist: loop seamlessly.

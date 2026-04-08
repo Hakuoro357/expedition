@@ -1821,7 +1821,6 @@ export class GameScene extends Phaser.Scene {
       targetX,
       targetY,
       () => {
-        getAppContext().sound.goodMove();
         this.boardLayer?.removeAll(true);
         this.renderTopArea();
         this.renderTableau();
@@ -1836,7 +1835,11 @@ export class GameScene extends Phaser.Scene {
           this.runAutoComplete();
         });
       },
-      { flyDuration: 55, settleDuration: 20 },
+      {
+        flyDuration: 55,
+        settleDuration: 20,
+        onImpact: () => getAppContext().sound.goodMove(),
+      },
     );
   }
 
@@ -1865,11 +1868,18 @@ export class GameScene extends Phaser.Scene {
     // Звук «приземления» проигрываем в момент окончания анимации, а не до
     // её старта — иначе на 150 мс fly-анимации звук опережает визуал и
     // воспринимается как «не от карты».
-    this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetY, () => {
-      getAppContext().sound.goodMove();
-      this.animating = false;
-      this.applyState(nextState, skipHistory);
-    });
+    this.animateFlyToFoundationDom(
+      sourceX,
+      sourceY,
+      card,
+      targetX,
+      targetY,
+      () => {
+        this.animating = false;
+        this.applyState(nextState, skipHistory);
+      },
+      { onImpact: () => getAppContext().sound.goodMove() },
+    );
   }
 
   /** Animate a card flying from source position to tableau using DOM overlay */
@@ -1895,17 +1905,24 @@ export class GameScene extends Phaser.Scene {
         targetX,
         targetCardY,
         () => {
-          getAppContext().sound.cardPlace();
           this.animating = false;
           this.applyState(nextState, true);
-        }
+        },
+        () => getAppContext().sound.cardPlace(),
       );
     } else {
-      this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetCardY, () => {
-        getAppContext().sound.cardPlace();
-        this.animating = false;
-        this.applyState(nextState, true);
-      });
+      this.animateFlyToFoundationDom(
+        sourceX,
+        sourceY,
+        card,
+        targetX,
+        targetCardY,
+        () => {
+          this.animating = false;
+          this.applyState(nextState, true);
+        },
+        { onImpact: () => getAppContext().sound.cardPlace() },
+      );
     }
   }
 
@@ -1916,7 +1933,8 @@ export class GameScene extends Phaser.Scene {
     stackCards: Card[],
     targetX: number,
     targetCardY: number,
-    onComplete: () => void
+    onComplete: () => void,
+    onImpact?: () => void,
   ): void {
     const overlayEl = this.gameOverlay?.getHostElement();
     if (!overlayEl) {
@@ -1981,7 +1999,13 @@ export class GameScene extends Phaser.Scene {
         animEl.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
       });
 
-      const totalTime = 220 + (stackCards.length - 1) * 15 + 120;
+      // Звук «шлёпка» — в момент landing (конец transition + stagger),
+      // не после 120мс буфера, иначе слышен после визуального приземления.
+      const impactTime = 220 + (stackCards.length - 1) * 15;
+      if (onImpact) {
+        this.time.delayedCall(impactTime, () => onImpact());
+      }
+      const totalTime = impactTime + 120;
       this.time.delayedCall(totalTime, () => {
         animEls.forEach(el => {
           if (el.parentNode) el.remove();
@@ -2086,7 +2110,7 @@ export class GameScene extends Phaser.Scene {
     targetX: number,
     targetY: number,
     onComplete: () => void,
-    options?: { flyDuration?: number; settleDuration?: number },
+    options?: { flyDuration?: number; settleDuration?: number; onImpact?: () => void },
   ): void {
     const flyDuration = options?.flyDuration ?? 110;
     const settleDuration = options?.settleDuration ?? 40;
@@ -2138,6 +2162,9 @@ export class GameScene extends Phaser.Scene {
         animEl.style.transform = `translate3d(${x}px, ${y}px, 0)`;
       },
       onComplete: () => {
+        // onImpact срабатывает В МОМЕНТ landing (конец fly-твина), а не после settle —
+        // иначе звук слышен уже после того, как карта визуально легла.
+        options?.onImpact?.();
         animEl.style.transition = `transform ${settleDuration}ms ease-out`;
         animEl.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0) scale(0.92)`;
 
