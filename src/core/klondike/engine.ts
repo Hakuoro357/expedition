@@ -463,7 +463,12 @@ export function getHint(state: GameState): HintResult | null {
     }
   }
 
-  // Tableau → Tableau (prioritize moves that reveal face-down cards)
+  // Tableau → Tableau. Подсказка должна быть полезной: предлагаем
+  // только ходы, которые либо открывают face-down карту под стопкой,
+  // либо освобождают столбец целиком (и переносимая стопка возглавляется
+  // королём, чтобы освобождение действительно что-то давало). Простое
+  // перекладывание стопки между столбцами не добавляет информации и
+  // воспринимается игроком как «пустая подсказка».
   for (let si = 0; si < state.tableau.length; si++) {
     const pile = state.tableau[si];
     const firstFaceUpIdx = pile.cards.findIndex((c) => c.faceUp);
@@ -473,8 +478,20 @@ export function getHint(state: GameState): HintResult | null {
       const movingCards = pile.cards.slice(startIdx);
       if (!isDescendingAlternating(movingCards)) continue;
 
+      // Полезность хода:
+      //  - revealsFaceDown: после хода под source откроется face-down карта.
+      //  - emptiesColumn: source становится полностью пустым, и переносится
+      //    король (только король может занять пустой столбец, поэтому смысл
+      //    освобождения есть только тогда).
+      const revealsFaceDown = startIdx > 0 && !pile.cards[startIdx - 1]!.faceUp;
+      const emptiesColumn = startIdx === 0 && movingCards[0]!.rank === 13;
+      if (!revealsFaceDown && !emptiesColumn) continue;
+
       for (let ti = 0; ti < state.tableau.length; ti++) {
         if (si === ti) continue;
+        // Для emptiesColumn нет смысла перекладывать на пустой столбец —
+        // король просто переедет, ничего не изменив.
+        if (emptiesColumn && state.tableau[ti].cards.length === 0) continue;
         if (canMoveCardsToTableau(movingCards, state.tableau[ti])) {
           return {
             from: { zone: "tableau", pileIndex: si, cardIndex: startIdx },

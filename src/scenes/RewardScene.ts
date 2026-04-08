@@ -77,8 +77,13 @@ export class RewardScene extends Phaser.Scene {
         rewardId = result.rewardId;
         coinsAwarded = result.coinsAwarded;
         artifactAwarded = result.artifactAwarded;
+      } else if (node) {
+        // Replay (или повторный вход в RewardScene на этой партии):
+        // монет не начисляем, но reveal items восстанавливаем по узлу,
+        // иначе экран победы оказывается пустым.
+        rewardId = node.rewardId ?? null;
+        artifactAwarded = node.artifactId ?? null;
       }
-      // Replaying an already-completed node: no coins, no reward re-grant.
     } else if (mode === "daily") {
       const dateKey = getDailyDateKey();
       const progress = save.load().progress;

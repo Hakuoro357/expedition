@@ -81,6 +81,13 @@ export class GameScene extends Phaser.Scene {
   private hintsUsed = 0;
   private hintHighlightTimer?: Phaser.Time.TimerEvent;
   private hintGlowObjects: Phaser.GameObjects.GameObject[] = [];
+  /** Кандидат на тап: gameobject, на котором pointerdown зафиксировал
+   * касание. Чистится при dragstart или scene-level pointerup. Используется
+   * как замена per-container `pointerup`, который на тач-устройствах
+   * ненадёжен (не срабатывает, если палец сместился даже на пару пикселей
+   * за hit area до отпускания). */
+  private tapCandidate: Phaser.GameObjects.GameObject | null = null;
+  private tapInputInstalled = false;
 
   constructor() {
     super(SCENES.game);
@@ -104,8 +111,11 @@ export class GameScene extends Phaser.Scene {
     this.gameState = restoredState ? cloneGameState(restoredState) : createInitialDeal(mode, dealId, seed);
     this.history = [];
     this.selection = null;
-    // Require 8px movement before drag starts - prevents taps from triggering drag
-    this.input.dragDistanceThreshold = 8;
+    // Require 12px movement before drag starts. На тач-устройствах
+    // палец дрожит сильнее, чем мышь — 8px давало ложные dragstart-ы и
+    // съедало одиночный тап (tap-to-move).
+    this.input.dragDistanceThreshold = 12;
+    this.installTapDetection();
 
     this.pendingFlips.clear();
     this.autoCompleting = false;
@@ -118,6 +128,7 @@ export class GameScene extends Phaser.Scene {
     this.draggedSelection = null;
     this.dragPreviewCards = [];
     this.dragPreviewNodes = [];
+    this.tapCandidate = null;
 
     const { analytics, save, sdk } = getAppContext();
     analytics.track("deal_start", { mode, dealId });
@@ -156,6 +167,49 @@ export class GameScene extends Phaser.Scene {
       this.gameOverlay = undefined;
       this.gameOverlayCleanup = undefined;
       getAppContext().sdk.gameplayStop();
+    });
+  }
+
+  /** Глобальная tap-детекция через scene.input.
+   *
+   * Per-container `pointerup` в Phaser срабатывает только если палец
+   * отпустили над hit area того же объекта, на котором был pointerdown.
+   * На тач-устройствах палец почти всегда дрожит между down и up — Phaser
+   * не доставляет event, и тап теряется. Здесь мы фиксируем "кандидата
+   * на тап" при pointerdown и принудительно вызываем колбэк при следующем
+   * pointerup, если движение было меньше TAP_MAX_MOVE px и драг не
+   * начался. Перенавешивается один раз на сцену (флаг `tapInputInstalled`)
+   * — Phaser не дублирует listener при повторном вызове из create(). */
+  private installTapDetection(): void {
+    if (this.tapInputInstalled) return;
+    this.tapInputInstalled = true;
+
+    this.input.on(
+      Phaser.Input.Events.GAMEOBJECT_DOWN,
+      (_pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject) => {
+        if (!gameObject.getData || gameObject.getData("cardClick") == null) {
+          this.tapCandidate = null;
+          return;
+        }
+        this.tapCandidate = gameObject;
+      },
+    );
+
+    this.input.on(Phaser.Input.Events.POINTER_UP, () => {
+      const candidate = this.tapCandidate;
+      this.tapCandidate = null;
+      if (!candidate) return;
+      // Дистанцию не проверяем: dragDistanceThreshold (12px) уже отсекает
+      // движение на сцене — при превышении Phaser стартует драг и наш
+      // dragstart-обработчик сам обнулит tapCandidate. Если до pointerup
+      // драг не начался, это однозначно тап.
+      const handler = candidate.getData("cardClick") as (() => void) | undefined;
+      if (typeof handler === "function") handler();
+    });
+
+    // Палец ушёл с экрана / pointer cancelled — снимаем кандидата.
+    this.input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, () => {
+      this.tapCandidate = null;
     });
   }
 
@@ -469,6 +523,16 @@ export class GameScene extends Phaser.Scene {
     const isFirstHint = this.hintsUsed === 0;
     const cost = isFirstHint ? 0 : ECONOMY.hintCost;
 
+    // Сначала проверяем, есть ли вообще полезный ход — деньги списываем
+    // только если подсказка реально найдётся. Иначе игрок платит за «нет
+    // ходов».
+    const hint = getHint(this.gameState);
+    if (!hint) {
+      this.setStatus(i18n.t("noMoves"));
+      sound.badMove();
+      return;
+    }
+
     if (cost > 0) {
       const coins = save.load().progress.coins;
       if (coins < cost) {
@@ -477,13 +541,6 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       save.addCoins(-cost);
-    }
-
-    const hint = getHint(this.gameState);
-    if (!hint) {
-      this.setStatus(i18n.t("noMoves"));
-      sound.badMove();
-      return;
     }
 
     this.hintsUsed++;
@@ -1106,17 +1163,18 @@ export class GameScene extends Phaser.Scene {
     }
     cardContainer.setInteractive(hitRect, Phaser.Geom.Rectangle.Contains);
 
-    // pointerup + flag wasDragged: tap triggers onClick, drag does not
-    let wasDragged = false;
-    cardContainer.on("pointerup", () => {
-      if (!wasDragged) onClick();
-      wasDragged = false;
-    });
+    // Тап обрабатывается через scene-level pointerdown/pointerup
+    // (см. installTapDetection). Хранение колбэка в data — у Phaser
+    // нет встроенного "tap" события, а per-container `pointerup`
+    // на тач-устройствах ненадёжен: если палец смещается с hit area
+    // между down и up, событие не приходит и тап теряется.
+    cardContainer.setData("cardClick", onClick);
 
     if (dragSelection && stackCards.length > 0) {
       this.input.setDraggable(cardContainer);
       cardContainer.on("dragstart", (pointer: Phaser.Input.Pointer) => {
-        wasDragged = true;
+        // Драг отменяет ожидающий тап.
+        this.tapCandidate = null;
         this.startDragPreview(dragSelection, stackCards, pointer.worldX, pointer.worldY);
       });
       cardContainer.on(
@@ -1738,9 +1796,7 @@ export class GameScene extends Phaser.Scene {
     this.renderTableau();
     this.renderGameOverlay();
 
-    // Fly animation using DOM overlay
-    getAppContext().sound.cardPlace();
-
+    // Fly animation using DOM overlay. Звук — в момент приземления.
     this.animateFlyToFoundationDom(
       sourceX,
       sourceY,
@@ -1748,6 +1804,7 @@ export class GameScene extends Phaser.Scene {
       targetX,
       targetY,
       () => {
+        getAppContext().sound.goodMove();
         this.boardLayer?.removeAll(true);
         this.renderTopArea();
         this.renderTableau();
@@ -1788,8 +1845,11 @@ export class GameScene extends Phaser.Scene {
     const targetX = FOUNDATION_START_X + foundationIndex * FOUNDATION_GAP_X;
     const targetY = TOP_ROW_Y;
 
-    getAppContext().sound.goodMove();
+    // Звук «приземления» проигрываем в момент окончания анимации, а не до
+    // её старта — иначе на 150 мс fly-анимации звук опережает визуал и
+    // воспринимается как «не от карты».
     this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetY, () => {
+      getAppContext().sound.goodMove();
       this.animating = false;
       this.applyState(nextState, skipHistory);
     });
@@ -1809,7 +1869,7 @@ export class GameScene extends Phaser.Scene {
     this.animating = true;
     const targetX = TABLEAU_START_X + targetPileIndex * TABLEAU_GAP_X;
 
-    getAppContext().sound.cardPlace();
+    // Звук «шлёпка» — в момент приземления, не на старте анимации.
     if (stackCards && stackCards.length > 1) {
       this.animateFlyStackToTableau(
         sourceX,
@@ -1818,12 +1878,14 @@ export class GameScene extends Phaser.Scene {
         targetX,
         targetCardY,
         () => {
+          getAppContext().sound.cardPlace();
           this.animating = false;
           this.applyState(nextState, true);
         }
       );
     } else {
       this.animateFlyToFoundationDom(sourceX, sourceY, card, targetX, targetCardY, () => {
+        getAppContext().sound.cardPlace();
         this.animating = false;
         this.applyState(nextState, true);
       });
