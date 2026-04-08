@@ -3,6 +3,9 @@ dist/
 .DS_Store
 *.log
 
+# Build artifact для загрузки в Яндекс — пересобирается из dist/
+solitaire-expedition.zip
+
 # Temp files
 .tmp-*
 test-results/

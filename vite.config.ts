@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 
 export default defineConfig(({ command }) => ({
+  // Яндекс Игры хостят бандл по подпути вида /games/play/<id>/, поэтому
+  // абсолютные пути (`/assets/...`) ломают загрузку — нужны относительные.
+  base: "./",
   server: {
     host: "0.0.0.0",
     port: 5173
