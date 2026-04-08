@@ -106,6 +106,33 @@ export class SoundService {
   private loadPromise: Promise<void> | null = null;
   private pendingScene: BgmScene | null = null;
   private unlockListenerInstalled = false;
+  private visibilityListenerInstalled = false;
+
+  /**
+   * Требование Яндекса 1.3: при сворачивании вкладки/смене таба звук
+   * должен прекращаться. Suspend AudioContext полностью гасит и SFX, и BGM
+   * (включая запланированные кроссфейды), а после возврата resume()
+   * восстанавливает воспроизведение с того же места без перезапуска треков.
+   */
+  private installVisibilityListener(): void {
+    if (this.visibilityListenerInstalled) return;
+    if (typeof document === "undefined") return;
+    this.visibilityListenerInstalled = true;
+
+    document.addEventListener("visibilitychange", () => {
+      const ctx = this.ctx;
+      if (!ctx) return;
+      if (document.hidden) {
+        if (ctx.state === "running") {
+          void ctx.suspend();
+        }
+      } else {
+        if (ctx.state === "suspended") {
+          void ctx.resume();
+        }
+      }
+    });
+  }
 
   private installUnlockListener(): void {
     if (this.unlockListenerInstalled) return;
@@ -147,11 +174,16 @@ export class SoundService {
         this.musicBus = this.ctx.createGain();
         this.musicBus.gain.value = this.musicVolume * BGM_MAX_GAIN;
         this.musicBus.connect(this.masterGain);
+
+        // Подвешиваем visibilitychange один раз — после создания контекста.
+        this.installVisibilityListener();
       } catch {
         return null;
       }
     }
-    if (this.ctx.state === "suspended") {
+    // Не делаем resume(), если страница скрыта — иначе звук пойдёт в фоне,
+    // нарушая требование 1.3. Резюм произойдёт по visibilitychange.
+    if (this.ctx.state === "suspended" && typeof document !== "undefined" && !document.hidden) {
       void this.ctx.resume();
     }
     return this.ctx;

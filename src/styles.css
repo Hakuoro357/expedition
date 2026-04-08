@@ -6,6 +6,34 @@
   color: #f4ead7;
 }
 
+/*
+ * Требования Яндекс Игр:
+ *  - 1.10.2: запрет swipe-to-refresh и системного скролла → overscroll-behavior: none
+ *  - 1.6.1.8: долгое нажатие не вызывает выделение/контекстное меню на мобильных
+ *  - 1.6.2.7: на десктопе клик/тач не выделяет текст
+ * Применяется ко всему html/body/canvas/overlay-корням; отдельные input-поля
+ * (если появятся) могут переопределить user-select: text локально.
+ */
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app,
+#app * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* На мобилке Phaser FIT держит аспект 390:844 — при другом аспекте
    экрана по бокам/сверху остаются полоски. Чтобы они не светили
    градиентом страницы, на мобиле подкрашиваем фон под цвет canvas
