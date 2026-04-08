@@ -1551,12 +1551,29 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     }
+    // Двигаем через transform: translate3d (GPU-композиция) вместо
+    // left/top, чтобы каждый pointer-move не запускал layout/paint всего
+    // overlay — на Samsung A15 это критично: при 60+ touchmove в секунду
+    // обновление left/top давало 30-50 мс лагов на каждом кадре.
+    // initialLeft/initialTop — это inline-стиль, который мы поставили в
+    // HTML на старте драга; смещение считаем как (новое — стартовое).
     for (let i = 0; i < this.dragPreviewCards.length; i++) {
       const node = this.dragPreviewNodes[i];
       const card = this.dragPreviewCards[i];
       if (!node || !card) continue;
-      node.style.left = `${card.left}px`;
-      node.style.top = `${card.top}px`;
+      let initialLeft = Number(node.dataset.dragInitLeft);
+      let initialTop = Number(node.dataset.dragInitTop);
+      if (Number.isNaN(initialLeft) || Number.isNaN(initialTop)) {
+        // Первый раз — снимаем стартовую позицию из inline-стиля,
+        // который пришёл из HTML overlay, и кэшируем в data-атрибуты.
+        initialLeft = parseFloat(node.style.left) || 0;
+        initialTop = parseFloat(node.style.top) || 0;
+        node.dataset.dragInitLeft = String(initialLeft);
+        node.dataset.dragInitTop = String(initialTop);
+      }
+      const dx = card.left - initialLeft;
+      const dy = card.top - initialTop;
+      node.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
     }
   }
 
@@ -1909,17 +1926,28 @@ export class GameScene extends Phaser.Scene {
 
     const scale = this.gameOverlay?.getScale() ?? 1;
 
+    // Анимируем через CSS transition на transform (GPU-композиция),
+    // а не на left/top — иначе на каждый промежуточный кадр браузер
+    // делает layout, и на слабых Android драг стопки превращается
+    // в слайдшоу. Якорная позиция фиксируется через left/top один раз
+    // на старте, движение — translate3d.
     const animEls: HTMLElement[] = [];
+    const sourceLefts: number[] = [];
+    const sourceTops: number[] = [];
     stackCards.forEach((card, index) => {
       const yOffset = index * FACE_UP_GAP_Y;
       const animEl = document.createElement("div");
       animEl.className = "game-overlay__dom-card game-overlay__stack-anim-card";
       const cardLeft = getGameCardLeft(sourceX) * scale;
       const cardTop = getGameCardTop(sourceTopY + yOffset) * scale;
+      sourceLefts.push(cardLeft);
+      sourceTops.push(cardTop);
       animEl.style.cssText = `
         position: absolute;
         left: ${cardLeft}px;
         top: ${cardTop}px;
+        transform: translate3d(0, 0, 0);
+        will-change: transform;
         pointer-events: none;
         z-index: ${100 + index};
       `;
@@ -1947,9 +1975,10 @@ export class GameScene extends Phaser.Scene {
     requestAnimationFrame(() => {
       animEls.forEach((animEl, index) => {
         const yOffset = index * Math.min(FACE_UP_GAP_Y, 18) * scale;
-        animEl.style.transition = `left 220ms ease-out ${index * 15}ms, top 220ms ease-out ${index * 15}ms`;
-        animEl.style.left = `${targetLeft}px`;
-        animEl.style.top = `${targetTopOffset + yOffset}px`;
+        const dx = targetLeft - sourceLefts[index]!;
+        const dy = (targetTopOffset + yOffset) - sourceTops[index]!;
+        animEl.style.transition = `transform 220ms ease-out ${index * 15}ms`;
+        animEl.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
       });
 
       const totalTime = 220 + (stackCards.length - 1) * 15 + 120;
@@ -2063,15 +2092,22 @@ export class GameScene extends Phaser.Scene {
     const settleDuration = options?.settleDuration ?? 40;
     const svgMarkup = createCardFaceSvgMarkup(card, true, getAppContext().i18n.currentLocale());
 
+    // Перемещение через transform: translate3d() — GPU-композиция, без
+    // layout/paint на каждый кадр. Раньше использовалось обновление
+    // style.left/top в onUpdate, что на слабых Android (Samsung A15 и
+    // подобные) давало 30-50 мс лагов на каждом кадре fly-анимации.
+    // Якорь -50%,-50% уносим в позицию: оффсетим left/top на CARD_W/H/2
+    // заранее, а translate используем только для движения и финального scale.
     const animEl = document.createElement("div");
     animEl.className = "game-overlay__fly-anim";
     animEl.style.cssText = `
       position: absolute;
-      left: ${sourceX}px;
-      top: ${sourceY}px;
+      left: ${sourceX - CARD_WIDTH / 2}px;
+      top: ${sourceY - CARD_HEIGHT / 2}px;
       width: ${CARD_WIDTH}px;
       height: ${CARD_HEIGHT}px;
-      transform: translate(-50%, -50%);
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
       pointer-events: none;
       z-index: 100;
     `;
@@ -2088,20 +2124,22 @@ export class GameScene extends Phaser.Scene {
       overlayEl.appendChild(animEl);
     }
 
-    const startPos = { x: sourceX, y: sourceY };
+    const deltaX = targetX - sourceX;
+    const deltaY = targetY - sourceY;
+    const offset = { t: 0 };
     this.tweens.add({
-      targets: startPos,
-      x: targetX,
-      y: targetY,
+      targets: offset,
+      t: 1,
       duration: flyDuration,
       ease: "Power2",
       onUpdate: () => {
-        animEl.style.left = `${startPos.x}px`;
-        animEl.style.top = `${startPos.y}px`;
+        const x = deltaX * offset.t;
+        const y = deltaY * offset.t;
+        animEl.style.transform = `translate3d(${x}px, ${y}px, 0)`;
       },
       onComplete: () => {
         animEl.style.transition = `transform ${settleDuration}ms ease-out`;
-        animEl.style.transform = "translate(-50%, -50%) scale(0.92)";
+        animEl.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0) scale(0.92)`;
 
         this.time.delayedCall(settleDuration, () => {
           animEl.remove();

@@ -531,6 +531,14 @@ canvas {
   pointer-events: none;
 }
 
+/* Drag-карты двигаются через transform каждый pointer-move — выводим их
+   на отдельный композитный слой, чтобы Android (Samsung A15 и подобные)
+   не делал layout/paint поверх остального overlay. */
+.game-overlay__dom-card--drag {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
 .game-overlay__dom-card-svg {
   display: block;
   width: 48px;
