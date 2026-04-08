@@ -1,3 +1,5 @@
+import { escapeHtml } from "@/ui/escapeHtml";
+
 export type ButtonLabelOverlayItem = {
   label: string;
   x: number;
@@ -5,15 +7,6 @@ export type ButtonLabelOverlayItem = {
   width: number;
   height: number;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 export function createButtonLabelsOverlayHtml(labels: ButtonLabelOverlayItem[]): string {
   return [

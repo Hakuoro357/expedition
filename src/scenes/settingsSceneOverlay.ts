@@ -1,13 +1,6 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+import { escapeHtml } from "@/ui/escapeHtml";
 
 type SettingsSceneOverlayParams = {
   title: string;

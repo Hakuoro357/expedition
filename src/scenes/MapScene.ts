@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { applyTextRenderQuality } from "@/app/rendering";
+import type { ProgressState } from "@/core/game-state/types";
 import { getNodeById, type ChapterNode } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { getNarrativeEntryExcerpt } from "@/data/narrative/entries";
@@ -202,11 +203,7 @@ export class MapScene extends Phaser.Scene {
   private renderPoints(
     pageNodes: ChapterNode[],
     routePoints: Array<{ x: number; y: number }>,
-    progress: ReturnType<typeof getAppContext>["save"]["load"] extends () => infer T
-      ? T extends { progress: infer P }
-        ? P
-        : never
-      : never,
+    progress: ProgressState,
   ): void {
     pageNodes.forEach((node, idx) => {
       const point = routePoints[idx];

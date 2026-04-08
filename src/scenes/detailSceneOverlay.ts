@@ -1,6 +1,8 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
 import { safeImageUrl } from "@/ui/safeUrl";
 
+import { escapeHtml } from "@/ui/escapeHtml";
+
 export type DetailSceneTabId = "entry" | "artifact";
 
 type DetailEntryContent = {
@@ -27,15 +29,6 @@ type DetailSceneOverlayParams = {
   entry?: DetailEntryContent;
   artifact?: DetailArtifactContent;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function createPortraitHtml(initials: string, accent: string, portraitUrl?: string): string {
   return portraitUrl

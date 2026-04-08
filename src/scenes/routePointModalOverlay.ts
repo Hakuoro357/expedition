@@ -1,5 +1,7 @@
 import { safeImageUrl } from "@/ui/safeUrl";
 
+import { escapeHtml } from "@/ui/escapeHtml";
+
 type RoutePointModalTab = "entry" | "artifact";
 
 type EntryPanel = {
@@ -21,15 +23,6 @@ type RoutePointModalParams = {
   entry?: EntryPanel;
   artifact?: ArtifactPanel;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function createTabsHtml(activeTab: RoutePointModalTab): string {
   return [

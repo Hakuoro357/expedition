@@ -3,20 +3,13 @@ import archiveIconHtml from "../assets/ui/nav-icons/archive.svg?raw";
 import routeDayIconHtml from "../assets/ui/nav-icons/route-day.svg?raw";
 import settingsIconHtml from "../assets/ui/nav-icons/settings.svg?raw";
 
+import { escapeHtml } from "@/ui/escapeHtml";
+
 export type AppNavItem = {
   id: "home" | "archive" | "daily" | "settings";
   label: string;
   active: boolean;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 export function createAppNavIconHtml(id: AppNavItem["id"]): string {
   switch (id) {

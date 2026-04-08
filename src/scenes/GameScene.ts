@@ -2,7 +2,6 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ECONOMY } from "@/app/config/economy";
-import { getCardFaceTextureKey as getSvgCardFaceTextureKey } from "@/assets/cards/cardFaceSvg";
 import backDefaultSvg from "@/assets/cards/back-default.svg?raw";
 import backCompassSvg from "@/assets/cards/back-compass.svg?raw";
 import backMapSvg from "@/assets/cards/back-map.svg?raw";
@@ -32,7 +31,6 @@ import {
   type Selection,
 } from "@/core/klondike/engine";
 import { formatCard } from "@/features/board/formatCard";
-import { ensureCardFaceTexture } from "@/features/board/cardFaceTexture";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, type GameOverlayEmptySlot, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
@@ -66,7 +64,6 @@ export class GameScene extends Phaser.Scene {
   private history: GameState[] = [];
   private selection: Selection | null = null;
   private boardLayer?: Phaser.GameObjects.Container;
-  private dragPreview?: Phaser.GameObjects.Container;
   private draggedSelection: Selection | null = null;
   private dragPreviewCards: GameOverlayCard[] = [];
   /** Кэш DOM-узлов drag-карт, заполняется при старте драга чтобы
@@ -123,8 +120,6 @@ export class GameScene extends Phaser.Scene {
     this.hintsUsed = 0;
     this.hintHighlightTimer?.destroy();
     this.hintHighlightTimer = undefined;
-    this.dragPreview?.destroy();
-    this.dragPreview = undefined;
     this.draggedSelection = null;
     this.dragPreviewCards = [];
     this.dragPreviewNodes = [];
@@ -268,7 +263,6 @@ export class GameScene extends Phaser.Scene {
       title: this.getOverlayTitle(),
       subtitle: this.getOverlaySubtitle(),
       coinsLabel: String(getAppContext().save.load().progress.coins),
-      stockCountLabel: String(this.gameState?.stock.cards.length ?? 0),
       wasteHasCard: (this.gameState?.waste.cards.length ?? 0) > 0,
       wasteActive: this.selection?.kind === "waste",
       foundationSlots: foundationSuitSymbols.map((suitSymbol, index) => ({
@@ -961,7 +955,6 @@ export class GameScene extends Phaser.Scene {
           },
           dragSel,
           dragSel ? pile.cards.slice(cardIndex) : [],
-          false
         );
 
         this.boardLayer?.add(cardContainer);
@@ -1011,7 +1004,6 @@ export class GameScene extends Phaser.Scene {
         onClick,
         dragSelection ?? null,
         stackCards,
-        false
       );
       this.boardLayer.add(cardObject);
       return;
@@ -1073,20 +1065,6 @@ export class GameScene extends Phaser.Scene {
     img.src = url;
   }
 
-  private createFaceCardImage(
-    x: number,
-    y: number,
-    card: Card,
-    isSelected: boolean,
-  ): Phaser.GameObjects.Image {
-    const locale = getAppContext().i18n.currentLocale();
-    const svgTextureKey = getSvgCardFaceTextureKey(card.rank, card.suit, locale);
-    const textureKey = this.textures.exists(svgTextureKey)
-      ? svgTextureKey
-      : ensureCardFaceTexture(this, card, CARD_WIDTH, CARD_HEIGHT, isSelected, locale);
-    return this.add.image(x, y, textureKey).setDisplaySize(CARD_WIDTH, CARD_HEIGHT).setOrigin(0.5);
-  }
-
   private createCardObject(
     x: number,
     y: number,
@@ -1095,7 +1073,6 @@ export class GameScene extends Phaser.Scene {
     onClick: () => void,
     dragSelection: Selection | null,
     stackCards: Card[],
-    renderFaceUpVisual = true,
   ): Phaser.GameObjects.Container {
     const cardContainer = this.add.container(x, y);
     const borderColor = isSelected ? 0xe3a34f : 0xdac9a1;
@@ -1122,9 +1099,10 @@ export class GameScene extends Phaser.Scene {
           .setOrigin(0.5);
         cardContainer.add(rect);
       }
-    } else if (renderFaceUpVisual) {
-      cardContainer.add(this.createFaceCardImage(0, 0, card, isSelected));
     }
+    // Face-up cards have no visual added at the Phaser layer — the DOM
+    // overlay (gameSceneOverlay.ts) renders them as inline SVG. The container
+    // here exists purely as an interaction target (hit area for tap/drag).
 
     cardContainer.setSize(CARD_WIDTH, CARD_HEIGHT);
     // Hit area для контейнера в Phaser задаётся в local-координатах, где
@@ -1628,8 +1606,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private clearDragPreview(): void {
-    this.dragPreview?.destroy();
-    this.dragPreview = undefined;
     this.draggedSelection = null;
     this.dragPreviewCards = [];
     this.dragPreviewNodes = [];

@@ -1,11 +1,6 @@
 import Phaser from "phaser";
 import { getAppContext, setAppContext } from "@/app/config/appContext";
 import { SAVE_KEY, SCENES } from "@/app/config/gameConfig";
-import {
-  CARD_FACE_ASSET_HEIGHT,
-  CARD_FACE_ASSET_WIDTH,
-  getAllCardFaceDefinitions,
-} from "@/assets/cards/cardFaceSvg";
 import { ARTIFACTS } from "@/data/artifacts";
 import { CHAPTERS } from "@/data/chapters";
 import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
@@ -29,9 +24,8 @@ export class BootScene extends Phaser.Scene {
     this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 48, height: 76 });
     this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 48, height: 76 });
     this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 48, height: 76 });
-    getAllCardFaceDefinitions().forEach(({ key, uri }) => {
-      this.load.svg(key, uri, { width: CARD_FACE_ASSET_WIDTH, height: CARD_FACE_ASSET_HEIGHT });
-    });
+    // Card faces are rendered as inline SVG via the DOM overlay
+    // (gameSceneOverlay.ts), so no Phaser texture preload is needed.
 
     ARTIFACTS.forEach((artifact) => {
       const assetPath = resolveArtifactGridUrl(artifact.imageKey);

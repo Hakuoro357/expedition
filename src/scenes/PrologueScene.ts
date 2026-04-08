@@ -4,6 +4,7 @@ import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { PROLOGUE_TEXT } from "@/data/narrative/prologue";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { escapeHtml } from "@/ui/escapeHtml";
 
 const FIRST_DEAL_ID = "c1n1";
 
@@ -86,11 +87,3 @@ export class PrologueScene extends Phaser.Scene {
   }
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}

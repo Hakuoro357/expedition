@@ -12,12 +12,3 @@ const SUIT_SYMBOLS: Record<Card["suit"], string> = {
 export function formatCard(card: Card, locale: Locale = "en"): string {
   return `${getRankLabel(card.rank, locale)}${SUIT_SYMBOLS[card.suit]}`;
 }
-
-export function formatRank(card: Card, locale: Locale = "en"): string {
-  return getRankLabel(card.rank, locale);
-}
-
-export function formatSuit(card: Card): string {
-  return SUIT_SYMBOLS[card.suit];
-}
-

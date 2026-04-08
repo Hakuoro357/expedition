@@ -1,5 +1,7 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
 
+import { escapeHtml } from "@/ui/escapeHtml";
+
 export type RouteNavItem = {
   id: AppNavItem["id"];
   label: string;
@@ -33,15 +35,6 @@ type RouteSceneOverlayParams = {
   navItems: RouteNavItem[];
   showDevTools?: boolean;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 /** Viewport width used for label placement clamping */
 const SVG_WIDTH = 390;

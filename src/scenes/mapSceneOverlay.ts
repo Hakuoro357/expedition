@@ -1,3 +1,5 @@
+import { escapeHtml } from "@/ui/escapeHtml";
+
 type MapOverlayParams = {
   title: string;
   expeditionName: string;
@@ -6,15 +8,6 @@ type MapOverlayParams = {
   coins: number;
   progressLabel: string;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 export function createMapOverlayHtml({
   title,

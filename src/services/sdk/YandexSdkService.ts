@@ -53,8 +53,9 @@ export class YandexSdkService {
 
   /**
    * Возвращает определённый язык, ограниченный поддерживаемыми Locale.
-   * Турецкий пока не поддержан в Locale union — будет добавлен вместе
-   * с пакетом турецкой локализации; до тех пор tr-игроки получают en.
+   * Поддерживаем ru / en / tr — все три имеют полные локализационные
+   * пакеты (UI, нарратив, reward-тексты, точки маршрута, артефакты).
+   * Всё остальное фолбечится на en.
    */
   detectLocale(): Locale | null {
     const raw =
@@ -63,6 +64,7 @@ export class YandexSdkService {
     if (!raw) return null;
     const lang = raw.slice(0, 2).toLowerCase();
     if (lang === "ru") return "ru";
+    if (lang === "tr") return "tr";
     return "en";
   }
 

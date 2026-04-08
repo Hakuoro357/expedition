@@ -1,14 +1,7 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
 import { safeImageUrl } from "@/ui/safeUrl";
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+import { escapeHtml } from "@/ui/escapeHtml";
 
 export type RewardRevealType = "entry" | "artifact";
 

@@ -90,14 +90,26 @@ function createCornerIndexMarkup(rankLabel: string, suit: Suit, suitFill: string
   `.trim();
 }
 
+// Кэш SVG-разметки карт. Разметка зависит только от (rank, suit, locale,
+// selected) и за всю партию может повторяться сотни раз — пересоздавать
+// строку каждый раз дорого, особенно при перерисовке overlay 60 fps под
+// перетаскивание. Максимум 13 × 4 × 3 × 2 = 312 уникальных вариантов.
+const markupCache = new Map<string, string>();
+
 export function createCardFaceSvgMarkup(card: Card, selected = false, locale: Locale = "en"): string {
+  const cacheKey = `${locale}|${card.rank}|${card.suit}|${selected ? "1" : "0"}`;
+  const cached = markupCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const rankLabel = getRankLabel(card.rank, locale);
   const suitFill = getSuitFill(card.suit);
   const stroke = selected ? "#e3a34f" : "#dac9a1";
   const cornerIndexMarkup = createCornerIndexMarkup(rankLabel, card.suit, suitFill);
   const centerSuitMarkup = getCenterSuitMarkup(card.suit, suitFill);
 
-  return `
+  const markup = `
     <svg class="game-overlay__dom-card-svg" viewBox="0 0 44 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="0.75" y="0.75" width="42.5" height="68.5" rx="4.5" fill="#f7ecd8" stroke="${stroke}" stroke-width="1.5"/>
       <g transform="translate(4.5 10.5)">
@@ -111,4 +123,7 @@ export function createCardFaceSvgMarkup(card: Card, selected = false, locale: Lo
       </g>
     </svg>
   `.trim();
+
+  markupCache.set(cacheKey, markup);
+  return markup;
 }

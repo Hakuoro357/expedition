@@ -6,6 +6,8 @@ import type { Card } from "@/core/cards/types";
 import type { Locale } from "@/services/i18n/locales";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 
+import { escapeHtml } from "@/ui/escapeHtml";
+
 type GameActionId = "undo" | "hint" | "rules" | "home";
 type GameFoundationSlot = {
   suitSymbol: string;
@@ -33,15 +35,6 @@ export type GameOverlayEmptySlot = {
   top: number;
 };
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 function getActionIconHtml(id: GameActionId): string {
   switch (id) {
     case "undo":
@@ -59,7 +52,6 @@ type GameSceneOverlayParams = {
   title: string;
   subtitle: string;
   coinsLabel: string;
-  stockCountLabel: string;
   wasteHasCard: boolean;
   wasteActive: boolean;
   foundationSlots: GameFoundationSlot[];
@@ -77,7 +69,6 @@ type GameSceneOverlayParams = {
 };
 
 function createTopRowHtml(
-  _stockCountLabel: string,
   wasteHasCard: boolean,
   wasteActive: boolean,
   foundationSlots: GameFoundationSlot[],
@@ -212,7 +203,6 @@ export function createGameSceneOverlayHtml({
   title,
   subtitle,
   coinsLabel,
-  stockCountLabel,
   wasteHasCard,
   wasteActive,
   foundationSlots,
@@ -242,7 +232,7 @@ export function createGameSceneOverlayHtml({
     `    <div class="game-overlay__title">${escapeHtml(title)}</div>`,
     (subtitle ? `    <div class="game-overlay__subtitle">${escapeHtml(subtitle)}</div>` : ""),
     "  </div>",
-    `  ${createTopRowHtml(stockCountLabel, wasteHasCard, wasteActive, foundationSlots, stockCardBackSvg)}`,
+    `  ${createTopRowHtml(wasteHasCard, wasteActive, foundationSlots, stockCardBackSvg)}`,
     `  <div class="game-overlay__status" data-game-status="true"></div>`,
     `  ${createEmptyTableauSlotsHtml(emptyTableauSlots ?? [])}`,
     `  ${createFaceDownCardsHtml(faceDownCards ?? [], cardBackSvg)}`,
