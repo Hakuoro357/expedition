@@ -4,25 +4,23 @@
  */
 export const ECONOMY = {
   /** Coins awarded for winning an adventure deal */
-  winCoins: 50,
+  winCoins: 30,
   /** Coins awarded for winning a daily deal */
-  dailyWinCoins: 80,
+  dailyWinCoins: 40,
   /** Bonus coins when player watches a rewarded ad after winning */
   adBonusCoins: 50,
   /** Bonus coins from daily ad */
-  dailyAdBonusCoins: 80,
-  /** Extra coins awarded on chapter completion */
-  chapterCompleteCoins: 150,
+  dailyAdBonusCoins: 60,
 
   /** Cost to restart after losing */
-  restartCost: 25,
+  restartCost: 40,
   /** Cost per undo */
-  undoCost: 5,
+  undoCost: 10,
   /** Cost per hint (after first free one) */
-  hintCost: 5,
+  hintCost: 10,
 
   /** Starting coins for a brand new player */
-  startingCoins: 50,
+  startingCoins: 30,
 
   /** Nodes per chapter */
   nodesPerChapter: 10,

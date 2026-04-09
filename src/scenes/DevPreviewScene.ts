@@ -7,7 +7,7 @@ import { createButton } from "@/ui/createButton";
 
 function getBaseUrl(): string {
   if (typeof window === "undefined") {
-    return "http://127.0.0.1:4175";
+    return "";
   }
 
   return window.location.origin;

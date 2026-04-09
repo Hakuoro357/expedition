@@ -17,6 +17,7 @@ import {
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { getRouteSheetByDealId, ROUTE_SHEETS } from "@/data/routeSheets";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { COIN_TOKEN } from "@/ui/coinIcon";
 
 export type RewardSceneData = {
   mode?: GameMode;
@@ -170,12 +171,12 @@ export class RewardScene extends Phaser.Scene {
 
     this.renderRewardOverlay({
       title: i18n.t("victory"),
-      coinsLabel: this.coinsAwarded > 0 ? `+${this.coinsAwarded} 🪙` : undefined,
+      coinsLabel: this.coinsAwarded > 0 ? `+${this.coinsAwarded} ${COIN_TOKEN}` : undefined,
       chapterProgressLabel: this.chapterProgressLabel,
       foundTitle: this.revealItems.length > 0 ? i18n.t("foundItems") : undefined,
       revealItems: this.revealItems,
       rewardLines: this.revealItems.length > 0 ? [] : [i18n.t("reward")],
-      adLabel: isRu ? `Реклама (+${adBonus} 🪙)` : `Ad (+${adBonus} 🪙)`,
+      adLabel: isRu ? `Реклама (+${adBonus} ${COIN_TOKEN})` : `Ad (+${adBonus} ${COIN_TOKEN})`,
       adDisabled: this.adBonusShown,
       continueLabel: i18n.t("continue"),
       adStatus: this.adStatusText,
@@ -283,7 +284,7 @@ export class RewardScene extends Phaser.Scene {
         if (!rewarded) return;
         save.addCoins(adBonus);
         this.adBonusShown = true;
-        this.adStatusText = `+${adBonus} 🪙`;
+        this.adStatusText = `+${adBonus} ${COIN_TOKEN}`;
         sound.goodMove();
         // Полный перерендер: renderOverlay сам пере-биндит обработчики,
         // переписывая rewardOverlayCleanup.

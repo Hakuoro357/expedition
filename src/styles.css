@@ -463,6 +463,24 @@ canvas {
   box-shadow: inset 0 0 0 2px rgba(168, 104, 22, 0.35);
 }
 
+/* Универсальная CSS-монета — замена эмодзи 🪙, которое не поддерживается
+   старыми системными шрифтами (Windows без emoji-font, старый Android
+   рендерит как tofu-квадратик). Размер привязан к font-size родителя,
+   чтобы аккуратно сидеть рядом с текстовыми лейблами. */
+.coin-icon {
+  display: inline-block;
+  vertical-align: -0.12em;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe393 0%, #f0bf4b 58%, #d68d29 100%);
+  border: 0.1em solid #f7d571;
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 0.1em rgba(168, 104, 22, 0.35);
+  /* Чуть отступа слева/справа, чтобы монета не слипалась с цифрой. */
+  margin: 0 0.15em;
+}
+
 .game-overlay__title {
   width: 100%;
   text-align: center;

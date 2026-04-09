@@ -321,7 +321,6 @@ export class SaveService {
     const isChapterEnd = isLastNodeInChapter(nodeId);
 
     if (isChapterEnd) {
-      coinsAwarded += ECONOMY.chapterCompleteCoins;
       chapterCompleted = true;
     }
 

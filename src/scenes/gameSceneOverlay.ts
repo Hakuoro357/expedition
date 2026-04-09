@@ -7,6 +7,7 @@ import type { Locale } from "@/services/i18n/locales";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 
 import { escapeHtml } from "@/ui/escapeHtml";
+import { COIN_ICON_HTML, COIN_TOKEN, expandCoinTokens } from "@/ui/coinIcon";
 
 type GameActionId = "undo" | "hint" | "rules" | "home";
 type GameFoundationSlot = {
@@ -225,9 +226,9 @@ export function createGameSceneOverlayHtml({
     { id: "home", label: homeLabel },
   ];
 
-  return [
+  const html = [
     '<div class="game-overlay">',
-    `  <div class="game-overlay__coins"><span aria-hidden="true">🪙</span> <span class="game-overlay__coins-value">${escapeHtml(coinsLabel)}</span></div>`,
+    `  <div class="game-overlay__coins">${COIN_ICON_HTML}<span class="game-overlay__coins-value">${escapeHtml(coinsLabel)}</span></div>`,
     '  <div class="game-overlay__header">',
     `    <div class="game-overlay__title">${escapeHtml(title)}</div>`,
     (subtitle ? `    <div class="game-overlay__subtitle">${escapeHtml(subtitle)}</div>` : ""),
@@ -239,10 +240,15 @@ export function createGameSceneOverlayHtml({
     `  ${createCardsHtml(cards, locale)}`,
     `  ${createDragCardsHtml(dragCards, locale)}`,
     '  <div class="game-overlay__nav">',
-    ...items.map(
-      (item) => `    <button class="game-overlay__action game-overlay__action--${escapeHtml(item.id)}" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(item.label)}"><span class="game-overlay__action-icon">${getActionIconHtml(item.id)}</span><span class="game-overlay__action-label">${escapeHtml(item.label)}</span></button>`,
-    ),
+    ...items.map((item) => {
+      // COIN_TOKEN внутри aria-label раскроется в <span class="coin-icon">
+      // с кавычками — это сломает атрибут. В aria оставляем только текст,
+      // а видимый лейбл раскрывается через expandCoinTokens ниже.
+      const ariaLabel = item.label.split(COIN_TOKEN).join("").replace(/\s+/g, " ").trim();
+      return `    <button class="game-overlay__action game-overlay__action--${escapeHtml(item.id)}" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(ariaLabel)}"><span class="game-overlay__action-icon">${getActionIconHtml(item.id)}</span><span class="game-overlay__action-label">${escapeHtml(item.label)}</span></button>`;
+    }),
     "  </div>",
     "</div>",
   ].join("");
+  return expandCoinTokens(html);
 }

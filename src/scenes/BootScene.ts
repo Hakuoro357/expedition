@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { getAppContext, setAppContext } from "@/app/config/appContext";
-import { SAVE_KEY, SCENES } from "@/app/config/gameConfig";
+import { SCENES } from "@/app/config/gameConfig";
 import { ARTIFACTS } from "@/data/artifacts";
 import { CHAPTERS } from "@/data/chapters";
 import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
@@ -58,21 +58,20 @@ export class BootScene extends Phaser.Scene {
 
     // Подтягиваем облачное сохранение до инициализации контекста,
     // чтобы остальные сервисы сразу видели актуальный прогресс.
-    // Важно: проверяем наличие локального сейва ДО merge, иначе
-    // вернувшийся облачный игрок будет принят за нового.
-    const hasExistingSave = window.localStorage.getItem(SAVE_KEY) !== null;
     await save.loadFromCloud(sdk);
 
     setAppContext({ analytics, ads, i18n, save, sound, sdk });
 
     // Требование Яндекса 2.14: автоопределение языка через SDK должно
-    // выполняться на КАЖДОМ старте игры, у всех игр, даже если в игре
-    // только один язык. Их debug-панель проверяет факт чтения
-    // environment.i18n.lang на старте — поэтому detectLocale() вызываем
-    // безусловно. Применяем результат только для новых пользователей,
-    // у возвращающихся приоритет за сохранённым выбором.
+    // выполняться на КАЖДОМ старте игры. Их debug-панель проверяет факт
+    // чтения environment.i18n.lang на старте. Дополнительно: при смене
+    // URL-параметра ?lang=ru/en/tr Яндекс ожидает, что игра моментально
+    // подхватит новый язык — поэтому detected локаль всегда применяется,
+    // если SDK её вернул. In-game переключение в настройках продолжает
+    // работать в пределах сессии, но следующий старт снова синхронизирует
+    // язык с Яндексом (это приемлемо: Яндекс — источник правды для локали).
     const detectedLocale = sdk.detectLocale();
-    if (!hasExistingSave && detectedLocale) {
+    if (detectedLocale) {
       save.updateProgress((p) => ({ ...p, locale: detectedLocale }));
     }
 

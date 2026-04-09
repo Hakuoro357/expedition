@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/ui/escapeHtml";
+import { COIN_ICON_HTML } from "@/ui/coinIcon";
 
 type MapOverlayParams = {
   title: string;
@@ -27,7 +28,7 @@ export function createMapOverlayHtml({
   return [
     '<div class="map-overlay">',
     '  <div class="map-overlay__coins">',
-    '    <span aria-hidden="true">🪙</span>',
+    `    ${COIN_ICON_HTML}`,
     `    <span class="map-overlay__coin-count">${coins}</span>`,
     "  </div>",
     '  <div class="map-overlay__content">',

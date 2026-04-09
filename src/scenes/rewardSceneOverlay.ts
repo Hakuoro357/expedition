@@ -2,6 +2,7 @@ import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
 import { safeImageUrl } from "@/ui/safeUrl";
 
 import { escapeHtml } from "@/ui/escapeHtml";
+import { expandCoinTokens } from "@/ui/coinIcon";
 
 export type RewardRevealType = "entry" | "artifact";
 
@@ -53,7 +54,7 @@ export function createRewardOverlayHtml({
 }: RewardOverlayParams): string {
   const hasRevealItems = Boolean(revealItems?.length);
 
-  return [
+  const html = [
     '<div class="reward-overlay">',
     `  <div class="reward-overlay__title">${escapeHtml(title)}</div>`,
     hasRevealItems
@@ -104,4 +105,5 @@ export function createRewardOverlayHtml({
     createAppNavHtml(navItems),
     "</div>",
   ].join("");
+  return expandCoinTokens(html);
 }

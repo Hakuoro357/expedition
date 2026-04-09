@@ -33,6 +33,8 @@ import {
 import { formatCard } from "@/features/board/formatCard";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { COIN_ICON_HTML, COIN_TOKEN } from "@/ui/coinIcon";
+import { escapeHtml } from "@/ui/escapeHtml";
 import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, type GameOverlayEmptySlot, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
 import {
   GAME_CARD_HEIGHT as CARD_HEIGHT,
@@ -501,13 +503,13 @@ export class GameScene extends Phaser.Scene {
     const { i18n } = getAppContext();
     const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
     if (isFirstUndo) return i18n.t("undo");
-    return `${i18n.t("undo")} 🪙${ECONOMY.undoCost}`;
+    return `${i18n.t("undo")} ${COIN_TOKEN}${ECONOMY.undoCost}`;
   }
 
   private getHintLabel(): string {
     const { i18n } = getAppContext();
     if (this.hintsUsed === 0) return i18n.t("hint");
-    return `${i18n.t("hint")} 🪙${ECONOMY.hintCost}`;
+    return `${i18n.t("hint")} ${COIN_TOKEN}${ECONOMY.hintCost}`;
   }
 
   private handleHintAction(): void {
@@ -700,7 +702,9 @@ export class GameScene extends Phaser.Scene {
     const restartBtn = document.createElement("button");
     restartBtn.className = `modal-btn modal-btn--primary${canAfford ? "" : " modal-btn--disabled"}`;
     restartBtn.type = "button";
-    restartBtn.textContent = `${i18n.t("restart")} (🪙 ${cost})`;
+    // innerHTML (не textContent) — чтобы вставить CSS-иконку монеты. Текст
+     // локали прогоняем через escapeHtml. cost — число, безопасно.
+    restartBtn.innerHTML = `${escapeHtml(i18n.t("restart"))} (${COIN_ICON_HTML} ${cost})`;
     restartBtn.addEventListener("click", () => {
       if (!this.gameState || !canAfford) return;
       const { mode, dealId, seed } = this.gameState;

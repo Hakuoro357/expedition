@@ -1,9 +1,25 @@
 import { defineConfig } from "vite";
 
+// В dev Vite не знает про /sdk.js (реальный файл подсовывает iframe-обёртка
+// Яндекса в проде). SPA-fallback возвращает index.html → браузер пытается
+// распарсить HTML как JS и валится с "Unexpected token '<'". Плагин ниже
+// отдаёт пустой JS для /sdk.js только в dev-режиме — в dist он не попадает,
+// поэтому в проде iframe-обёртка корректно подставит настоящий SDK.
+const yandexSdkDevStub = {
+  name: "yandex-sdk-dev-stub",
+  configureServer(server: { middlewares: { use: (path: string, handler: (req: unknown, res: { setHeader: (k: string, v: string) => void; end: (body: string) => void }) => void) => void } }) {
+    server.middlewares.use("/sdk.js", (_req, res) => {
+      res.setHeader("Content-Type", "application/javascript");
+      res.end("/* dev stub for Yandex SDK */");
+    });
+  }
+};
+
 export default defineConfig(({ command }) => ({
   // Яндекс Игры хостят бандл по подпути вида /games/play/<id>/, поэтому
   // абсолютные пути (`/assets/...`) ломают загрузку — нужны относительные.
   base: "./",
+  plugins: [yandexSdkDevStub],
   server: {
     host: "0.0.0.0",
     port: 5173

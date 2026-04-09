@@ -5,6 +5,10 @@ dist/
 
 # Build artifact для загрузки в Яндекс — пересобирается из dist/
 solitaire-expedition.zip
+solitaire-expedition-v*.zip
+
+# Playwright MCP session state
+.playwright-mcp/
 
 # Temp files
 .tmp-*

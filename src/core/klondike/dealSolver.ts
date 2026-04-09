@@ -162,6 +162,62 @@ export function greedySolve(seed: number): SolveResult {
 }
 
 /**
+ * Greedy solver that returns the sequence of intermediate GameStates
+ * starting from `initial`. Each element is the state AFTER one move.
+ * The last element may or may not be a winning state depending on
+ * whether the greedy strategy can solve the deal.
+ *
+ * Used by the dev-only capture-video helper to replay gameplay visually.
+ */
+export function greedySolveSteps(initial: GameState): GameState[] {
+  const states: GameState[] = [];
+  let state = initial;
+  let stockCycles = 0;
+  let prevStockSize = -1;
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    if (isWon(state)) break;
+
+    const foundationMove = tryFoundationMoves(state);
+    if (foundationMove) {
+      state = foundationMove;
+      states.push(state);
+      continue;
+    }
+
+    const revealMove = tryRevealMoves(state);
+    if (revealMove) {
+      state = revealMove;
+      states.push(state);
+      continue;
+    }
+
+    const wasteMove = tryWasteToTableau(state);
+    if (wasteMove) {
+      state = wasteMove;
+      states.push(state);
+      continue;
+    }
+
+    const hasStock = state.stock.cards.length > 0 || state.waste.cards.length > 0;
+    if (!hasStock) break;
+
+    const currentStockSize = state.stock.cards.length;
+    if (currentStockSize === 0) {
+      stockCycles++;
+      if (stockCycles > 5) break;
+    }
+    if (currentStockSize === prevStockSize && state.waste.cards.length === 0) break;
+
+    prevStockSize = currentStockSize;
+    state = drawFromStock(state);
+    states.push(state);
+  }
+
+  return states;
+}
+
+/**
  * Checks a range of seeds and returns those that pass the greedy solver.
  * Optionally filter by difficulty tier.
  */

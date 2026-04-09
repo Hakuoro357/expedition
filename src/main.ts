@@ -5,6 +5,27 @@ import { installGhostClickGuard } from "@/ui/ghostClickGuard";
 
 installGhostClickGuard();
 
+// Глобальный перехват unhandled promise rejections. В draft-превью
+// Яндекс Игр мы видели "Uncaught (in promise) undefined", но без стека
+// невозможно понять, где промис отклоняется без reason. Логируем
+// reason, stack и promise, чтобы следующее появление было диагностируемым.
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason;
+    const stack =
+      reason && typeof reason === "object" && "stack" in reason
+        ? (reason as { stack?: string }).stack
+        : undefined;
+    console.warn("[unhandledrejection]", {
+      reason,
+      stack,
+      type: typeof reason,
+    });
+    // Не вызываем event.preventDefault() — пусть браузер всё равно
+    // сообщает в консоль, но наш лог добавит контекст.
+  });
+}
+
 // Требования Яндекс Игр 1.6.1.8 / 1.6.2.7: правый клик и долгое нажатие
 // не должны открывать браузерное контекстное меню. CSS user-select: none
 // блокирует визуальное выделение, но contextmenu/selectstart прилетают

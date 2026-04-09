@@ -1,5 +1,30 @@
 import type { Locale } from "@/services/i18n/locales";
 
+function waitForYaGames(timeoutMs: number): Promise<YaGamesGlobal | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(null);
+      return;
+    }
+    if (window.YaGames) {
+      resolve(window.YaGames);
+      return;
+    }
+    const start = Date.now();
+    const interval = window.setInterval(() => {
+      if (window.YaGames) {
+        window.clearInterval(interval);
+        resolve(window.YaGames);
+        return;
+      }
+      if (Date.now() - start >= timeoutMs) {
+        window.clearInterval(interval);
+        resolve(null);
+      }
+    }, 50);
+  });
+}
+
 export class YandexSdkService {
   private sdk: YaGamesSDK | null = null;
   private initialized = false;
@@ -11,7 +36,15 @@ export class YandexSdkService {
     }
 
     try {
-      this.sdk = window.YaGames ? await window.YaGames.init() : null;
+      // CDN-скрипт Яндекс SDK (https://yandex.ru/games/sdk/v2) выставляет
+      // window.YaGames асинхронно: сам тег в HTML грузится синхронно, но
+      // содержит бутстрап, который догружает основной бандл и только тогда
+      // проставляет YaGames. Если в этот момент позвать YaGames.init(), SDK
+      // бросит "SDK is not initialised. Wait for 'init' call". Поллим
+      // window.YaGames в течение 5 секунд — это согласовано с поведением
+      // официальных игр из каталога.
+      const yaGames = await waitForYaGames(5000);
+      this.sdk = yaGames ? await yaGames.init() : null;
       this.initialized = true;
     } catch (error) {
       console.warn("[sdk] failed to initialize", error);

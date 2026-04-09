@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT } from "@/app/config/gameConfig";
 import { getGameResolution } from "@/app/rendering";
+import { greedySolveSteps } from "@/core/klondike/dealSolver";
+import type { GameState } from "@/core/game-state/types";
 import { BootScene } from "@/scenes/BootScene";
 import { DevPreviewScene } from "@/scenes/DevPreviewScene";
 import { DetailScene } from "@/scenes/DetailScene";
@@ -13,6 +15,27 @@ import { SettingsScene } from "@/scenes/SettingsScene";
 
 export function createGame(parent: HTMLElement): Phaser.Game {
   const resolution = typeof window === "undefined" ? 1 : getGameResolution(window.devicePixelRatio || 1);
+
+  // DevPreviewScene нужна только для локальной разработки (кнопки «Preview
+  // reward c1n3» и т.д.) — в production-билд её не включаем. Её файл
+  // содержит хардкод `http://127.0.0.1:4175` для SSR-фолбека, который
+  // валидатор Яндекс Игр воспринимает как «ссылку на сервисное хранилище»
+  // и отклоняет черновик. Vite DCE по `import.meta.env.DEV = false`
+  // в production выкинет dead-branch и неиспользуемый импорт.
+  const scenes: Phaser.Types.Scenes.SceneType[] = [
+    BootScene,
+    PrologueScene,
+    MapScene,
+    DetailScene,
+    GameScene,
+    RewardScene,
+    DiaryScene,
+    SettingsScene,
+  ];
+  if (import.meta.env.DEV) {
+    scenes.splice(1, 0, DevPreviewScene);
+  }
+
   const config: Phaser.Types.Core.GameConfig & { resolution?: number } = {
     type: Phaser.AUTO,
     parent,
@@ -32,17 +55,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
       autoRound: true,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [
-      BootScene,
-      DevPreviewScene,
-      PrologueScene,
-      MapScene,
-      DetailScene,
-      GameScene,
-      RewardScene,
-      DiaryScene,
-      SettingsScene
-    ]
+    scene: scenes
   };
   const game = new Phaser.Game(config as Phaser.Types.Core.GameConfig);
 
@@ -86,7 +99,32 @@ export function createGame(parent: HTMLElement): Phaser.Game {
   }
 
   if (import.meta.env.DEV && typeof window !== "undefined") {
-    (window as Window & { __solitaireGame?: Phaser.Game }).__solitaireGame = game;
+    const w = window as Window & {
+      __solitaireGame?: Phaser.Game;
+      __solitaireDebug?: {
+        solveAndStep: (delayMs?: number) => Promise<number>;
+      };
+    };
+    w.__solitaireGame = game;
+
+    // Dev-only: run the greedy solver on the active GameScene and
+    // apply states one by one with a delay between moves. Used by
+    // scripts/captureVideo.mjs to record real gameplay footage.
+    w.__solitaireDebug = {
+      async solveAndStep(delayMs = 280): Promise<number> {
+        const gameScene = game.scene.getScene("game") as unknown as {
+          gameState: GameState | null;
+          applyState: (state: GameState) => void;
+        };
+        if (!gameScene?.gameState) return 0;
+        const steps = greedySolveSteps(gameScene.gameState);
+        for (const next of steps) {
+          gameScene.applyState(next);
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+        return steps.length;
+      },
+    };
   }
 
   return game;
