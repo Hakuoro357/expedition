@@ -18,6 +18,19 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Обновляем прогресс-бар в HTML-экране загрузки (index.html #loading-bar).
+    const loadingBar = document.getElementById("loading-bar");
+    if (loadingBar) {
+      this.load.on("progress", (value: number) => {
+        loadingBar.style.width = `${Math.round(value * 100)}%`;
+      });
+    }
+
+    // Не блокировать загрузку из-за одного битого ассета — просто пропускаем.
+    this.load.on("loaderror", (file: { key: string }) => {
+      console.warn(`[boot] failed to load asset: ${file.key}`);
+    });
+
     this.load.svg("bg-chapter1", "assets/backgrounds/bg-chapter1.svg", { width: 390, height: 844 });
     this.load.svg("bg-chapter2", "assets/backgrounds/bg-chapter2.svg", { width: 390, height: 844 });
     this.load.svg("bg-chapter3", "assets/backgrounds/bg-chapter3.svg", { width: 390, height: 844 });
@@ -29,18 +42,18 @@ export class BootScene extends Phaser.Scene {
 
     ARTIFACTS.forEach((artifact) => {
       const assetPath = resolveArtifactGridUrl(artifact.imageKey);
-      if (assetPath) {
+      if (assetPath && assetPath.length > 0) {
         this.load.image(artifact.imageKey, assetPath);
       }
 
       const largeAssetPath = resolveArtifactLargeUrl(artifact.largeImageKey);
-      if (largeAssetPath) {
+      if (largeAssetPath && largeAssetPath.length > 0) {
         this.load.image(artifact.largeImageKey, largeAssetPath);
       }
 
       const blurKey = `${artifact.imageKey}_blur`;
       const blurPath = resolveArtifactGridUrl(blurKey);
-      if (blurPath) {
+      if (blurPath && blurPath.length > 0) {
         this.load.image(blurKey, blurPath);
       }
     });
@@ -83,8 +96,11 @@ export class BootScene extends Phaser.Scene {
     void sound.loadAll();
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
 
-    // Сообщаем порталу Яндекса что игра готова — скрывает спиннер загрузки.
+    // Сообщаем платформе что игра готова — скрывает спиннер загрузки платформы.
     sdk.signalReady();
+
+    // Убираем собственный HTML-экран загрузки (index.html #loading-screen).
+    document.getElementById("loading-screen")?.remove();
 
     const preview =
       typeof window !== "undefined"

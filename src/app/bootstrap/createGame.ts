@@ -45,6 +45,11 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     autoRound: true,
     canvasStyle: "image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;",
     backgroundColor: "#132220",
+    // Дефолтный maxParallelDownloads = 32, а у нас 33+ ассетов.
+    // Последний файл застревает в очереди и preload никогда не завершается.
+    loader: {
+      maxParallelDownloads: 64,
+    },
     render: {
       antialias: true,
       pixelArt: false,
