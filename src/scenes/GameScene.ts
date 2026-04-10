@@ -114,6 +114,7 @@ export class GameScene extends Phaser.Scene {
     // палец дрожит сильнее, чем мышь — 8px давало ложные dragstart-ы и
     // съедало одиночный тап (tap-to-move).
     this.input.dragDistanceThreshold = 12;
+    this.tapInputInstalled = false;
     this.installTapDetection();
 
     this.pendingFlips.clear();
