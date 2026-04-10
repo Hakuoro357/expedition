@@ -2,10 +2,12 @@ import type { Locale } from "@/services/i18n/locales";
 import type { SdkService } from "@/services/sdk/SdkService";
 
 /**
- * Wait for the GamePush SDK to fire its `onGPInit` callback.
- * The script tag in index.html sets `callback=onGPInit` which GamePush
- * calls once the SDK is bootstrapped.  We register the global handler
- * and resolve with the `gp` instance (or null on timeout).
+ * Wait for GamePush SDK to be available on `window.__gp`.
+ *
+ * The inline script in index.html registers `window.onGPInit` BEFORE
+ * the GamePush CDN script loads, so by the time this function runs
+ * `window.__gp` is usually already set.  We poll as a safety net
+ * for slow networks where the CDN script hasn't finished yet.
  */
 function waitForGamePush(timeoutMs: number): Promise<GamePushSDK | null> {
   return new Promise((resolve) => {
@@ -13,27 +15,22 @@ function waitForGamePush(timeoutMs: number): Promise<GamePushSDK | null> {
       resolve(null);
       return;
     }
-
-    // Already initialized (e.g. hot-reload in dev)
     if (window.__gp) {
       resolve(window.__gp);
       return;
     }
-
-    let settled = false;
-    const settle = (value: GamePushSDK | null): void => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    // GamePush calls window.onGPInit(gp) after bootstrap
-    (window as Window & { onGPInit?: (gp: GamePushSDK) => void }).onGPInit = (gp) => {
-      window.__gp = gp;
-      settle(gp);
-    };
-
-    setTimeout(() => settle(null), timeoutMs);
+    const start = Date.now();
+    const interval = window.setInterval(() => {
+      if (window.__gp) {
+        window.clearInterval(interval);
+        resolve(window.__gp);
+        return;
+      }
+      if (Date.now() - start >= timeoutMs) {
+        window.clearInterval(interval);
+        resolve(null);
+      }
+    }, 50);
   });
 }
 
