@@ -1,25 +1,60 @@
 import { defineConfig } from "vite";
 
-// В dev Vite не знает про /sdk.js (реальный файл подсовывает iframe-обёртка
-// Яндекса в проде). SPA-fallback возвращает index.html → браузер пытается
-// распарсить HTML как JS и валится с "Unexpected token '<'". Плагин ниже
-// отдаёт пустой JS для /sdk.js только в dev-режиме — в dist он не попадает,
-// поэтому в проде iframe-обёртка корректно подставит настоящий SDK.
-const yandexSdkDevStub = {
-  name: "yandex-sdk-dev-stub",
+// В dev GamePush CDN-скрипт может быть недоступен (оффлайн, VPN, etc.).
+// Плагин отдаёт минимальный mock, который регистрирует window.__gp с
+// no-op методами и вызывает callback onGPInit. В production скрипт
+// грузится с gamepush.com — mock не нужен.
+const gamePushDevStub = {
+  name: "gamepush-dev-stub",
   configureServer(server: { middlewares: { use: (path: string, handler: (req: unknown, res: { setHeader: (k: string, v: string) => void; end: (body: string) => void }) => void) => void } }) {
-    server.middlewares.use("/sdk.js", (_req, res) => {
+    server.middlewares.use("/sdk-stub.js", (_req, res) => {
       res.setHeader("Content-Type", "application/javascript");
-      res.end("/* dev stub for Yandex SDK */");
+      res.end(`
+/* GamePush dev stub — no-op SDK for offline development */
+(function() {
+  var noop = function() {};
+  var resolved = Promise.resolve();
+  var gp = {
+    ads: {
+      showRewardedVideo: function() { return Promise.resolve(false); },
+      showFullscreen: function() { return resolved; },
+      showPreloader: function() { return resolved; },
+      showSticky: noop, closeSticky: noop, refreshSticky: noop,
+      isFullscreenAvailable: false, isRewardedAvailable: false, isStickyAvailable: false,
+      on: noop
+    },
+    player: {
+      ready: resolved,
+      get: function() { return undefined; },
+      set: noop, add: noop, sync: noop, load: noop,
+      login: function() { return Promise.resolve(false); },
+      logout: noop, isLoggedIn: false,
+      on: noop
+    },
+    platform: { type: "dev", id: "dev" },
+    language: navigator.language.slice(0, 2) || "en",
+    isMobile: /Mobi|Android/i.test(navigator.userAgent),
+    isPortrait: window.innerHeight > window.innerWidth,
+    isDev: true,
+    serverTime: new Date().toISOString(),
+    isPaused: false,
+    gameStart: noop, gameStop: noop,
+    gameplayStart: noop, gameplayStop: noop,
+    pause: noop, resume: noop,
+    on: noop
+  };
+  window.__gp = gp;
+  if (typeof window.onGPInit === "function") window.onGPInit(gp);
+})();
+`);
     });
   }
 };
 
 export default defineConfig(({ command }) => ({
-  // Яндекс Игры хостят бандл по подпути вида /games/play/<id>/, поэтому
-  // абсолютные пути (`/assets/...`) ломают загрузку — нужны относительные.
+  // Платформы хостят бандл по подпути — абсолютные пути ломают загрузку.
   base: "./",
-  plugins: [yandexSdkDevStub],
+  plugins: [gamePushDevStub],
   server: {
     host: "0.0.0.0",
     port: 5173
@@ -30,27 +65,17 @@ export default defineConfig(({ command }) => ({
     }
   },
   // В production-сборке вырезаем console.* и debugger, чтобы внутренние
-  // отладочные сообщения (включая логи save/cloud) не попадали в DevTools
-  // у обычных игроков и не давали подсказок для манипуляции состоянием.
+  // отладочные сообщения не попадали в DevTools у обычных игроков.
   esbuild:
     command === "build"
       ? { drop: ["console", "debugger"] }
       : undefined,
   build: {
-    // Yandex Games грузит игру одним архивом — sourcemaps в проде не нужны
-    // и только раздувают zip. У нас приватные стек-трейсы из save/SDK
-    // вообще не должны утекать игроку.
     sourcemap: false,
     target: "es2022",
-    // Phaser ~1.2 МБ минифицированного — выходит за дефолтный warn-лимит
-    // 500 КБ, что засоряет лог сборки. Поднимаем порог, потому что
-    // single-bundle загрузка тут осознанная (так быстрее на Yandex CDN).
+    // Phaser ~1.2 МБ — выходит за дефолтный warn-лимит 500 КБ.
     chunkSizeWarningLimit: 1500,
-    // Инлайнить мелкие ассеты (≤4 КБ) в JS — экономит HTTP-роундтрипы
-    // на старте, важнее всего на мобильном.
     assetsInlineLimit: 4096,
-    // Минификация по умолчанию (esbuild) — быстрее terser и достаточно
-    // агрессивна для нашего размера бандла.
     minify: "esbuild",
     cssMinify: true
   }

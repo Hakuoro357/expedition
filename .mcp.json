@@ -6,6 +6,10 @@
     },
     "playwright": {
       "command": "C:\\Users\\RobotComp.ru\\AppData\\Roaming\\npm\\playwright-mcp.cmd"
+    },
+    "gamepush-docs": {
+      "type": "url",
+      "url": "https://docs.gamepush.com/mcp/"
     }
   }
 }

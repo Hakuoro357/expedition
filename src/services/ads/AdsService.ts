@@ -1,6 +1,6 @@
 import { ECONOMY } from "@/app/config/economy";
 import { AnalyticsService } from "@/services/analytics/AnalyticsService";
-import { YandexSdkService } from "@/services/sdk/YandexSdkService";
+import type { SdkService } from "@/services/sdk/SdkService";
 
 // Кулдаун хранится в localStorage, чтобы перезагрузка страницы или релоад
 // сцены не сбрасывали интервал между показами rewarded-роликов. Иначе игрок
@@ -28,7 +28,7 @@ function writeLastRewardedAt(ts: number): void {
 
 export class AdsService {
   constructor(
-    private readonly sdk: YandexSdkService,
+    private readonly sdk: SdkService,
     private readonly analytics: AnalyticsService
   ) {}
 
@@ -58,5 +58,16 @@ export class AdsService {
     }
 
     return rewarded;
+  }
+
+  /** Show an interstitial (fullscreen) ad at a natural breakpoint. */
+  async showInterstitial(placement: string): Promise<void> {
+    this.analytics.track("interstitial_shown", { placement });
+    this.sdk.gameplayStop();
+    try {
+      await this.sdk.showInterstitial();
+    } finally {
+      this.sdk.gameplayStart();
+    }
   }
 }

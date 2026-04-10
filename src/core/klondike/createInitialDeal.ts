@@ -1,8 +1,8 @@
 import { createShuffledDeck } from "@/core/cards/deck";
 import type { Card } from "@/core/cards/types";
 import type { GameMode, GameState, Pile } from "@/core/game-state/types";
-import { getNodeById } from "@/data/chapters";
 import { getDailySeedForDate } from "@/data/dailyDeals";
+import { findRandomSolvableSeed } from "@/core/klondike/randomSeed";
 
 function createPile(id: string, type: Pile["type"], cards: Card[] = []): Pile {
   return { id, type, cards };
@@ -10,23 +10,21 @@ function createPile(id: string, type: Pile["type"], cards: Card[] = []): Pile {
 
 /**
  * Resolves the seed for a given dealId:
- *  - Adventure nodes: looks up the chapter/node seed
- *  - Daily: uses date-based seed
- *  - Fallback: uses Date.now() (quick-play / sandbox)
+ *  - If overrideSeed is provided, use it as-is (resume saved game)
+ *  - Adventure nodes without override: random solvable seed (each
+ *    attempt gets a fresh layout — no frustrating identical retries)
+ *  - Daily: uses date-based seed (same deal for everyone today)
+ *  - Fallback: random solvable seed (quick-play / sandbox)
  */
-function resolveSeed(mode: GameMode, dealId: string, overrideSeed?: number): number {
+function resolveSeed(mode: GameMode, _dealId: string, overrideSeed?: number): number {
   if (overrideSeed !== undefined) return overrideSeed;
-
-  if (mode === "adventure") {
-    const node = getNodeById(dealId);
-    if (node) return node.seed;
-  }
 
   if (mode === "daily") {
     return getDailySeedForDate();
   }
 
-  return Date.now();
+  // Adventure and quick-play: every new deal gets a fresh solvable seed
+  return findRandomSolvableSeed();
 }
 
 export function createInitialDeal(mode: GameMode, dealId: string, seed?: number): GameState {

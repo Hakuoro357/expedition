@@ -1,0 +1,314 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775803389304,
+  "projectRoot": "C:\\Users\\RobotComp.ru\\games\\Yandex\\01-solitaire-expedition",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "playwright",
+        "version": "1.59.1",
+        "category": "testing"
+      },
+      {
+        "name": "vite",
+        "version": "7.1.4",
+        "category": "build"
+      },
+      {
+        "name": "vitest",
+        "version": "3.2.4",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc --noEmit && vite build",
+      "preview": "vite preview",
+      "test": "vitest run"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": "feature-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "public",
+      "scripts",
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "assets-source": {
+      "path": "assets-source",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1775803389262,
+      "keyFiles": []
+    },
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 1,
+      "lastAccessed": 1775803389273,
+      "keyFiles": [
+        "index.html"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 0,
+      "lastAccessed": 1775803389274,
+      "keyFiles": []
+    },
+    "promo": {
+      "path": "promo",
+      "purpose": null,
+      "fileCount": 42,
+      "lastAccessed": 1775803389275,
+      "keyFiles": [
+        "16x9_screenshot-1-prologue-en.png",
+        "16x9_screenshot-1-prologue.png",
+        "16x9_screenshot-2-map-en.png",
+        "16x9_screenshot-2-map.png",
+        "16x9_screenshot-3-game-en.png"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 0,
+      "lastAccessed": 1775803389275,
+      "keyFiles": []
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 8,
+      "lastAccessed": 1775803389275,
+      "keyFiles": [
+        "captureScreenshots.mjs",
+        "captureVideo.mjs",
+        "convertAudioToOpus.mjs",
+        "convertToWebp.mjs",
+        "findSeeds.ts"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1775803389276,
+      "keyFiles": [
+        "env.d.ts",
+        "main.ts",
+        "styles.css"
+      ]
+    },
+    "test-results": {
+      "path": "test-results",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1775803389276,
+      "keyFiles": []
+    },
+    "dist\\assets": {
+      "path": "dist\\assets",
+      "purpose": "Static assets",
+      "fileCount": 34,
+      "lastAccessed": 1775803389277,
+      "keyFiles": [
+        "artifact_archive_seal_grid-DSXZrvDk.png",
+        "artifact_archive_seal_grid_blur-rnJZLdgv.png",
+        "artifact_archive_seal_large-eYyKt2Fb.webp"
+      ]
+    },
+    "public\\assets": {
+      "path": "public\\assets",
+      "purpose": "Static assets",
+      "fileCount": 0,
+      "lastAccessed": 1775803389278,
+      "keyFiles": []
+    },
+    "src\\app": {
+      "path": "src\\app",
+      "purpose": "Application code",
+      "fileCount": 2,
+      "lastAccessed": 1775803389279,
+      "keyFiles": [
+        "rendering.test.ts",
+        "rendering.ts"
+      ]
+    },
+    "src\\assets": {
+      "path": "src\\assets",
+      "purpose": "Static assets",
+      "fileCount": 0,
+      "lastAccessed": 1775803389279,
+      "keyFiles": []
+    },
+    "src\\data": {
+      "path": "src\\data",
+      "purpose": "Data files",
+      "fileCount": 9,
+      "lastAccessed": 1775803389280,
+      "keyFiles": [
+        "artifactAssetUrls.ts",
+        "artifacts.ts",
+        "chapters.ts"
+      ]
+    },
+    "src\\services": {
+      "path": "src\\services",
+      "purpose": "Business logic services",
+      "fileCount": 0,
+      "lastAccessed": 1775803389280,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src\\services\\ads\\AdsService.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775806781228,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\BootScene.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775806689617,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\save\\SaveService.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775806743114,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\GameScene.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775806931160,
+      "type": "file"
+    },
+    {
+      "path": "src\\core\\klondike\\createInitialDeal.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775807003233,
+      "type": "file"
+    },
+    {
+      "path": "src\\env.d.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775806586305,
+      "type": "file"
+    },
+    {
+      "path": "index.html",
+      "accessCount": 3,
+      "lastAccessed": 1775806625464,
+      "type": "file"
+    },
+    {
+      "path": "vite.config.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775806651437,
+      "type": "file"
+    },
+    {
+      "path": "src\\app\\config\\appContext.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775806676140,
+      "type": "file"
+    },
+    {
+      "path": ".mcp.json",
+      "accessCount": 2,
+      "lastAccessed": 1775804312702,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\sdk\\YandexSdkService.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775804960613,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\RewardScene.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775804981720,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\sdk\\SdkService.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775806545508,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\sdk\\GamePushSdkService.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775806567371,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 1,
+      "lastAccessed": 1775806751221,
+      "type": "directory"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1775806841257,
+      "type": "file"
+    },
+    {
+      "path": "src\\core\\klondike\\randomSeed.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775806908582,
+      "type": "file"
+    },
+    {
+      "path": "src\\core\\klondike\\createInitialDeal.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775806966238,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

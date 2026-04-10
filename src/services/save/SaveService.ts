@@ -5,7 +5,7 @@ import { CHAPTERS, getNextNodeId, isLastNodeInChapter, getFirstNodeOfChapter, ge
 import { ARTIFACTS } from "@/data/artifacts";
 import { getRewardById } from "@/data/narrative/rewards";
 import { ECONOMY } from "@/app/config/economy";
-import type { YandexSdkService } from "@/services/sdk/YandexSdkService";
+import type { SdkService } from "@/services/sdk/SdkService";
 
 // Static id sets used to scrub merged saves from cloud-injected ghost ids.
 const KNOWN_NODE_IDS: ReadonlySet<string> = new Set(
@@ -391,7 +391,7 @@ export class SaveService {
    * перезатирает другую целиком, и манипулированный сейв не может уменьшить
    * монеты или украсть артефакты у другой стороны.
    */
-  async loadFromCloud(sdk: YandexSdkService): Promise<void> {
+  async loadFromCloud(sdk: SdkService): Promise<void> {
     const json = await sdk.getCloudSave();
     if (!json) {
       console.log("[save] no cloud save found");
@@ -425,7 +425,7 @@ export class SaveService {
    * чтобы не затереть прогресс, сделанный на другом устройстве между
    * прошлым `loadFromCloud` и этим пушем.
    */
-  async pushToCloud(sdk: YandexSdkService): Promise<void> {
+  async pushToCloud(sdk: SdkService): Promise<void> {
     try {
       const json = await sdk.getCloudSave();
       if (json) {

@@ -707,10 +707,11 @@ export class GameScene extends Phaser.Scene {
     restartBtn.innerHTML = `${escapeHtml(i18n.t("restart"))} (${COIN_ICON_HTML} ${cost})`;
     restartBtn.addEventListener("click", () => {
       if (!this.gameState || !canAfford) return;
-      const { mode, dealId, seed } = this.gameState;
+      const { mode, dealId } = this.gameState;
       save.addCoins(-cost);
       save.clearCurrentGame();
-      this.scene.start(SCENES.game, { mode, dealId, seed });
+      // Не передаём seed — resolveSeed сгенерирует новый расклад
+      this.scene.start(SCENES.game, { mode, dealId });
     });
 
     // Leave to map

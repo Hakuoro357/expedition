@@ -3,7 +3,7 @@ import { AdsService } from "@/services/ads/AdsService";
 import { I18nService } from "@/services/i18n/I18nService";
 import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
-import { YandexSdkService } from "@/services/sdk/YandexSdkService";
+import type { SdkService } from "@/services/sdk/SdkService";
 
 export type AppContext = {
   analytics: AnalyticsService;
@@ -11,7 +11,7 @@ export type AppContext = {
   i18n: I18nService;
   save: SaveService;
   sound: SoundService;
-  sdk: YandexSdkService;
+  sdk: SdkService;
 };
 
 let appContext: AppContext | null = null;

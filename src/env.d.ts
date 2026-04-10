@@ -49,5 +49,58 @@ interface YaGamesGlobal {
 
 interface Window {
   YaGames?: YaGamesGlobal;
+  __gp?: GamePushSDK;
+}
+
+// --- GamePush SDK types ---
+
+interface GamePushAds {
+  showRewardedVideo(options?: { showFailedOverlay?: boolean }): Promise<boolean>;
+  showFullscreen(options?: { showCountdownOverlay?: boolean }): Promise<boolean>;
+  showPreloader(): Promise<boolean>;
+  showSticky(): void;
+  closeSticky(): void;
+  refreshSticky(): void;
+  isFullscreenAvailable: boolean;
+  isRewardedAvailable: boolean;
+  isStickyAvailable: boolean;
+  on(event: string, callback: (...args: unknown[]) => void): void;
+}
+
+interface GamePushPlayer {
+  ready: Promise<void>;
+  get(field: string): unknown;
+  set(field: string, value: unknown): void;
+  add(field: string, value: number): void;
+  sync(options?: { override?: boolean; storage?: string }): void;
+  load(): void;
+  login(): Promise<boolean>;
+  logout(): void;
+  isLoggedIn: boolean;
+  on(event: string, callback: (...args: unknown[]) => void): void;
+}
+
+interface GamePushPlatform {
+  type: string;
+  id: string;
+}
+
+interface GamePushSDK {
+  ads: GamePushAds;
+  player: GamePushPlayer;
+  platform: GamePushPlatform;
+  language: string;
+  isMobile: boolean;
+  isPortrait: boolean;
+  isDev: boolean;
+  serverTime: string;
+  isPaused: boolean;
+  gameStart(): void;
+  gameStop(): void;
+  gameplayStart(): void;
+  gameplayStop(): void;
+  pause(): void;
+  resume(): void;
+  on(event: string, callback: (...args: unknown[]) => void): void;
 }
 

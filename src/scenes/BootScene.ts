@@ -10,7 +10,7 @@ import { AdsService } from "@/services/ads/AdsService";
 import { I18nService } from "@/services/i18n/I18nService";
 import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
-import { YandexSdkService } from "@/services/sdk/YandexSdkService";
+import { GamePushSdkService } from "@/services/sdk/GamePushSdkService";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -47,7 +47,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create(): Promise<void> {
-    const sdk = new YandexSdkService();
+    const sdk = new GamePushSdkService();
     await sdk.init();
 
     const analytics = new AnalyticsService();
