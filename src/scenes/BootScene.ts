@@ -12,21 +12,21 @@ import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
 import { GamePushSdkService } from "@/services/sdk/GamePushSdkService";
 
+function setLoadingProgress(pct: number): void {
+  const bar = document.getElementById("loading-bar");
+  if (bar) bar.style.width = `${Math.min(100, Math.round(pct))}%`;
+}
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super(SCENES.boot);
   }
 
   preload(): void {
-    // Обновляем прогресс-бар в HTML-экране загрузки (index.html #loading-bar).
-    const loadingBar = document.getElementById("loading-bar");
-    if (loadingBar) {
-      this.load.on("progress", (value: number) => {
-        loadingBar.style.width = `${Math.round(value * 100)}%`;
-      });
-    }
-
-    // Не блокировать загрузку из-за одного битого ассета — просто пропускаем.
+    // Multi-phase progress: 10–75% for Phaser assets
+    this.load.on("progress", (value: number) => {
+      setLoadingProgress(10 + value * 65);
+    });
     this.load.on("loaderror", (file: { key: string }) => {
       console.warn(`[boot] failed to load asset: ${file.key}`);
     });
@@ -60,8 +60,11 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create(): Promise<void> {
+    // Phase: 75–85% (SDK init)
+    setLoadingProgress(75);
     const sdk = new GamePushSdkService();
     await sdk.init();
+    setLoadingProgress(85);
 
     const analytics = new AnalyticsService();
     const i18n = new I18nService();
@@ -69,20 +72,13 @@ export class BootScene extends Phaser.Scene {
     const sound = new SoundService();
     const ads = new AdsService(sdk, analytics);
 
-    // Подтягиваем облачное сохранение до инициализации контекста,
-    // чтобы остальные сервисы сразу видели актуальный прогресс.
+    // Phase: 85–92% (cloud save)
     await save.loadFromCloud(sdk);
+    setLoadingProgress(92);
 
     setAppContext({ analytics, ads, i18n, save, sound, sdk });
 
-    // Требование Яндекса 2.14: автоопределение языка через SDK должно
-    // выполняться на КАЖДОМ старте игры. Их debug-панель проверяет факт
-    // чтения environment.i18n.lang на старте. Дополнительно: при смене
-    // URL-параметра ?lang=ru/en/tr Яндекс ожидает, что игра моментально
-    // подхватит новый язык — поэтому detected локаль всегда применяется,
-    // если SDK её вернул. In-game переключение в настройках продолжает
-    // работать в пределах сессии, но следующий старт снова синхронизирует
-    // язык с Яндексом (это приемлемо: Яндекс — источник правды для локали).
+    // Авто-определение языка через SDK.
     const detectedLocale = sdk.detectLocale();
     if (detectedLocale) {
       save.updateProgress((p) => ({ ...p, locale: detectedLocale }));
@@ -92,14 +88,12 @@ export class BootScene extends Phaser.Scene {
     i18n.setLocale(saveState.progress.locale);
     sound.setSfxVolume(saveState.progress.sfxVolume ?? 0.8);
     sound.setMusicVolume(saveState.progress.musicVolume ?? 0.6);
-    // Kick off audio loading in background — does not block scene start.
     void sound.loadAll();
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
 
-    // Сообщаем платформе что игра готова — скрывает спиннер загрузки платформы.
+    // Phase: 100% — ready
+    setLoadingProgress(100);
     sdk.signalReady();
-
-    // Убираем собственный HTML-экран загрузки (index.html #loading-screen).
     document.getElementById("loading-screen")?.remove();
 
     const preview =

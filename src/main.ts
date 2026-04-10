@@ -1,5 +1,9 @@
 import "@/styles.css";
 import { createGame } from "@/app/bootstrap/createGame";
+
+// JS/CSS бандл загружен — фаза 0–10% экрана загрузки.
+const bar = document.getElementById("loading-bar");
+if (bar) bar.style.width = "10%";
 import { locales } from "@/services/i18n/locales";
 import { installGhostClickGuard } from "@/ui/ghostClickGuard";
 
