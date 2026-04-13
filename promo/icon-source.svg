@@ -40,10 +40,10 @@
   </defs>
 
   <!-- background -->
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#bg)"/>
 
   <!-- subtle gold inner border -->
-  <rect x="12" y="12" width="488" height="488" rx="86"
+  <rect x="12" y="12" width="488" height="488"
         fill="none" stroke="#c9962a" stroke-opacity="0.4" stroke-width="2"/>
 
   <!-- ===== Parchment map ===== -->

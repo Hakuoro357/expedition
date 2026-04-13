@@ -23,7 +23,7 @@ const promoDir = path.resolve(here, "..", "promo");
 // 540x960 * DPR 2 = 1080x1920 (exact 9:16) — Yandex promo standard.
 const VIEWPORT = { width: 540, height: 960 };
 const DPR = 2;
-const URL = "http://localhost:5173";
+const URL = process.env.SCREENSHOT_URL || "http://127.0.0.1:5173";
 
 const HIDE_DEV_CSS = `
   .route-overlay__dev-tools,
@@ -78,7 +78,7 @@ const page = await ctx.newPage();
 // Seed localStorage BEFORE page load so BootScene picks up the requested locale.
 // We navigate to the dev server first to get same-origin access to localStorage,
 // then seed, then reload.
-await page.goto(URL, { waitUntil: "networkidle" });
+await page.goto(URL, { waitUntil: "domcontentloaded" });
 
 await page.evaluate((locale) => {
   const SAVE_KEY = "solitaire-expedition-save-v1";
@@ -100,7 +100,7 @@ await page.evaluate((locale) => {
   localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
 }, LOCALE);
 
-await page.reload({ waitUntil: "networkidle" });
+await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !!window.__solitaireGame, null, { timeout: 10000 });
 // Wait until BootScene finishes initializing AppContext and hands off to
 // the next scene. Until then any manual scene.start() races with boot.

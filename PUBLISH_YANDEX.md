@@ -108,12 +108,18 @@ node scripts/packBuild.mjs
 solitaire, klondike, cards, expedition, story, narrative, mystery, relaxing, singleplayer, adventure, detective, diary, archive, journey, casual
 ```
 
+**TR:**
+```
+solitaire, klondike, kart, keşif, hikâye, gizem, macera, dedektif, günlük, arşiv, yolculuk, rahatlatıcı, tek oyunculu, kart oyunu, bulmaca
+```
+
 ### Название
 
 | Локаль | Текст (≤50) |
 |---|---|
 | **RU** | `Пасьянс Косынка: Экспедиция` |
 | **EN** | `Solitaire: Expedition` |
+| **TR** | `Solitaire: Keşif` |
 
 ### Описание для SEO (≤160)
 
@@ -125,6 +131,11 @@ solitaire, klondike, cards, expedition, story, narrative, mystery, relaxing, sin
 **EN:**
 ```
 Klondike Solitaire with a story: lay out the cards and uncover the mystery of a lost expedition through the diaries of its members.
+```
+
+**TR:**
+```
+Hikâyeli Klondike Solitaire: kartları dizin ve kayıp keşif ekibinin günlüklerinden gizemini çözün.
 ```
 
 ### Об игре (≤1000)
@@ -147,6 +158,15 @@ You are the archivist assigned to uncover the mystery of the lost expedition. Yo
 Thirty points, three chapters, five expedition members with their own notes, nine artifacts. Single-player pace, cloud saves. No energy, no timers — just cards and a slowly emerging truth.
 ```
 
+**TR** (959):
+```
+On yedi yıl önce Adrian Cole'un keşif ekibi kuzeydoğuya gitti ve geri dönmedi. Arama ekipleri iki sezon boyunca aradı, eli boş döndü — dava "kayıp" olarak kapatıldı. Bir ay önce bir avcı, arşive defterler ve dağınık sayfalarla dolu teneke bir kutu getirdi: liderin günlüğü, kartografın saha notları, ekibin geri kalanının sayfaları. Yapraklar nemli ve karışık, bir kısmı tamamen kayıp.
+
+Siz kayıp keşfin gizemini çözmekle görevli arşivcisiniz. Sayfaları tarihlere ve kamplara göre sıralıyorsunuz, rota boyunca nokta nokta ilerliyorsunuz. Her nokta bir Klondike Solitaire oyunu. Tamamladığınız her deste hikâyenin bir parçasını ortaya çıkarır: bir günlük sayfası, bir eskiz, bir fotoğraf. Adım adım Cole'un keşif ekibinin hikâyesini yeniden kuruyorsunuz.
+
+Otuz nokta, üç bölüm, kendi notlarıyla beş keşif ekibi üyesi, dokuz eser. Tek oyunculu tempo, bulut kayıtları. Enerji yok, zamanlayıcı yok — sadece kartlar ve yavaşça beliren gerçek.
+```
+
 ### Как играть (≤1000)
 
 **RU:**
@@ -166,6 +186,67 @@ Drag a card or a stack to move it. Double-tap sends a card to the foundation aut
 
 Completing a deal unlocks the next point on the expedition map. In the "Archive" you can re-read every page you've found, examine artifacts and piece together the full story. Progress is saved to the cloud — you can continue on any device.
 ```
+
+**TR:**
+```
+Klondike Solitaire: dört temel yığını asa'dan krala kadar renge göre oluşturun. Tabloda yedi sütun var — kartlar dönüşümlü renklerle azalan sırada dizilir (siyahın üstüne kırmızı, kırmızının üstüne siyah). Stoktan birer kart çekin. Boş sütunlar krallarla doldurulur.
+
+Bir kartı veya yığını taşımak için sürükleyin. Çift dokunma kartı otomatik olarak temele gönderir. "İpucu" düğmesi mevcut bir hamleyi gösterir. "Geri al" düğmesi son işlemi geri alır.
+
+Bir eli tamamlamak keşif haritasında bir sonraki noktanın kilidini açar. "Arşiv"de bulduğunuz tüm sayfaları yeniden okuyabilir, eserleri inceleyebilir ve keşfin tüm hikâyesini bir araya getirebilirsiniz. İlerleme buluta kaydedilir — herhangi bir cihazdan devam edebilirsiniz.
+```
+
+### Обзор игры для GamePush (Об игре / уникальные особенности, лор, механики)
+
+**RU:**
+```
+Пасьянс с историей. Семнадцать лет назад экспедиция Воронова ушла на северо-восток и не вернулась. Месяц назад охотник принёс в архив жестяную коробку с дневниками — листы перепутаны, многое отсырело. Вы — архивариус, которому поручили раскрыть тайну пропавшей экспедиции.
+
+Механика: классическая Косынка (Klondike). Семь колонок, четыре дома, чередование цветов. Перетаскивайте карты или тапайте для автосбора на базу. Подсказки и отмена хода — за внутриигровую валюту.
+
+Что делает игру особенной:
+— Каждая выигранная партия открывает фрагмент истории: страницу дневника, набросок картографа или фотокарточку
+— 30 точек маршрута, три главы, пять участников экспедиции со своими записями
+— 9 коллекционных артефактов
+— Ежедневный маршрут — уникальный расклад на каждый день
+— Архив: перечитывайте найденные записи и восстанавливайте картину экспедиции
+— Облачные сохранения — продолжайте с любого устройства
+— Без энергии, без таймеров, без давления
+```
+
+**EN:**
+```
+Solitaire with a story. Seventeen years ago, an expedition led by Adrian Cole went northeast and never returned. A month ago, a hunter brought a tin box of journals to the archive — pages scrambled, much of it water-damaged. You are the archivist assigned to uncover the mystery.
+
+Mechanics: classic Klondike Solitaire. Seven columns, four foundations, alternating colors. Drag cards or tap to auto-send to foundations. Hints and undo cost in-game currency.
+
+What makes it unique:
+— Every win reveals a story fragment: a diary page, a cartographer's sketch, or a photograph
+— 30 route points, three chapters, five expedition members with their own records
+— 9 collectible artifacts
+— Daily Route — a unique deal every day
+— Archive: re-read discovered entries and piece together the full expedition story
+— Cloud saves — continue on any device
+— No energy, no timers, no pressure
+```
+
+**TR:**
+```
+Hikâyeli solitaire. On yedi yıl önce Adrian Cole'un keşif ekibi kuzeydoğuya gitti ve geri dönmedi. Bir ay önce bir avcı, arşive içinde günlüklerin olduğu teneke bir kutu getirdi — sayfalar karışık, çoğu nemden kararmış. Siz gizemi çözmekle görevli arşivcisiniz.
+
+Mekanik: klasik Klondike Solitaire. Yedi sütun, dört temel, dönüşümlü renkler. Kartları sürükleyin veya otomatik yerleştirme için dokunun. İpuçları ve geri alma oyun içi para ile.
+
+Oyunu benzersiz kılan:
+— Her kazanılan el hikâyenin bir parçasını açar: bir günlük sayfası, kartografın eskizi veya bir fotoğraf
+— 30 rota noktası, üç bölüm, kendi kayıtlarıyla beş keşif ekibi üyesi
+— 9 koleksiyon eseri
+— Günlük Rota — her gün benzersiz bir el
+— Arşiv: keşfedilen kayıtları yeniden okuyun ve keşif hikâyesini bir araya getirin
+— Bulut kayıtları — herhangi bir cihazdan devam edin
+— Enerji yok, zamanlayıcı yok, baskı yok
+```
+
+---
 
 ### Возрастной рейтинг, категория, монетизация
 

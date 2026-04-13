@@ -89,6 +89,9 @@ export class BootScene extends Phaser.Scene {
     sound.setSfxVolume(saveState.progress.sfxVolume ?? 0.8);
     sound.setMusicVolume(saveState.progress.musicVolume ?? 0.6);
     void sound.loadAll();
+    // GamePush self-test требует контроль звука через SDK-события.
+    sdk.onPause(() => sound.suspendAudio());
+    sdk.onResume(() => sound.resumeAudio());
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
 
     // Phase: 100% — ready

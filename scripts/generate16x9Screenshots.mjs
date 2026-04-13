@@ -41,6 +41,7 @@ const SLUGS = ["1-prologue", "2-map", "3-game", "4-reward", "5-diary"];
 const LOCALES = [
   { suffix: "",    label: "ru" },
   { suffix: "-en", label: "en" },
+  { suffix: "-tr", label: "tr" },
 ];
 
 for (const locale of LOCALES) {

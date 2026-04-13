@@ -120,18 +120,22 @@ export class SoundService {
     this.visibilityListenerInstalled = true;
 
     document.addEventListener("visibilitychange", () => {
-      const ctx = this.ctx;
-      if (!ctx) return;
       if (document.hidden) {
-        if (ctx.state === "running") {
-          void ctx.suspend();
-        }
+        this.suspendAudio();
       } else {
-        if (ctx.state === "suspended") {
-          void ctx.resume();
-        }
+        this.resumeAudio();
       }
     });
+  }
+
+  /** Suspend AudioContext (mute all sound). Called by SDK pause events and visibility change. */
+  suspendAudio(): void {
+    if (this.ctx?.state === "running") void this.ctx.suspend();
+  }
+
+  /** Resume AudioContext (unmute sound). Called by SDK resume events and visibility change. */
+  resumeAudio(): void {
+    if (this.ctx?.state === "suspended") void this.ctx.resume();
   }
 
   private installUnlockListener(): void {

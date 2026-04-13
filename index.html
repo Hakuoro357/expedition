@@ -41,7 +41,9 @@
     </div>
     <script>
       (function(){
-        var p=(new URLSearchParams(location.search)).get("lang")||(navigator.language||"").slice(0,2);
+        // Priority: GamePush SDK language > URL ?lang= > navigator.language
+        var gpl=window.__gp&&window.__gp.language;
+        var p=gpl||(new URLSearchParams(location.search)).get("lang")||(navigator.language||"").slice(0,2);
         var titles={ru:"\u041f\u0430\u0441\u044c\u044f\u043d\u0441: \u042d\u043a\u0441\u043f\u0435\u0434\u0438\u0446\u0438\u044f",tr:"Solitaire: Ke\u015fif",en:"Solitaire: Expedition"};
         var loads={ru:"\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430\u2026",tr:"Y\u00fckleniyor\u2026",en:"Loading\u2026"};
         var t=document.getElementById("loading-title");

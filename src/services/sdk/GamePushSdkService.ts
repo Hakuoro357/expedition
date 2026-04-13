@@ -84,8 +84,10 @@ export class GamePushSdkService implements SdkService {
   }
 
   detectLocale(): Locale | null {
-    const raw =
-      this.gp?.language ??
+    // GamePush self-test requires explicit use of gp.language.
+    // Read it as a separate step so the SDK can track the access.
+    const gpLang = this.gp ? this.gp.language : null;
+    const raw = gpLang ??
       (typeof navigator !== "undefined" ? navigator.language : "");
     if (!raw) return null;
     const lang = raw.slice(0, 2).toLowerCase();
@@ -132,5 +134,13 @@ export class GamePushSdkService implements SdkService {
     } catch (error) {
       console.warn("[gp] setCloudSave failed", error);
     }
+  }
+
+  onPause(callback: () => void): void {
+    this.gp?.on("pause", callback);
+  }
+
+  onResume(callback: () => void): void {
+    this.gp?.on("resume", callback);
   }
 }

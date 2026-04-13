@@ -1,25 +1,36 @@
 /**
- * Packs dist/ into solitaire-expedition-v{version}.zip.
+ * Packs dist/ into builds/{target}/solitaire-expedition-v{version}.zip.
+ *
+ * Usage:
+ *   node scripts/packBuild.mjs              # default: yandex
+ *   node scripts/packBuild.mjs --target=gamepush
  *
  * Uses adm-zip because PowerShell's Compress-Archive writes backslash path
- * separators on Windows, and Yandex Games' S3 extractor treats them as
- * literal filename characters — the assets/ folder never materialises and
- * the game fails to load with 404 on index-*.js and index-*.css.
- *
- * adm-zip normalises paths to forward slashes, which is required by the
- * ZIP spec (APPNOTE 4.4.17.1) and is what every sane unzipper expects.
+ * separators on Windows, and platform S3 extractors treat them as literal
+ * filename characters — the assets/ folder never materialises and the game
+ * fails to load with 404 on index-*.js and index-*.css.
  */
 import AdmZip from "adm-zip";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
 const distDir = resolve(rootDir, "dist");
+
+const target = process.argv.find(a => a.startsWith("--target="))?.split("=")[1] ?? "yandex";
+const validTargets = ["yandex", "gamepush"];
+if (!validTargets.includes(target)) {
+  console.error(`[pack] unknown target "${target}". Valid: ${validTargets.join(", ")}`);
+  process.exit(1);
+}
+
 const pkg = JSON.parse(readFileSync(resolve(rootDir, "package.json"), "utf8"));
 const version = pkg.version;
-const outputPath = resolve(rootDir, `solitaire-expedition-v${version}.zip`);
+const outDir = resolve(rootDir, "builds", target);
+mkdirSync(outDir, { recursive: true });
+const outputPath = resolve(outDir, `solitaire-expedition-v${version}.zip`);
 
 try {
   statSync(distDir);

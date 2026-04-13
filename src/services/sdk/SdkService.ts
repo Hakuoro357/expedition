@@ -37,4 +37,10 @@ export interface SdkService {
 
   /** Persist a cloud save string. Silently swallows errors. */
   setCloudSave(json: string): Promise<void>;
+
+  /** Subscribe to platform pause event (ads, tab switch). Used for sound control. */
+  onPause(callback: () => void): void;
+
+  /** Subscribe to platform resume event. */
+  onResume(callback: () => void): void;
 }
