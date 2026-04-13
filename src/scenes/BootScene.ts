@@ -96,8 +96,11 @@ export class BootScene extends Phaser.Scene {
     sdk.onLanguageChange((lang) => {
       const newLocale = lang === "ru" ? "ru" : lang === "tr" ? "tr" : "en";
       save.updateProgress((p) => ({ ...p, locale: newLocale }));
-      i18n.setLocale(newLocale);
-      window.location.reload();
+      // Добавляем ?lang= в URL чтобы загрузочный экран при reload показал
+      // правильный язык мгновенно (gp.language при старте ещё "ru" дефолт).
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", newLocale);
+      window.location.href = url.toString();
     });
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
 
