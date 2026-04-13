@@ -92,6 +92,13 @@ export class BootScene extends Phaser.Scene {
     // GamePush self-test требует контроль звука через SDK-события.
     sdk.onPause(() => sound.suspendAudio());
     sdk.onResume(() => sound.resumeAudio());
+    // GP sandbox: при переключении языка перезагружаем всю игру с новой локалью.
+    sdk.onLanguageChange((lang) => {
+      const newLocale = lang === "ru" ? "ru" : lang === "tr" ? "tr" : "en";
+      save.updateProgress((p) => ({ ...p, locale: newLocale }));
+      i18n.setLocale(newLocale);
+      window.location.reload();
+    });
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
 
     // Phase: 100% — ready

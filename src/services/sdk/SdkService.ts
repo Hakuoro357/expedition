@@ -43,4 +43,7 @@ export interface SdkService {
 
   /** Subscribe to platform resume event. */
   onResume(callback: () => void): void;
+
+  /** Subscribe to language change event (GP sandbox language switch). */
+  onLanguageChange(callback: (lang: string) => void): void;
 }

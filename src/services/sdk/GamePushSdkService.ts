@@ -143,4 +143,10 @@ export class GamePushSdkService implements SdkService {
   onResume(callback: () => void): void {
     this.gp?.on("resume", callback);
   }
+
+  onLanguageChange(callback: (lang: string) => void): void {
+    this.gp?.on("change:language", ((...args: unknown[]) => {
+      callback(String(args[0] ?? ""));
+    }));
+  }
 }
