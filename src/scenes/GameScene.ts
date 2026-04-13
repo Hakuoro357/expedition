@@ -706,12 +706,12 @@ export class GameScene extends Phaser.Scene {
     // innerHTML (не textContent) — чтобы вставить CSS-иконку монеты. Текст
      // локали прогоняем через escapeHtml. cost — число, безопасно.
     restartBtn.innerHTML = `${escapeHtml(i18n.t("restart"))} (${COIN_ICON_HTML} ${cost})`;
-    restartBtn.addEventListener("click", () => {
+    restartBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
       if (!this.gameState || !canAfford) return;
       const { mode, dealId } = this.gameState;
       save.addCoins(-cost);
       save.clearCurrentGame();
-      // Не передаём seed — resolveSeed сгенерирует новый расклад
       this.scene.start(SCENES.game, { mode, dealId });
     });
 
@@ -720,7 +720,8 @@ export class GameScene extends Phaser.Scene {
     confirmBtn.className = "modal-btn modal-btn--danger";
     confirmBtn.type = "button";
     confirmBtn.textContent = i18n.t("leaveConfirm");
-    confirmBtn.addEventListener("click", () => {
+    confirmBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
       this.destroyLeaveConfirm();
       this.scene.start(SCENES.map);
     });
@@ -730,7 +731,7 @@ export class GameScene extends Phaser.Scene {
     cancelBtn.className = "modal-btn";
     cancelBtn.type = "button";
     cancelBtn.textContent = i18n.t("leaveCancel");
-    cancelBtn.addEventListener("click", () => this.destroyLeaveConfirm());
+    cancelBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); this.destroyLeaveConfirm(); });
 
     buttons.appendChild(restartBtn);
     buttons.appendChild(confirmBtn);
@@ -742,7 +743,7 @@ export class GameScene extends Phaser.Scene {
     container.appendChild(panel);
     overlayEl.appendChild(container);
 
-    backdrop.addEventListener("click", () => this.destroyLeaveConfirm());
+    backdrop.addEventListener("pointerdown", (e) => { e.preventDefault(); this.destroyLeaveConfirm(); });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       container.remove();
@@ -1730,7 +1731,11 @@ export class GameScene extends Phaser.Scene {
     autoBtn.className = "modal-btn modal-btn--primary";
     autoBtn.type = "button";
     autoBtn.textContent = `✨ ${i18n.t("autoComplete")}`;
-    autoBtn.addEventListener("click", () => {
+    // Use pointerdown instead of click — ghostClickGuard blocks click
+    // events for 300ms after renderGameOverlay(), which runs right before
+    // this modal appears. pointerdown is not affected by the guard.
+    autoBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
       container.remove();
       this.autoCompleting = true;
       this.runAutoComplete();
@@ -1740,7 +1745,8 @@ export class GameScene extends Phaser.Scene {
     continueBtn.className = "modal-btn";
     continueBtn.type = "button";
     continueBtn.textContent = i18n.t("continue");
-    continueBtn.addEventListener("click", () => {
+    continueBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
       container.remove();
       this.autoCompleting = true;
     });
