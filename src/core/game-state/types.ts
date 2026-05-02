@@ -32,7 +32,10 @@ export type ProgressState = {
   coins: number;
   artifacts: string[];
   dailyClaimedOn: string | null;
-  locale: "ru" | "en" | "tr";
+  // Локаль UI. Должна быть синхронна с Locale из services/i18n/locales.ts.
+  // Не импортируем оттуда напрямую, чтобы избежать циклической зависимости
+  // (i18n-слой в принципе не зависит от core/game-state, и наоборот).
+  locale: "ru" | "en" | "tr" | "es" | "pt" | "de" | "fr";
   /** Consecutive daily login streak (days) */
   streakCount: number;
   /** ISO date string of the last daily login */
@@ -43,6 +46,12 @@ export type ProgressState = {
   sfxVolume?: number;
   /** BGM volume 0..1 (persisted across sessions) */
   musicVolume?: number;
+  /**
+   * Timestamp (ms) of the last successfully watched rewarded video.
+   * Stored in the save (not localStorage) so the cooldown is tied to
+   * the player's GamePush profile, not the browser storage.
+   */
+  lastRewardedAt?: number;
   /** Dev-only: all route points are playable */
   devAllPlayable?: boolean;
 };

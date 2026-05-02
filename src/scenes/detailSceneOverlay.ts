@@ -55,30 +55,34 @@ export function createDetailSceneOverlayHtml({
       ].join("")
     : "";
 
-  const entryHtml =
+  // Структура: .detail-page__panel обёртывает весь контент — заголовок+табы+
+  // scroll-body + sticky-кнопка. Scroll происходит только внутри __scroll-body,
+  // а кнопка «Назад» всегда видна снизу, не уезжает под фолд при длинном тексте.
+  // Паттерн заимствован из PrologueScene (v0.3.26): flex column + min-height:0
+  // на скролл-контейнере, flex-shrink:0 на кнопке. Fade-маска у scroll-body
+  // снимается через .is-at-bottom когда пользователь доскроллил до конца.
+  const entryBodyHtml =
     entry && activeTab === "entry"
       ? [
-          '<div class="detail-page__content detail-page__content--entry">',
           `  <div class="detail-page__eyebrow">${escapeHtml(entry.pointLabel)}</div>`,
           `  ${createPortraitHtml(entry.initials, entry.accent, entry.portraitUrl)}`,
           `  <div class="detail-page__entry-author">${escapeHtml(entry.author)}</div>`,
           `  <div class="detail-page__entry-body">${escapeHtml(entry.body)}</div>`,
-          "</div>",
         ].join("")
       : "";
 
-  const artifactHtml =
+  const artifactBodyHtml =
     artifact && activeTab === "artifact"
       ? [
-          '<div class="detail-page__content detail-page__content--artifact">',
           `  <div class="detail-page__eyebrow">${escapeHtml(artifact.title)}</div>`,
           artifact.imageUrl
             ? `  <img class="detail-page__artifact-image" src="${escapeHtml(safeImageUrl(artifact.imageUrl))}" alt="">`
             : "",
           `  <div class="detail-page__artifact-description">${escapeHtml(artifact.description)}</div>`,
-          "</div>",
         ].join("")
       : "";
+
+  const bodyContentHtml = entryBodyHtml || artifactBodyHtml;
 
   const rootClassName = [
     "detail-page",
@@ -90,9 +94,11 @@ export function createDetailSceneOverlayHtml({
 
   return [
     `<div class="${rootClassName}">`,
-    `  <button class="detail-page__home" data-detail-home="true" type="button">${escapeHtml(homeLabel)}</button>`,
+    '  <div class="detail-page__panel">',
     tabsHtml,
-    entryHtml || artifactHtml,
+    `    <div class="detail-page__scroll-body" data-detail-scroll>${bodyContentHtml}</div>`,
+    `    <button class="detail-page__home modal-btn modal-btn--primary" data-detail-home="true" type="button">${escapeHtml(homeLabel)}</button>`,
+    "  </div>",
     createAppNavHtml(navItems),
     "</div>",
   ].join("");

@@ -1,7 +1,7 @@
 import homeIconHtml from "../assets/ui/nav-icons/home.svg?raw";
 import undoIconHtml from "../assets/ui/nav-icons/undo.svg?raw";
 import hintIconHtml from "../assets/ui/nav-icons/hint.svg?raw";
-import rulesIconHtml from "../assets/ui/nav-icons/rules.svg?raw";
+import settingsIconHtml from "../assets/ui/nav-icons/settings.svg?raw";
 import type { Card } from "@/core/cards/types";
 import type { Locale } from "@/services/i18n/locales";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
@@ -9,7 +9,7 @@ import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 import { escapeHtml } from "@/ui/escapeHtml";
 import { COIN_ICON_HTML, COIN_TOKEN, expandCoinTokens } from "@/ui/coinIcon";
 
-type GameActionId = "undo" | "hint" | "rules" | "home";
+type GameActionId = "undo" | "hint" | "settings" | "home";
 type GameFoundationSlot = {
   suitSymbol: string;
   active: boolean;
@@ -42,12 +42,19 @@ function getActionIconHtml(id: GameActionId): string {
       return undoIconHtml;
     case "hint":
       return hintIconHtml;
-    case "rules":
-      return rulesIconHtml;
+    case "settings":
+      return settingsIconHtml;
     case "home":
       return homeIconHtml;
   }
 }
+
+/**
+ * Круглая кнопка-вопросик в правом верхнем углу — открывает правила.
+ * Inline SVG: круг + «?» с currentColor, легко перекрашивается через CSS.
+ */
+const RULES_QUESTION_ICON =
+  '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
 
 type GameSceneOverlayParams = {
   title: string;
@@ -58,7 +65,16 @@ type GameSceneOverlayParams = {
   foundationSlots: GameFoundationSlot[];
   undoLabel: string;
   hintLabel: string;
+  /**
+   * Visually and functionally disable the hint button. Set when a hint
+   * highlight is currently showing — prevents the tester from clicking
+   * several times in a row and paying `cost` twice per hint.
+   */
+  hintDisabled?: boolean;
+  /** Текст aria-label для `?`-кнопки в правом верхнем углу (Правила). */
   rulesLabel: string;
+  /** Label кнопки настроек, заменившей правила в нижнем баре. */
+  settingsLabel?: string;
   homeLabel: string;
   cards: GameOverlayCard[];
   dragCards: GameOverlayCard[];
@@ -209,7 +225,9 @@ export function createGameSceneOverlayHtml({
   foundationSlots,
   undoLabel,
   hintLabel,
+  hintDisabled,
   rulesLabel,
+  settingsLabel = "Settings",
   homeLabel,
   cards,
   dragCards,
@@ -219,16 +237,25 @@ export function createGameSceneOverlayHtml({
   emptyTableauSlots,
   locale = "en",
 }: GameSceneOverlayParams): string {
-  const items: Array<{ id: GameActionId; label: string }> = [
+  // Порядок [undo, hint, home, settings] — «Меню» (ex-«Настройки»)
+  // находится в правом нижнем углу, thumb-zone. Единая позиция на всех
+  // сценах: MapScene/DiaryScene/SettingsScene bottom-nav тоже имеют
+  // «Меню» третьим (правым) элементом.
+  const items: Array<{ id: GameActionId; label: string; disabled?: boolean }> = [
     { id: "undo", label: undoLabel },
-    { id: "hint", label: hintLabel },
-    { id: "rules", label: rulesLabel },
+    { id: "hint", label: hintLabel, disabled: hintDisabled },
     { id: "home", label: homeLabel },
+    { id: "settings", label: settingsLabel },
   ];
 
   const html = [
     '<div class="game-overlay">',
     `  <div class="game-overlay__coins">${COIN_ICON_HTML}<span class="game-overlay__coins-value">${escapeHtml(coinsLabel)}</span></div>`,
+    // Круглая «?» кнопка в правом верхнем углу — открывает правила игры.
+    // Перенесена из нижнего action-bar'а, чтобы освободить слот под
+    // Settings (пожелание тестировщиков — управлять звуком во время
+    // партии, не покидая сцену).
+    `  <button class="game-overlay__rules-btn" type="button" data-game-action="rules" aria-label="${escapeHtml(rulesLabel)}">${RULES_QUESTION_ICON}</button>`,
     '  <div class="game-overlay__header">',
     `    <div class="game-overlay__title">${escapeHtml(title)}</div>`,
     (subtitle ? `    <div class="game-overlay__subtitle">${escapeHtml(subtitle)}</div>` : ""),
@@ -245,7 +272,9 @@ export function createGameSceneOverlayHtml({
       // с кавычками — это сломает атрибут. В aria оставляем только текст,
       // а видимый лейбл раскрывается через expandCoinTokens ниже.
       const ariaLabel = item.label.split(COIN_TOKEN).join("").replace(/\s+/g, " ").trim();
-      return `    <button class="game-overlay__action game-overlay__action--${escapeHtml(item.id)}" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(ariaLabel)}"><span class="game-overlay__action-icon">${getActionIconHtml(item.id)}</span><span class="game-overlay__action-label">${escapeHtml(item.label)}</span></button>`;
+      const disabledAttr = item.disabled ? ' disabled aria-disabled="true"' : "";
+      const disabledClass = item.disabled ? " game-overlay__action--disabled" : "";
+      return `    <button class="game-overlay__action game-overlay__action--${escapeHtml(item.id)}${disabledClass}" data-game-action="${escapeHtml(item.id)}" type="button" aria-label="${escapeHtml(ariaLabel)}"${disabledAttr}><span class="game-overlay__action-icon">${getActionIconHtml(item.id)}</span><span class="game-overlay__action-label">${escapeHtml(item.label)}</span></button>`;
     }),
     "  </div>",
     "</div>",

@@ -1,4 +1,5 @@
 import type { Locale } from "@/services/i18n/locales";
+import type { SdkService } from "@/services/sdk/SdkService";
 
 function waitForYaGames(timeoutMs: number): Promise<YaGamesGlobal | null> {
   return new Promise((resolve) => {
@@ -25,7 +26,7 @@ function waitForYaGames(timeoutMs: number): Promise<YaGamesGlobal | null> {
   });
 }
 
-export class YandexSdkService {
+export class YandexSdkService implements SdkService {
   private sdk: YaGamesSDK | null = null;
   private initialized = false;
   private player: YaGamesPlayer | null = null;
@@ -161,6 +162,77 @@ export class YandexSdkService {
         }
       });
     });
+  }
+
+  // --- SdkService surface: Yandex direct adapter does not support these.
+  // Kept as no-ops so the interface is satisfied and main-branch Yandex
+  // builds compile without forcing all callers into GP-only paths.
+
+  async showInterstitial(): Promise<void> {
+    // Yandex: could be wired via adv.showFullscreenAdv, left as no-op
+    // here because current main-branch flow doesn't use it.
+  }
+
+  onPause(_callback: () => void): void {
+    // Yandex SDK does not expose explicit pause events — SoundService
+    // falls back to document.visibilitychange.
+  }
+
+  onResume(_callback: () => void): void {
+    // Same as onPause.
+  }
+
+  onLanguageChange(_callback: (lang: string) => void): void {
+    // Yandex locale is fixed per portal session; no runtime change event.
+  }
+
+  changeLanguage(_locale: Locale): void {
+    // Yandex Games не имеет runtime-API смены языка из SDK — язык
+    // задаётся пользователем в профиле и приходит при старте через
+    // environment.i18n.lang.
+  }
+
+  onMuteChange(_callback: (muted: boolean) => void): void {
+    // Yandex does not expose platform mute; soundservice uses its own user sliders.
+  }
+
+  isMuted(): boolean {
+    return false;
+  }
+
+  muteSounds(): void {
+    // Yandex Games не имеет платформенного mute API — тумблер из SettingsScene
+    // применяется напрямую через SoundService.setPlatformMuted. Этот метод —
+    // noop, чтобы общий интерфейс SdkService оставался единым.
+  }
+
+  unmuteSounds(): void {
+    // noop on Yandex (см. muteSounds).
+  }
+
+  setSfxMuted(_muted: boolean): void {
+    // Yandex: без платформенного sound-API, состояние применяется локально.
+  }
+
+  setMusicMuted(_muted: boolean): void {
+    // Yandex: без платформенного sound-API, состояние применяется локально.
+  }
+
+  showSticky(): void {
+    // Sticky banner is GP-specific — noop on direct Yandex path.
+  }
+
+  closeSticky(): void {
+    // noop on Yandex.
+  }
+
+  refreshSticky(): void {
+    // noop on Yandex.
+  }
+
+  async showPreloader(): Promise<boolean> {
+    // GP-specific placement; Yandex has no direct equivalent.
+    return false;
   }
 }
 

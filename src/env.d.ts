@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+/** Injected by vite.config.ts — версия из package.json и ISO-время билда. */
+declare const __APP_VERSION__: string;
+declare const __BUILD_TIME__: string;
+
 interface YaGamesPlayer {
   getMode?: () => Promise<string>;
   getData?: (keys?: string[]) => Promise<Record<string, unknown>>;
@@ -85,16 +89,42 @@ interface GamePushPlatform {
   id: string;
 }
 
+/**
+ * gp.sounds — официальный namespace управления звуком по GP-docs.
+ * Состояние: isMuted / isSFXMuted / isMusicMuted.
+ * События: "mute" / "unmute" / "mute:sfx" / "unmute:sfx" / "mute:music" / "unmute:music".
+ * Методы: mute/unmute, muteSFX/unmuteSFX, muteMusic/unmuteMusic.
+ */
+interface GamePushSounds {
+  isMuted: boolean;
+  isSFXMuted: boolean;
+  isMusicMuted: boolean;
+  on(event: string, callback: (...args: unknown[]) => void): void;
+  mute(): void;
+  unmute(): void;
+  muteSFX(): void;
+  unmuteSFX(): void;
+  muteMusic(): void;
+  unmuteMusic(): void;
+}
+
 interface GamePushSDK {
   ads: GamePushAds;
   player: GamePushPlayer;
   platform: GamePushPlatform;
+  /** Официальный namespace для звука/mute (GP docs). Опционален на случай старых SDK-сборок. */
+  sounds?: GamePushSounds;
   language: string;
   isMobile: boolean;
   isPortrait: boolean;
   isDev: boolean;
   serverTime: string;
   isPaused: boolean;
+  /**
+   * Legacy top-level mute flag. Современный путь — `gp.sounds.isMuted`.
+   * Оставлен как fallback для платформ, где `sounds` не доступен.
+   */
+  isMuted: boolean;
   gameStart(): void;
   gameStop(): void;
   gameplayStart(): void;
@@ -102,5 +132,6 @@ interface GamePushSDK {
   pause(): void;
   resume(): void;
   on(event: string, callback: (...args: unknown[]) => void): void;
+  changeLanguage(lang: string): void;
 }
 

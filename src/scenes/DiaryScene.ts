@@ -82,7 +82,9 @@ export class DiaryScene extends Phaser.Scene {
     });
   }
 
-  private buildArchiveEntries(locale: "ru" | "global" | "tr"): ArchiveEntryItem[] {
+  private buildArchiveEntries(
+    locale: "ru" | "global" | "en" | "tr" | "es" | "pt" | "de" | "fr",
+  ): ArchiveEntryItem[] {
     const { save } = getAppContext();
     const { progress } = save.load();
 
@@ -184,12 +186,8 @@ export class DiaryScene extends Phaser.Scene {
       activeTab: this.activeTab,
       entriesLabel: i18n.t("entries"),
       artifactsLabel: i18n.t("artifacts"),
-      emptyEntriesLabel:
-        i18n.currentLocale() === "ru" ? "Записи пока не открыты." : "No entries are open yet.",
-      emptyArtifactsLabel:
-        i18n.currentLocale() === "ru"
-          ? "Артефакты пока не найдены."
-          : "No artifacts found yet.",
+      emptyEntriesLabel: i18n.t("diaryEmptyEntries"),
+      emptyArtifactsLabel: i18n.t("diaryEmptyArtifacts"),
       entryItems: this.archiveEntries.map((item) => ({
         entryId: item.entryId,
         pointId: item.pointId,
@@ -204,7 +202,7 @@ export class DiaryScene extends Phaser.Scene {
       navItems: [
         { id: "home", label: i18n.t("backToMap"), active: false },
         { id: "daily", label: i18n.t("daily"), active: false },
-        { id: "settings", label: i18n.t("settings"), active: false },
+        { id: "settings", label: i18n.t("menu"), active: false },
       ],
     });
 
@@ -325,7 +323,9 @@ export class DiaryScene extends Phaser.Scene {
         return;
       }
       case "settings":
-        this.scene.start(SCENES.settings);
+        // returnTo="archive" — чтобы «← Назад» и повторный клик по
+        // активной «Настройки» вернули игрока в DiaryScene.
+        this.scene.start(SCENES.settings, { returnTo: "archive" });
         return;
     }
   }

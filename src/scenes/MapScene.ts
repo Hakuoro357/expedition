@@ -6,8 +6,7 @@ import { applyTextRenderQuality } from "@/app/rendering";
 import type { ProgressState } from "@/core/game-state/types";
 import { getNodeById, type ChapterNode } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
-import { getNarrativeEntryExcerpt } from "@/data/narrative/entries";
-import { getPointTitleByDealId } from "@/data/narrative/points";
+import { getPointMapDescriptionByDealId, getPointTitleByDealId } from "@/data/narrative/points";
 import {
   ROUTE_SHEETS,
   getCurrentRoutePointState,
@@ -58,7 +57,14 @@ export class MapScene extends Phaser.Scene {
     this.input.on("pointerdown", this.handlePointerDown, this);
     this.input.on("pointerup", this.handlePointerUp, this);
 
+    // Подписка на mute-изменения платформы. Если GP по какой-то причине
+    // изменит mute-статус ПОСЛЕ того как карта уже отрендерилась
+    // (preloader-ad закрылся, пользователь кликнул платформенную иконку
+    // звука и т.п.) — иконка в правом верхнем углу перерисуется.
+    const unsubscribeMute = sound.onMuteChange(() => this.render());
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      unsubscribeMute();
       this.overlayCleanup?.();
       this.overlay?.destroy();
       this.overlay = undefined;
@@ -70,7 +76,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private render(): void {
-    const { i18n, save } = getAppContext();
+    const { i18n, save, sound } = getAppContext();
     const progress = save.load().progress;
     const page = getRouteSheetByPage(this.currentPage) ?? ROUTE_SHEETS[0];
     const pageNodes = (page?.dealIds ?? [])
@@ -143,12 +149,19 @@ export class MapScene extends Phaser.Scene {
 
     if (activeNode && activePoint) {
       panelTitle = getPointTitleByDealId(activeNode.id, narrativeLocale) ?? `${i18n.t("point")} ${this.getDealSerial(activeNode.id)}`;
-      panelDescription = getNarrativeEntryExcerpt(activeNode.entryId, narrativeLocale) ?? "";
+      // Каждая точка имеет своё короткое описание, гарантированно
+      // помещающееся в 3 строки нижней map-панели — без обрезания
+      // многоточием. Раньше брали excerpt из длинного дневникового
+      // тела и обрезали по 150 символам.
+      panelDescription = getPointMapDescriptionByDealId(activeNode.id, narrativeLocale);
     } else if (pageFullyCompleted) {
       panelTitle = `✓ ${this.getPageLabel(locale, this.currentPage)}`;
       panelDescription = getRouteSheetSummary(this.currentPage, locale);
     }
 
+    // Читаем из SoundService (а не sdk.isMuted()) — единственный источник
+    // истины для UI, обновляется через onMuteChange listener.
+    const platformMuted = sound.isPlatformMuted();
     this.renderOverlay({
       pageLabel: this.getPageLabel(locale, this.currentPage),
       activePointTitle: panelTitle,
@@ -158,11 +171,13 @@ export class MapScene extends Phaser.Scene {
       routePoints: overlayPoints,
       routeSegments: overlaySegments,
       navItems: [
-        { id: "archive", label: i18n.currentLocale() === "ru" ? "Архив" : "Archive", active: false },
+        { id: "archive", label: i18n.t("archive"), active: false },
         { id: "daily", label: i18n.t("daily"), active: false },
-        { id: "settings", label: i18n.t("settings"), active: false },
+        { id: "settings", label: i18n.t("menu"), active: false },
       ],
       showDevTools: import.meta.env.DEV,
+      muted: platformMuted,
+      muteAriaLabel: platformMuted ? i18n.t("unmute") : i18n.t("mute"),
     });
   }
 
@@ -324,6 +339,23 @@ export class MapScene extends Phaser.Scene {
       disposers.push(() => devBackBtn.removeEventListener("click", onClick));
     }
 
+    // Плавающая кнопка звука — требование GP docs.
+    const muteBtn = root.querySelector<HTMLElement>('[data-route-action="toggle-mute"]');
+    if (muteBtn) {
+      const onClick = (): void => {
+        const { sdk, sound } = getAppContext();
+        // Источник правды — SoundService, не sdk.isMuted() (см. render).
+        const nextMuted = !sound.isPlatformMuted();
+        if (nextMuted) sdk.muteSounds();
+        else sdk.unmuteSounds();
+        // Локально: мгновенный UI-ответ + поддержка noop-платформ (Yandex).
+        sound.setPlatformMuted(nextMuted);
+        this.render();  // перерисует overlay с актуальной иконкой
+      };
+      muteBtn.addEventListener("click", onClick);
+      disposers.push(() => muteBtn.removeEventListener("click", onClick));
+    }
+
     this.overlayCleanup = () => {
       disposers.forEach((d) => d());
     };
@@ -360,7 +392,8 @@ export class MapScene extends Phaser.Scene {
         return;
       }
       case "settings":
-        this.scene.start(SCENES.settings);
+        // returnTo="map" явно — «← Назад» и клик по активной Settings вернут на карту.
+        this.scene.start(SCENES.settings, { returnTo: "map" });
         return;
     }
   }
@@ -404,7 +437,7 @@ export class MapScene extends Phaser.Scene {
     this.changePage(deltaX > 0 ? -1 : 1);
   }
 
-  private getPageLabel(locale: "ru" | "en" | "tr", page: number): string {
+  private getPageLabel(locale: Parameters<typeof getRouteSheetTitle>[1], page: number): string {
     return getRouteSheetTitle(page, locale);
   }
 

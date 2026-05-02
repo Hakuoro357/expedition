@@ -1,4 +1,11 @@
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf-8")) as {
+  version: string;
+};
+const BUILD_TIME = new Date().toISOString();
 
 // В dev GamePush CDN-скрипт может быть недоступен (оффлайн, VPN, etc.).
 // Плагин отдаёт минимальный mock, который регистрирует window.__gp с
@@ -38,6 +45,15 @@ const gamePushDevStub = {
     isDev: true,
     serverTime: new Date().toISOString(),
     isPaused: false,
+    isMuted: false,
+    sounds: {
+      isMuted: false, isSFXMuted: false, isMusicMuted: false,
+      on: noop,
+      mute: noop, unmute: noop,
+      muteSFX: noop, unmuteSFX: noop,
+      muteMusic: noop, unmuteMusic: noop
+    },
+    changeLanguage: noop,
     gameStart: noop, gameStop: noop,
     gameplayStart: noop, gameplayStop: noop,
     pause: noop, resume: noop,
@@ -64,11 +80,20 @@ export default defineConfig(({ command }) => ({
       "@": "/src"
     }
   },
-  // В production-сборке вырезаем console.* и debugger, чтобы внутренние
-  // отладочные сообщения не попадали в DevTools у обычных игроков.
+  // Версия и время билда — вшиваются в бандл через define, доступны
+  // как __APP_VERSION__ / __BUILD_TIME__ в рантайме. Нужны для показа
+  // в Settings, чтобы тестировщики GP могли однозначно видеть, какой
+  // билд запущен в песочнице.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
+  // В production оставляем console.info/warn/error для диагностики
+  // (нужно для GP-тестеров — логи [mute]/[gp.sync]/[save.persist]).
+  // Вырезаем только debug/log/trace — то что точно не полезно.
   esbuild:
     command === "build"
-      ? { drop: ["console", "debugger"] }
+      ? { drop: ["debugger"], pure: ["console.log", "console.debug", "console.trace"] }
       : undefined,
   build: {
     sourcemap: false,

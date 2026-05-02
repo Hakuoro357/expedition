@@ -95,16 +95,35 @@ export class DetailScene extends Phaser.Scene {
     this.children.removeAll(true);
     this.renderBackground(sheet.background.topColor, sheet.background.bottomColor, sheet.background.glowColor);
 
+    // Для артефакта локализация по старой схеме: ru/tr свои переводы,
+    // остальные (en/es/pt/de/fr) — английский fallback. Это MVP:
+    // атмосферные названия артефактов остаются на английском для
+    // европейских локалей, как и весь нарратив (см. narrative.global).
+    const uiLocale = i18n.currentLocale();
+    const artifactTitle = artifact
+      ? uiLocale === "ru"
+        ? artifact.titleRu
+        : uiLocale === "tr"
+          ? artifact.titleTr ?? artifact.titleEn
+          : artifact.titleEn
+      : "";
+    const artifactDescription = artifact
+      ? uiLocale === "ru"
+        ? artifact.descriptionRu
+        : uiLocale === "tr"
+          ? artifact.descriptionTr ?? artifact.descriptionEn
+          : artifact.descriptionEn
+      : "";
     const html = createDetailSceneOverlayHtml({
-      homeLabel: i18n.currentLocale() === "ru" ? "Назад" : "Back",
+      homeLabel: i18n.t("back"),
       navItems: [
         { id: "archive", label: i18n.t("archive"), active: false },
         { id: "daily", label: i18n.t("daily"), active: false },
-        { id: "settings", label: i18n.t("settings"), active: false },
+        { id: "settings", label: i18n.t("menu"), active: false },
       ],
       activeTab: this.activeTab,
-      entryTabLabel: i18n.currentLocale() === "ru" ? "Запись" : "Entry",
-      artifactTabLabel: i18n.currentLocale() === "ru" ? "Артефакт" : "Artifact",
+      entryTabLabel: i18n.t("tabEntry"),
+      artifactTabLabel: i18n.t("tabArtifact"),
       entry:
         entry && speaker
           ? {
@@ -118,8 +137,8 @@ export class DetailScene extends Phaser.Scene {
           : undefined,
       artifact: artifact
         ? {
-            title: i18n.currentLocale() === "ru" ? artifact.titleRu : artifact.titleEn,
-            description: i18n.currentLocale() === "ru" ? artifact.descriptionRu : artifact.descriptionEn,
+            title: artifactTitle,
+            description: artifactDescription,
             imageUrl: resolveArtifactLargeUrl(artifact.largeImageKey),
           }
         : undefined,
@@ -218,9 +237,23 @@ export class DetailScene extends Phaser.Scene {
       disposers.push(() => homeButton.removeEventListener("click", onClick));
     }
 
-    const scrollBody = root.querySelector<HTMLElement>(".detail-page__entry-body");
+    // Scroll-listener для fade-маски: когда пользователь доскроллил до
+    // конца — снимаем класс is-at-bottom через toggle, иначе последний
+    // параграф остаётся полупрозрачным. Если контент помещается без
+    // скролла — сразу добавляем is-at-bottom, чтобы маски не было вообще.
+    const scrollBody = root.querySelector<HTMLElement>("[data-detail-scroll]");
     if (scrollBody) {
       scrollBody.style.pointerEvents = "auto";
+      const updateScrollState = (): void => {
+        const atBottom =
+          scrollBody.scrollTop + scrollBody.clientHeight >= scrollBody.scrollHeight - 2;
+        scrollBody.classList.toggle("is-at-bottom", atBottom);
+      };
+      const onScroll = (): void => updateScrollState();
+      scrollBody.addEventListener("scroll", onScroll, { passive: true });
+      // Первичная оценка: контент короче, чем высота окна → сразу at-bottom.
+      updateScrollState();
+      disposers.push(() => scrollBody.removeEventListener("scroll", onScroll));
     }
 
     this.overlayCleanup = () => {

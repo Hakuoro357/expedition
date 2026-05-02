@@ -502,13 +502,92 @@ export function getHint(state: GameState): HintResult | null {
     }
   }
 
-  // Draw from stock
-  if (state.stock.cards.length > 0) {
-    return {
-      from: { zone: "stock", pileIndex: 0, cardIndex: 0 },
-      to: { zone: "waste", pileIndex: 0 },
-    };
-  }
+  // Перелистывание стока (stock → waste) НЕ считается подсказкой —
+  // игрок сам решает, когда тянуть следующую карту; мы не даём
+  // «подсказку», предлагающую то, что и так доступно ему одним тапом.
 
   return null;
+}
+
+/**
+ * Возвращает ВСЕ полезные ходы в порядке приоритета (тот же, что и у
+ * `getHint`). Используется GameScene для циклических подсказок: пока есть
+ * неиспользованные варианты — кнопка активна, клик показывает следующий.
+ * Фильтруем «бесполезные» tableau→tableau так же, как getHint.
+ */
+export function getAllHints(state: GameState): HintResult[] {
+  const hints: HintResult[] = [];
+  const wasteTop = state.waste.cards[state.waste.cards.length - 1];
+
+  // Waste → Foundation (highest priority)
+  if (wasteTop) {
+    for (let fi = 0; fi < state.foundations.length; fi++) {
+      if (canMoveCardToFoundation(wasteTop, state.foundations[fi], fi)) {
+        hints.push({
+          from: { zone: "waste", pileIndex: 0, cardIndex: state.waste.cards.length - 1 },
+          to: { zone: "foundation", pileIndex: fi },
+        });
+      }
+    }
+  }
+
+  // Tableau top → Foundation
+  for (let ti = 0; ti < state.tableau.length; ti++) {
+    const pile = state.tableau[ti];
+    const top = pile.cards[pile.cards.length - 1];
+    if (!top?.faceUp) continue;
+    for (let fi = 0; fi < state.foundations.length; fi++) {
+      if (canMoveCardToFoundation(top, state.foundations[fi], fi)) {
+        hints.push({
+          from: { zone: "tableau", pileIndex: ti, cardIndex: pile.cards.length - 1 },
+          to: { zone: "foundation", pileIndex: fi },
+        });
+      }
+    }
+  }
+
+  // Waste → Tableau
+  if (wasteTop) {
+    for (let ti = 0; ti < state.tableau.length; ti++) {
+      if (canMoveCardsToTableau([wasteTop], state.tableau[ti])) {
+        hints.push({
+          from: { zone: "waste", pileIndex: 0, cardIndex: state.waste.cards.length - 1 },
+          to: { zone: "tableau", pileIndex: ti },
+        });
+      }
+    }
+  }
+
+  // Tableau → Tableau — полезные (revealsFaceDown || emptiesColumn с королём).
+  for (let si = 0; si < state.tableau.length; si++) {
+    const pile = state.tableau[si];
+    const firstFaceUpIdx = pile.cards.findIndex((c) => c.faceUp);
+    if (firstFaceUpIdx === -1) continue;
+
+    for (let startIdx = firstFaceUpIdx; startIdx < pile.cards.length; startIdx++) {
+      const movingCards = pile.cards.slice(startIdx);
+      if (!isDescendingAlternating(movingCards)) continue;
+
+      const revealsFaceDown = startIdx > 0 && !pile.cards[startIdx - 1]!.faceUp;
+      const emptiesColumn = startIdx === 0 && movingCards[0]!.rank === 13;
+      if (!revealsFaceDown && !emptiesColumn) continue;
+
+      for (let ti = 0; ti < state.tableau.length; ti++) {
+        if (si === ti) continue;
+        if (emptiesColumn && state.tableau[ti].cards.length === 0) continue;
+        if (canMoveCardsToTableau(movingCards, state.tableau[ti])) {
+          hints.push({
+            from: { zone: "tableau", pileIndex: si, cardIndex: startIdx },
+            to: { zone: "tableau", pileIndex: ti },
+          });
+        }
+      }
+    }
+  }
+
+  // Stock → waste намеренно НЕ добавляем в список подсказок: это
+  // обычное перелистывание колоды, игрок делает его сам, и платить за
+  // «подсказку вытянуть новую карту» бессмысленно.
+
+  return hints;
 }

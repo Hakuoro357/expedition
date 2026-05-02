@@ -107,6 +107,13 @@ export class SoundService {
   private pendingScene: BgmScene | null = null;
   private unlockListenerInstalled = false;
   private visibilityListenerInstalled = false;
+  /**
+   * Глобальный mute от платформы (GamePush шлёт "change:mute" / "toggleMute",
+   * когда игрок жмёт иконку звука в оболочке GP). Хранится отдельно от
+   * user-слайдеров, чтобы при разбане мы могли вернуть ровно те громкости,
+   * которые игрок выставил руками.
+   */
+  private platformMuted = false;
 
   /**
    * Требование Яндекса 1.3: при сворачивании вкладки/смене таба звук
@@ -143,19 +150,25 @@ export class SoundService {
     if (typeof window === "undefined") return;
     this.unlockListenerInstalled = true;
 
-    const unlock = (): void => {
+    // Async-handler: ОБЯЗАТЕЛЬНО await ctx.resume() до вызова playBgm,
+    // иначе playBgm видит ctx.state === "suspended" и снова откладывает
+    // сцену в pendingScene, а listener уже удалён — музыка остаётся
+    // "замороженной" до следующей сценовой transition. Ранее использовался
+    // `void ctx.resume()` (fire-and-forget) что давало гонку.
+    const unlock = async (): Promise<void> => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+      this.unlockListenerInstalled = false;
       const ctx = this.ctx;
       if (ctx && ctx.state === "suspended") {
-        void ctx.resume();
+        try { await ctx.resume(); } catch { /* no-op */ }
       }
       if (this.pendingScene && this.musicVolume > 0) {
         const scene = this.pendingScene;
         this.pendingScene = null;
         this.playBgm(scene);
       }
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("touchstart", unlock);
     };
 
     window.addEventListener("pointerdown", unlock, { once: false });
@@ -171,12 +184,17 @@ export class SoundService {
         this.masterGain.gain.value = 1;
         this.masterGain.connect(this.ctx.destination);
 
+        // Важно: при инициализации bus'ов учитываем platformMuted, иначе
+        // получаем баг «кнопка звука показывает muted, а музыка играет» —
+        // setPlatformMuted мог быть вызван ДО создания контекста (bus был
+        // null → apply no-op), затем loadAll создаёт контекст и без этой
+        // проверки залил бы gain без учёта mute.
         this.sfxBus = this.ctx.createGain();
-        this.sfxBus.gain.value = this.sfxVolume * SFX_MAX_GAIN;
+        this.sfxBus.gain.value = this.platformMuted ? 0 : this.sfxVolume * SFX_MAX_GAIN;
         this.sfxBus.connect(this.masterGain);
 
         this.musicBus = this.ctx.createGain();
-        this.musicBus.gain.value = this.musicVolume * BGM_MAX_GAIN;
+        this.musicBus.gain.value = this.platformMuted ? 0 : this.musicVolume * BGM_MAX_GAIN;
         this.musicBus.connect(this.masterGain);
 
         // Подвешиваем visibilitychange один раз — после создания контекста.
@@ -271,27 +289,76 @@ export class SoundService {
   // Volume
   // ============================================================
 
+  /**
+   * Платформенный mute от GP: заглушает все шины независимо от того,
+   * где стоят user-слайдеры. При `muted=false` возвращаем пользовательские
+   * громкости (они не были затёрты — просто применялся коэффициент 0).
+   */
+  /**
+   * Единственный источник истины для UI-иконок звука. Инициализируется
+   * в BootScene через `sound.setPlatformMuted(sdk.isMuted())` и далее
+   * обновляется только через `sdk.onMuteChange` event listener.
+   * UI должен читать отсюда, а НЕ `sdk.isMuted()` напрямую — иначе
+   * иконка и реальный gain bus'а могут разойтись, если gp.sounds.isMuted
+   * мигнёт между вызовами (например, во время preloader-ad'а).
+   */
+  isPlatformMuted(): boolean { return this.platformMuted; }
+
+  /** Слушатели смены platformMuted — сцены подписываются для re-render иконки. */
+  private muteChangeListeners = new Set<(muted: boolean) => void>();
+
+  /**
+   * Подписка на изменение platformMuted. Возвращает unsubscribe.
+   * Нужно чтобы UI (иконка в MapScene/SettingsScene) перерисовывалась,
+   * когда платформа (GP) меняет mute-состояние ПОСЛЕ того как сцена
+   * уже отрендерилась — например, после закрытия preloader-ad'а.
+   */
+  onMuteChange(listener: (muted: boolean) => void): () => void {
+    this.muteChangeListeners.add(listener);
+    return () => this.muteChangeListeners.delete(listener);
+  }
+
+  setPlatformMuted(muted: boolean): void {
+    const changed = this.platformMuted !== muted;
+    this.platformMuted = muted;
+    this.applySfxBusGain();
+    this.applyMusicBusGain();
+    if (changed) {
+      this.muteChangeListeners.forEach((listener) => {
+        try { listener(muted); }
+        catch (e) { console.warn("[sound] mute-change listener threw", e); }
+      });
+    }
+  }
+
+  private applySfxBusGain(): void {
+    if (!this.sfxBus || !this.ctx) return;
+    const target = this.platformMuted ? 0 : this.sfxVolume * SFX_MAX_GAIN;
+    // Прямое присваивание `.value` — единственный bulletproof-способ:
+    // `setValueAtTime(target, currentTime)` не всегда отражается в
+    // `gain.value` getter в Chrome (логи с продом показали что после
+    // setValueAtTime(0) `.value` остаётся 0.21 и звук продолжает идти).
+    // Присваивание сразу меняет effective gain — audio graph видит 0.
+    this.sfxBus.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.sfxBus.gain.value = target;
+  }
+
+  private applyMusicBusGain(): void {
+    if (!this.musicBus || !this.ctx) return;
+    const target = this.platformMuted ? 0 : this.musicVolume * BGM_MAX_GAIN;
+    this.musicBus.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.musicBus.gain.value = target;
+  }
+
   setSfxVolume(value: number): void {
     this.sfxVolume = Math.max(0, Math.min(1, value));
-    if (this.sfxBus && this.ctx) {
-      this.sfxBus.gain.setTargetAtTime(
-        this.sfxVolume * SFX_MAX_GAIN,
-        this.ctx.currentTime,
-        0.01,
-      );
-    }
+    this.applySfxBusGain();
   }
 
   setMusicVolume(value: number): void {
     const prev = this.musicVolume;
     this.musicVolume = Math.max(0, Math.min(1, value));
-    if (this.musicBus && this.ctx) {
-      this.musicBus.gain.setTargetAtTime(
-        this.musicVolume * BGM_MAX_GAIN,
-        this.ctx.currentTime,
-        0.05,
-      );
-    }
+    this.applyMusicBusGain();
     // If music was muted and user restored volume, try to resume the active scene.
     if (prev === 0 && this.musicVolume > 0 && this.pendingScene) {
       const scene = this.pendingScene;

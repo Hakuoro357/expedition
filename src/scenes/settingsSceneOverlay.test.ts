@@ -8,11 +8,16 @@ describe("settingsSceneOverlay", () => {
       title: "Настройки",
       languageLabel: "Язык",
       resetLabel: "Сбросить сохранение",
-      ruLabel: "✓ RU",
-      enLabel: "EN",
-      trLabel: "TR",
-      sfxLabel: "Звук",
+      localeOptions: [
+        { code: "ru", label: "RU", active: true },
+        { code: "en", label: "EN", active: false },
+        { code: "tr", label: "TR", active: false },
+      ],
+      sfxLabel: "Эффекты",
       musicLabel: "Музыка",
+      soundLabel: "Звук",
+      muteToggleLabel: "Выключить",
+      muted: false,
       sfxVolume: 0.8,
       musicVolume: 0.6,
       navItems: [
@@ -24,10 +29,13 @@ describe("settingsSceneOverlay", () => {
 
     expect(html).toContain("settings-page__title");
     expect(html).toContain('data-settings-action="locale-ru"');
+    expect(html).toContain('data-settings-action="toggle-mute"');
     expect(html).toContain('data-settings-volume="sfx"');
     expect(html).toContain('data-settings-volume="music"');
-    expect(html).toContain('data-settings-action="reset-save"');
+    // «Сброс сохранения» удалён по требованию тестировщиков — его быть не должно.
+    expect(html).not.toContain('data-settings-action="reset-save"');
     expect(html).toContain('data-app-nav="settings"');
+    expect(html).toContain('aria-pressed="false"');
     expect(html).toContain("80%");
     expect(html).toContain("60%");
   });

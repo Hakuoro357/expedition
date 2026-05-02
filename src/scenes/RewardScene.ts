@@ -7,6 +7,7 @@ import type { GameMode } from "@/core/game-state/types";
 import { CHAPTERS, getNodeById } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { getChapterTitle } from "@/data/naming";
+import { getRewardById } from "@/data/narrative/rewards";
 import {
   buildRewardRevealItems,
 } from "@/scenes/rewardRevealItems";
@@ -74,9 +75,17 @@ export class RewardScene extends Phaser.Scene {
       // Возврат из карточки записи/артефакта: награды уже начислены
       // и пушнуты в облако при первом показе. Просто восстанавливаем
       // отображение reveal-items по данным узла, без мутаций сейва.
+      //
+      // Важно: artifactAwarded берём через ту же цепочку, что и
+      // completeNode / buildRewardRevealItems (`reward.collectibleArtifactId`
+      // с fallback на `node.artifactId`). Без этого, если у reward задан
+      // свой collectibleArtifactId, отличный от node.artifactId, реальный
+      // initial artifactAwarded не совпадёт с expectedArtifactId при
+      // проверке в buildRewardRevealItems и артефакт исчезнет с экрана.
       if (mode === "adventure" && node) {
         rewardId = node.rewardId ?? null;
-        artifactAwarded = node.artifactId ?? null;
+        const reward = rewardId ? getRewardById(rewardId) : undefined;
+        artifactAwarded = reward?.collectibleArtifactId ?? node.artifactId ?? null;
       }
     } else if (preview) {
       if (mode === "adventure" && node) {
@@ -117,7 +126,9 @@ export class RewardScene extends Phaser.Scene {
     }
 
     if (!preview && !data.returnFromDetail) {
-      void save.pushToCloud(getAppContext().sdk);
+      // gp.player — единственный источник истины; flush форсирует sync
+      // награды в облако до перехода на следующую сцену.
+      void save.flush();
     }
 
     if (!data.returnFromDetail) {
@@ -141,6 +152,9 @@ export class RewardScene extends Phaser.Scene {
             rewardId,
             artifactAwarded,
             locale: narrativeLocale,
+            // Локализованные бейджи «Запись»/«Артефакт» для всех 7 UI-локалей.
+            entryBadgeLabel: i18n.t("tabEntry"),
+            artifactBadgeLabel: i18n.t("tabArtifact"),
           })
         : [];
 
@@ -166,7 +180,6 @@ export class RewardScene extends Phaser.Scene {
 
   private renderOverlay(): void {
     const { i18n } = getAppContext();
-    const isRu = i18n.currentLocale() === "ru";
     const adBonus = this.mode === "daily" ? ECONOMY.dailyAdBonusCoins : ECONOMY.adBonusCoins;
 
     this.renderRewardOverlay({
@@ -176,14 +189,14 @@ export class RewardScene extends Phaser.Scene {
       foundTitle: this.revealItems.length > 0 ? i18n.t("foundItems") : undefined,
       revealItems: this.revealItems,
       rewardLines: this.revealItems.length > 0 ? [] : [i18n.t("reward")],
-      adLabel: isRu ? `Реклама (+${adBonus} ${COIN_TOKEN})` : `Ad (+${adBonus} ${COIN_TOKEN})`,
+      adLabel: `${i18n.t("adLabel")} (+${adBonus} ${COIN_TOKEN})`,
       adDisabled: this.adBonusShown,
       continueLabel: i18n.t("continue"),
       adStatus: this.adStatusText,
       navItems: [
         { id: "archive", label: i18n.t("archive"), active: false },
         { id: "daily", label: i18n.t("daily"), active: false },
-        { id: "settings", label: i18n.t("settings"), active: false },
+        { id: "settings", label: i18n.t("menu"), active: false },
       ],
     });
     this.bindOverlayEvents();
@@ -283,6 +296,9 @@ export class RewardScene extends Phaser.Scene {
         const rewarded = await ads.showRewardedVideo("post_win_bonus");
         if (!rewarded) return;
         save.addCoins(adBonus);
+        // Явный sync в gp.player — требование тестировщика: монеты от
+        // rewarded-видео должны персиститься сразу после начисления.
+        await save.flush();
         this.adBonusShown = true;
         this.adStatusText = `+${adBonus} ${COIN_TOKEN}`;
         sound.goodMove();
@@ -341,7 +357,16 @@ export class RewardScene extends Phaser.Scene {
         return;
       }
       case "settings":
-        this.scene.start(SCENES.settings);
+        // Возврат в этот же экран наград восстановит reveal-items через
+        // returnFromDetail=true (см. SettingsScene.handleGoBack "reward").
+        this.scene.start(SCENES.settings, {
+          returnTo: "reward",
+          rewardData: {
+            mode: this.mode,
+            dealId: this.dealId,
+            preview: this.preview || undefined,
+          },
+        });
         return;
     }
   }

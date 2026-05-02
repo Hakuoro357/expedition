@@ -1,40 +1,24 @@
 import { ECONOMY } from "@/app/config/economy";
 import { AnalyticsService } from "@/services/analytics/AnalyticsService";
+import type { SaveService } from "@/services/save/SaveService";
 import type { SdkService } from "@/services/sdk/SdkService";
 
-// Кулдаун хранится в localStorage, чтобы перезагрузка страницы или релоад
-// сцены не сбрасывали интервал между показами rewarded-роликов. Иначе игрок
-// мог бы получать бонус заметно чаще, чем разрешено экономикой.
-const REWARDED_COOLDOWN_KEY = "ads.lastRewardedAt";
-
-function readLastRewardedAt(): number {
-  try {
-    const raw = window.localStorage.getItem(REWARDED_COOLDOWN_KEY);
-    if (!raw) return 0;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writeLastRewardedAt(ts: number): void {
-  try {
-    window.localStorage.setItem(REWARDED_COOLDOWN_KEY, String(ts));
-  } catch {
-    // ignore — кулдаун это best-effort защита
-  }
-}
-
+/**
+ * AdsService оборачивает platform-SDK-вызовы рекламы с учётом кулдауна
+ * rewarded и переходов gameplayStart/Stop.  Кулдаун хранится в SaveService
+ * (`progress.lastRewardedAt`) — тестировщик GamePush требует, чтобы все
+ * клиентские данные шли через gp.player, без отдельного localStorage.
+ */
 export class AdsService {
   constructor(
     private readonly sdk: SdkService,
-    private readonly analytics: AnalyticsService
+    private readonly analytics: AnalyticsService,
+    private readonly save: SaveService,
   ) {}
 
   async showRewardedVideo(placement: string): Promise<boolean> {
     const now = Date.now();
-    const lastRewardedAt = readLastRewardedAt();
+    const lastRewardedAt = this.save.load().progress.lastRewardedAt ?? 0;
 
     if (now - lastRewardedAt < ECONOMY.rewardedAdCooldownMs) {
       this.analytics.track("rewarded_offer_skipped", { placement, reason: "cooldown" });
@@ -42,8 +26,8 @@ export class AdsService {
     }
 
     this.analytics.track("rewarded_offer_shown", { placement });
-    // Яндекс ожидает паузу геймплея перед показом рекламы и
-    // возобновление после — иначе нарушается аудит частоты ad-показов.
+    // Pause active gameplay before ad and resume after — требование Яндекса
+    // и GamePush для корректного аудита частоты показов.
     this.sdk.gameplayStop();
     let rewarded = false;
     try {
@@ -53,7 +37,9 @@ export class AdsService {
     }
 
     if (rewarded) {
-      writeLastRewardedAt(Date.now());
+      // Персистим cooldown через сейв. Flush вызывает caller после
+      // начисления монет — одной записи в cloud достаточно на оба поля.
+      this.save.updateProgress((p) => ({ ...p, lastRewardedAt: Date.now() }));
       this.analytics.track("rewarded_offer_complete", { placement });
     }
 
@@ -69,5 +55,47 @@ export class AdsService {
     } finally {
       this.sdk.gameplayStart();
     }
+  }
+
+  /**
+   * Sticky banner — постоянная рекламная полоса, требуемая GP. В отличие
+   * от rewarded/interstitial НЕ ставит геймплей на паузу: баннер показан
+   * параллельно с игрой, игрок продолжает кликать по картам.
+   */
+  showStickyBanner(placement: string): void {
+    this.analytics.track("sticky_banner_shown", { placement });
+    this.sdk.showSticky();
+  }
+
+  hideStickyBanner(): void {
+    this.sdk.closeSticky();
+  }
+
+  /**
+   * Обновить креатив sticky-баннера. Вызывать между партиями / на смене
+   * сцены — GP ротирует объявление только по явному запросу.
+   */
+  refreshStickyBanner(): void {
+    this.sdk.refreshSticky();
+  }
+
+  /**
+   * Preloader ad — фуллскрин-объявление перед gameStart. Вызывается
+   * в BootScene до `sdk.signalReady()`. Не трогает gameplayStart/Stop:
+   * геймплей ещё не начался.
+   */
+  async showPreloader(): Promise<boolean> {
+    this.analytics.track("preloader_offer_shown", {});
+    let shown = false;
+    try {
+      shown = await this.sdk.showPreloader();
+    } catch (error) {
+      console.warn("[ads] showPreloader threw", error);
+      shown = false;
+    }
+    if (shown) {
+      this.analytics.track("preloader_offer_complete", {});
+    }
+    return shown;
   }
 }

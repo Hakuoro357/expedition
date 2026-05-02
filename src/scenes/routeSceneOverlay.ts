@@ -34,6 +34,9 @@ type RouteSceneOverlayParams = {
   routeSegments: RouteOverlaySegment[];
   navItems: RouteNavItem[];
   showDevTools?: boolean;
+  /** GP docs: видимая кнопка управления звуком прямо на главной сцене. */
+  muted?: boolean;
+  muteAriaLabel?: string;
 };
 
 /** Viewport width used for label placement clamping */
@@ -168,7 +171,17 @@ export function createRouteSceneOverlayHtml({
   routeSegments,
   navItems,
   showDevTools,
+  muted = false,
+  muteAriaLabel = "Toggle sound",
 }: RouteSceneOverlayParams): string {
+  const soundIcon = muted
+    ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+  const muteBtnClass = muted
+    ? "route-overlay__mute route-overlay__mute--muted"
+    : "route-overlay__mute";
+  const muteBtnHtml = `<button class="${muteBtnClass}" type="button" data-route-action="toggle-mute" aria-label="${escapeHtml(muteAriaLabel)}" aria-pressed="${muted ? "true" : "false"}">${soundIcon}</button>`;
+
   const activePointHtml =
     activePointTitle || activePointDescription
       ? [
@@ -196,6 +209,7 @@ export function createRouteSceneOverlayHtml({
 
   return [
     '<div class="route-overlay">',
+    `  ${muteBtnHtml}`,
     devToolsHtml,
     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
     activePointHtml,

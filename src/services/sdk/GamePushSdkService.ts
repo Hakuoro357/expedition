@@ -59,7 +59,14 @@ export class GamePushSdkService implements SdkService {
     return this.gp !== null;
   }
 
+  private gameStartCalled = false;
   signalReady(): void {
+    // Идемпотентно — gameStart должен прозвучать ровно один раз за сессию.
+    // Несколько мест в коде могут позвать signalReady (BootScene как safety
+    // net, MapScene как "точно интерактивно"), но GP gamekStart повторно
+    // вызывать не надо.
+    if (this.gameStartCalled) return;
+    this.gameStartCalled = true;
     try {
       this.gp?.gameStart();
     } catch (error) {
@@ -83,16 +90,32 @@ export class GamePushSdkService implements SdkService {
     }
   }
 
+  changeLanguage(locale: Locale): void {
+    try {
+      this.gp?.changeLanguage?.(locale);
+    } catch (error) {
+      console.warn("[gp] changeLanguage failed", error);
+    }
+  }
+
   detectLocale(): Locale | null {
-    // GamePush self-test requires explicit use of gp.language.
-    // Read it as a separate step so the SDK can track the access.
-    const gpLang = this.gp ? this.gp.language : null;
+    // GP docs (get-start/common-features#язык): gp.language — основной
+    // способ определить язык при запуске. Читаем его отдельным шагом,
+    // чтобы GP self-test видел обращение к API. `|| null` даёт корректный
+    // fallback на navigator.language даже если gp.language === "".
+    const gpLang = (this.gp && this.gp.language) || null;
     const raw = gpLang ??
       (typeof navigator !== "undefined" ? navigator.language : "");
     if (!raw) return null;
     const lang = raw.slice(0, 2).toLowerCase();
+    // Поддерживаемые локали v0.3.30: ru / en / tr / es / pt / de / fr.
+    // Для pt принимаем и pt-BR, и pt-PT — оба мапятся в единый `pt`.
     if (lang === "ru") return "ru";
     if (lang === "tr") return "tr";
+    if (lang === "es") return "es";
+    if (lang === "pt") return "pt";
+    if (lang === "de") return "de";
+    if (lang === "fr") return "fr";
     return "en";
   }
 
@@ -148,5 +171,119 @@ export class GamePushSdkService implements SdkService {
     this.gp?.on("change:language", ((...args: unknown[]) => {
       callback(String(args[0] ?? ""));
     }));
+  }
+
+  /**
+   * Канонический путь по GP docs (https://docs.gamepush.com/ru/docs/sounds/):
+   * подписка на `gp.sounds.on("mute"/"unmute", cb)`. Событие приходит БЕЗ
+   * аргумента — состояние определяется именем события.
+   *
+   * Fallback на legacy top-level события (`toggleMute` / `change:mute`)
+   * остаётся для платформ, где `gp.sounds` не экспортирован.
+   */
+  onMuteChange(callback: (muted: boolean) => void): void {
+    // Подписываемся на ВСЕ возможные каналы mute-событий GP.
+    // Разные версии SDK и платформы фаерят разные события: gp.sounds.on
+    // ("mute"/"unmute") — канон; legacy gp.on("toggleMute"/"change:mute") —
+    // для старых сборок. Subscribe на все: повторы идемпотентны
+    // (setPlatformMuted с тем же значением = no-op в UI).
+    if (this.gp?.sounds) {
+      this.gp.sounds.on("mute", () => callback(true));
+      this.gp.sounds.on("unmute", () => callback(false));
+    }
+    const legacyHandler = (...args: unknown[]): void => {
+      const arg = args[0];
+      const muted = typeof arg === "boolean" ? arg : this.isMuted();
+      callback(muted);
+    };
+    this.gp?.on("toggleMute", legacyHandler);
+    this.gp?.on("change:mute", legacyHandler);
+  }
+
+  isMuted(): boolean {
+    const s = this.gp?.sounds?.isMuted;
+    if (typeof s === "boolean") return s;
+    const legacy = this.gp?.isMuted;
+    if (typeof legacy === "boolean") return legacy;
+    return false;
+  }
+
+  muteSounds(): void {
+    try {
+      this.gp?.sounds?.mute();
+    } catch (error) {
+      console.warn("[gp] sounds.mute failed", error);
+    }
+  }
+
+  unmuteSounds(): void {
+    try {
+      this.gp?.sounds?.unmute();
+    } catch (error) {
+      console.warn("[gp] sounds.unmute failed", error);
+    }
+  }
+
+  setSfxMuted(muted: boolean): void {
+    try {
+      if (muted) this.gp?.sounds?.muteSFX();
+      else this.gp?.sounds?.unmuteSFX();
+    } catch (error) {
+      console.warn("[gp] sounds.(un)muteSFX failed", error);
+    }
+  }
+
+  setMusicMuted(muted: boolean): void {
+    try {
+      if (muted) this.gp?.sounds?.muteMusic();
+      else this.gp?.sounds?.unmuteMusic();
+    } catch (error) {
+      console.warn("[gp] sounds.(un)muteMusic failed", error);
+    }
+  }
+
+  showSticky(): void {
+    try {
+      this.gp?.ads.showSticky();
+    } catch (error) {
+      console.warn("[gp] showSticky failed", error);
+    }
+  }
+
+  closeSticky(): void {
+    try {
+      this.gp?.ads.closeSticky();
+    } catch (error) {
+      console.warn("[gp] closeSticky failed", error);
+    }
+  }
+
+  refreshSticky(): void {
+    try {
+      this.gp?.ads.refreshSticky();
+    } catch (error) {
+      console.warn("[gp] refreshSticky failed", error);
+    }
+  }
+
+  async showPreloader(): Promise<boolean> {
+    if (!this.gp?.ads) return false;
+    // GP sandbox / draft-проекты без сконфигурированного preloader-слота
+    // могут вернуть промис, который никогда не резолвится. Это вешает
+    // весь BootScene (signalReady + loading-screen remove стоят после
+    // await). Страхуемся 8-секундным таймаутом — в проде preloader
+    // типично 3–5 сек, 8с оставляет запас; в sandbox даёт мгновенный
+    // fallback в false, чтобы игра не зависала на лоадере.
+    try {
+      const adPromise = Promise.resolve(this.gp.ads.showPreloader());
+      const timeout = new Promise<false>((resolve) => {
+        setTimeout(() => resolve(false), 8000);
+      });
+      const result = await Promise.race([adPromise, timeout]);
+      return !!result;
+    } catch (error) {
+      console.warn("[gp] showPreloader failed", error);
+      return false;
+    }
   }
 }

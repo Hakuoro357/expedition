@@ -18,14 +18,16 @@ export class PrologueScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
-    const { i18n, save, analytics } = getAppContext();
+    const { i18n, analytics } = getAppContext();
     analytics.track("prologue_open", {});
 
     // Solid background — same dark tone as rules overlay
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x132220);
 
     const locale = i18n.currentLocale();
-    const paragraphs = PROLOGUE_TEXT[locale] ?? PROLOGUE_TEXT.ru;
+    // Fallback на английский, а не русский — для неизвестной локали
+    // корректнее показать интернациональный текст.
+    const paragraphs = PROLOGUE_TEXT[locale] ?? PROLOGUE_TEXT.en;
     const buttonLabel = i18n.t("prologueButton");
 
     const html = this.buildHtml(paragraphs, buttonLabel);
@@ -45,9 +47,9 @@ export class PrologueScene extends Phaser.Scene {
       this.overlay?.destroy();
       this.overlay = undefined;
     });
-
-    // Mark prologue as shown so it never appears again
-    save.updateProgress((p) => ({ ...p, prologueShown: true }));
+    // Prologue-shown flag пишется ТОЛЬКО при клике «Продолжить»
+    // (см. bindButton). На этапе create — никаких save-мутаций, иначе
+    // debounced persist триггерит gp.player.sync() на старте.
   }
 
   private buildHtml(paragraphs: string[], buttonLabel: string): string {
@@ -77,12 +79,35 @@ export class PrologueScene extends Phaser.Scene {
 
     button.style.pointerEvents = "auto";
     const onClick = (): void => {
+      // Помечаем prologue просмотренным ПО КЛИКУ пользователя —
+      // это явное пользовательское действие, допустимый триггер для
+      // debounced cloud-sync. На этапе scene.create мутацию не делаем.
+      const { save } = getAppContext();
+      save.updateProgress((p) => ({ ...p, prologueShown: true }));
       this.scene.start(SCENES.game, { mode: "adventure", dealId: FIRST_DEAL_ID });
     };
     button.addEventListener("click", onClick);
 
+    // Убираем fade-маску когда игрок доскроллил до конца — иначе
+    // последний параграф остаётся полупрозрачным, это сбивает.
+    const body = root.querySelector<HTMLElement>(".prologue-overlay__body");
+    const onScroll = (): void => {
+      if (!body) return;
+      const atBottom =
+        body.scrollTop + body.clientHeight >= body.scrollHeight - 2;
+      body.classList.toggle("is-at-bottom", atBottom);
+    };
+    if (body) {
+      body.addEventListener("scroll", onScroll, { passive: true });
+      // Если весь текст помещается и скролл не нужен — сразу убираем fade.
+      if (body.scrollHeight <= body.clientHeight + 2) {
+        body.classList.add("is-at-bottom");
+      }
+    }
+
     this.cleanup = () => {
       button.removeEventListener("click", onClick);
+      body?.removeEventListener("scroll", onScroll);
     };
   }
 }
