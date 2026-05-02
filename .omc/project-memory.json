@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775803389304,
+  "lastScanned": 1777735341575,
   "projectRoot": "C:\\Users\\RobotComp.ru\\games\\Yandex\\01-solitaire-expedition",
   "techStack": {
     "languages": [
@@ -76,14 +76,21 @@
       "path": "assets-source",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1775803389262,
+      "lastAccessed": 1777735341507,
+      "keyFiles": []
+    },
+    "builds": {
+      "path": "builds",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1777735341508,
       "keyFiles": []
     },
     "dist": {
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 1,
-      "lastAccessed": 1775803389273,
+      "lastAccessed": 1777735341519,
       "keyFiles": [
         "index.html"
       ]
@@ -92,47 +99,60 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 0,
-      "lastAccessed": 1775803389274,
+      "lastAccessed": 1777735341521,
       "keyFiles": []
+    },
+    "graphify-out": {
+      "path": "graphify-out",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1777735341521,
+      "keyFiles": [
+        "cost.json",
+        "graph.html",
+        "graph.json",
+        "GRAPH_REPORT.md",
+        "manifest.json"
+      ]
     },
     "promo": {
       "path": "promo",
       "purpose": null,
-      "fileCount": 42,
-      "lastAccessed": 1775803389275,
+      "fileCount": 55,
+      "lastAccessed": 1777735341522,
       "keyFiles": [
         "16x9_screenshot-1-prologue-en.png",
+        "16x9_screenshot-1-prologue-tr.png",
         "16x9_screenshot-1-prologue.png",
         "16x9_screenshot-2-map-en.png",
-        "16x9_screenshot-2-map.png",
-        "16x9_screenshot-3-game-en.png"
+        "16x9_screenshot-2-map-tr.png"
       ]
     },
     "public": {
       "path": "public",
       "purpose": "Public files",
       "fileCount": 0,
-      "lastAccessed": 1775803389275,
+      "lastAccessed": 1777735341524,
       "keyFiles": []
     },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 8,
-      "lastAccessed": 1775803389275,
+      "fileCount": 9,
+      "lastAccessed": 1777735341527,
       "keyFiles": [
         "captureScreenshots.mjs",
         "captureVideo.mjs",
+        "checkMapDesc.mjs",
         "convertAudioToOpus.mjs",
-        "convertToWebp.mjs",
-        "findSeeds.ts"
+        "convertToWebp.mjs"
       ]
     },
     "src": {
       "path": "src",
       "purpose": "Source code",
       "fileCount": 3,
-      "lastAccessed": 1775803389276,
+      "lastAccessed": 1777735341528,
       "keyFiles": [
         "env.d.ts",
         "main.ts",
@@ -143,14 +163,14 @@
       "path": "test-results",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1775803389276,
+      "lastAccessed": 1777735341534,
       "keyFiles": []
     },
     "dist\\assets": {
       "path": "dist\\assets",
       "purpose": "Static assets",
-      "fileCount": 34,
-      "lastAccessed": 1775803389277,
+      "fileCount": 35,
+      "lastAccessed": 1777735341544,
       "keyFiles": [
         "artifact_archive_seal_grid-DSXZrvDk.png",
         "artifact_archive_seal_grid_blur-rnJZLdgv.png",
@@ -160,15 +180,17 @@
     "public\\assets": {
       "path": "public\\assets",
       "purpose": "Static assets",
-      "fileCount": 0,
-      "lastAccessed": 1775803389278,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1777735341548,
+      "keyFiles": [
+        "icon-loading.png"
+      ]
     },
     "src\\app": {
       "path": "src\\app",
       "purpose": "Application code",
       "fileCount": 2,
-      "lastAccessed": 1775803389279,
+      "lastAccessed": 1777735341550,
       "keyFiles": [
         "rendering.test.ts",
         "rendering.ts"
@@ -178,14 +200,14 @@
       "path": "src\\assets",
       "purpose": "Static assets",
       "fileCount": 0,
-      "lastAccessed": 1775803389279,
+      "lastAccessed": 1777735341551,
       "keyFiles": []
     },
     "src\\data": {
       "path": "src\\data",
       "purpose": "Data files",
       "fileCount": 9,
-      "lastAccessed": 1775803389280,
+      "lastAccessed": 1777735341553,
       "keyFiles": [
         "artifactAssetUrls.ts",
         "artifacts.ts",
@@ -196,117 +218,141 @@
       "path": "src\\services",
       "purpose": "Business logic services",
       "fileCount": 0,
-      "lastAccessed": 1775803389280,
+      "lastAccessed": 1777735341554,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
-      "path": "src\\services\\ads\\AdsService.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775806781228,
-      "type": "file"
-    },
-    {
-      "path": "src\\scenes\\BootScene.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775806689617,
-      "type": "file"
-    },
-    {
       "path": "src\\services\\save\\SaveService.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775806743114,
-      "type": "file"
-    },
-    {
-      "path": "src\\scenes\\GameScene.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775806931160,
-      "type": "file"
-    },
-    {
-      "path": "src\\core\\klondike\\createInitialDeal.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775807003233,
-      "type": "file"
-    },
-    {
-      "path": "src\\env.d.ts",
       "accessCount": 3,
-      "lastAccessed": 1775806586305,
+      "lastAccessed": 1777735511811,
       "type": "file"
     },
     {
-      "path": "index.html",
-      "accessCount": 3,
-      "lastAccessed": 1775806625464,
-      "type": "file"
-    },
-    {
-      "path": "vite.config.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775806651437,
-      "type": "file"
-    },
-    {
-      "path": "src\\app\\config\\appContext.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775806676140,
-      "type": "file"
-    },
-    {
-      "path": ".mcp.json",
+      "path": "src\\ui\\safeUrl.ts",
       "accessCount": 2,
-      "lastAccessed": 1775804312702,
-      "type": "file"
-    },
-    {
-      "path": "src\\services\\sdk\\YandexSdkService.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775804960613,
-      "type": "file"
-    },
-    {
-      "path": "src\\scenes\\RewardScene.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775804981720,
-      "type": "file"
-    },
-    {
-      "path": "src\\services\\sdk\\SdkService.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775806545508,
-      "type": "file"
-    },
-    {
-      "path": "src\\services\\sdk\\GamePushSdkService.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775806567371,
+      "lastAccessed": 1777735584888,
       "type": "file"
     },
     {
       "path": "src",
       "accessCount": 1,
-      "lastAccessed": 1775806751221,
+      "lastAccessed": 1777735383460,
       "type": "directory"
+    },
+    {
+      "path": "src\\data\\dailyDeals.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777735391645,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\i18n\\locales.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777735489137,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\escapeHtml.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777735489400,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\save\\SaveService.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777735527609,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\escapeHtml.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777735546521,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\safeUrl.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777735566400,
+      "type": "file"
+    },
+    {
+      "path": "docs\\specs\\2026-05-02-gamescene-decomposition.md",
+      "accessCount": 1,
+      "lastAccessed": 1777735634530,
+      "type": "file"
     },
     {
       "path": "package.json",
       "accessCount": 1,
-      "lastAccessed": 1775806841257,
+      "lastAccessed": 1777735640671,
       "type": "file"
     },
     {
-      "path": "src\\core\\klondike\\randomSeed.ts",
+      "path": "plans\\.r1-prompt.txt",
       "accessCount": 1,
-      "lastAccessed": 1775806908582,
+      "lastAccessed": 1777735777936,
       "type": "file"
     },
     {
-      "path": "src\\core\\klondike\\createInitialDeal.test.ts",
+      "path": "plans\\gamescene-decomposition-review-r1.md",
       "accessCount": 1,
-      "lastAccessed": 1775806966238,
+      "lastAccessed": 1777735870731,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-decision-log-r1.md",
+      "accessCount": 1,
+      "lastAccessed": 1777735910081,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-draft-r2.md",
+      "accessCount": 1,
+      "lastAccessed": 1777735973930,
+      "type": "file"
+    },
+    {
+      "path": "plans\\.r2-prompt.txt",
+      "accessCount": 1,
+      "lastAccessed": 1777735992690,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-review-r2.md",
+      "accessCount": 1,
+      "lastAccessed": 1777736079989,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-decision-log-r2.md",
+      "accessCount": 1,
+      "lastAccessed": 1777736113740,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-draft-r3.md",
+      "accessCount": 1,
+      "lastAccessed": 1777736200850,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-review-r3.md",
+      "accessCount": 1,
+      "lastAccessed": 1777736353581,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-decision-log-r3.md",
+      "accessCount": 1,
+      "lastAccessed": 1777736385802,
+      "type": "file"
+    },
+    {
+      "path": "plans\\gamescene-decomposition-final.md",
+      "accessCount": 1,
+      "lastAccessed": 1777736489585,
       "type": "file"
     }
   ],

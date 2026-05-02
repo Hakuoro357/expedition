@@ -20,6 +20,41 @@
 
 ---
 
+## 0.0. VK/OK tester feedback — v0.3.27 (2026-04-23)
+
+Тестировщики ВКонтакте и Одноклассников потребовали полноценное стартовое меню как блокер модерации.
+
+- ✅ **Стартовое меню.** `BootScene` теперь всегда открывает `SettingsScene` в режиме `returnTo: "startmenu"` — прямой переход в Prologue/Map убран. В этом режиме заголовок «Меню», скрыт bottom-nav и кнопка «← Назад», показываются только две primary-action кнопки.
+- ✅ **«Новая игра».** Крупная акцентная кнопка вверху меню. При клике — inline DOM-модалка подтверждения (`src/ui/confirmDialog.ts`, в стиле игры), при OK — полный сброс `SaveState` (progress + `currentGame=null`), сохранён только выбранный язык, переход в `Prologue`.
+- ✅ **«Продолжить».** На первом запуске (`prologueShown=false`) задизейблена. После — ведёт в активную партию (`currentGame.status === "in_progress"`) через `resumeCurrentGame: true` либо на `MapScene`, если активной партии нет. В режимах `game`/`map`/`archive` «Продолжить» = «Назад» в origin (переиспользует `handleGoBack`).
+- ✅ **Переименование «Настройки» → «Меню».** На всех сценах (`GameScene` action-bar, `MapScene`/`DiaryScene`/`DetailScene`/`RewardScene` bottom-nav, `SettingsScene` game-style nav) label теперь `i18n.t("menu")`.
+- ✅ **Единая позиция кнопки «Меню» (thumb-zone).** В GameScene game-bar порядок поменялся на `[undo, hint, home, settings]` — «Меню» теперь в правом нижнем углу, как и на Map/Diary. Одна и та же позиция на всех сценах под большой палец.
+- ✅ **Удалена сервисная кнопка `reset-save`.** Её функцию полностью покрывает «Новая игра» с подтверждением.
+- ✅ **SFX-ползунок переименован.** Локали обновлены: `sound: "Эффекты" / "Effects" / "Efektler"` — пользователь спутывал с разделом «Звук» (mute), где тоже было «Звук».
+- ✅ **Новые i18n ключи.** `newGame`, `confirmResetProgress` для ru/en/tr.
+
+**Критичные файлы:** `src/scenes/BootScene.ts`, `src/scenes/SettingsScene.ts`, `src/scenes/settingsSceneOverlay.ts`, `src/scenes/gameSceneOverlay.ts`, `src/scenes/GameScene.ts`, `src/scenes/MapScene.ts`, `src/scenes/DiaryScene.ts`, `src/scenes/DetailScene.ts`, `src/scenes/RewardScene.ts`, `src/ui/confirmDialog.ts` (новый), `src/services/i18n/locales.ts`, `src/styles.css`.
+
+---
+
+## 0.1. GamePush tester feedback — v0.3.0 (2026-04-16)
+
+Отчёт тестировщика [moderator.sceef.space/p/976mguna](https://moderator.sceef.space/p/976mguna) — устранено:
+
+- ✅ **Сейвы только через GamePush Player.** `SaveService` больше не использует `localStorage`: snapshot держится in-memory, `init(sdk)` подтягивает `gp.player.get('save')`, `save()` fire-and-forget пишет через `gp.player.set('save', …)`. Никакого `mergeSaveStates`, cloud — единственный источник истины.
+- ✅ **Явный sync после ключевых действий.** `save.flush()` (async обёртка над `setCloudSave`) вызывается после списания монет за подсказку (`GameScene.handleHintAction`) и после начисления rewarded-ad-бонуса (`RewardScene.onAdClick`).
+- ✅ **Подписка на глобальный mute.** `SdkService.onMuteChange` + `isMuted()` → `SoundService.setPlatformMuted()`. Платформенный mute применяется как отдельный коэффициент (`gain 0` на `sfxBus`/`musicBus`), не затирая пользовательские ползунки громкости.
+- ✅ **Sticky-banner.** `BootScene` вызывает `ads.showStickyBanner('boot')` после `signalReady()`; API расширен (`showSticky/closeSticky/refreshSticky`).
+- ✅ **Preloader ad.** `BootScene` вызывает `await ads.showPreloader()` перед `signalReady()`, обёрнут в try/catch — падение рекламы не блокирует бут.
+- ✅ **Защита от повторного hint-клика.** `GameScene.handleHintAction` игнорирует клик, пока жив `hintHighlightTimer`; кнопка визуально задизейблена (`game-overlay__action--disabled` + `disabled` attr) до снятия подсветки.
+- ✅ **Rewarded-cooldown через сейв.** `ProgressState.lastRewardedAt` заменил `localStorage` constant — всё хранится в облаке GP-профиля игрока.
+- ✅ **RU-обложки.** `promo/gamepush/cover-1920x1080-ru.png` и `cover-1080x1920-ru.png` перегенерированы — название «Пасьянс Экспедиция» вместо «Solitaire Expedition». EN/TR обложки не менялись. Генерация через `node scripts/renderPromo.mjs`.
+- ⚠️ **Landscape-промо-видео** — TODO пользователя: записать/смонтировать `promo/video-ru-landscape.mp4` и `promo/video-en-landscape.mp4` (16:9, до 30 сек) и загрузить в GP-панель.
+
+**Верификация:** `npx tsc --noEmit` чисто, `npx vitest run` — 99/99 зелёные.
+
+---
+
 ## 1. Сборка и упаковка
 
 **Процесс (обязателен versioned zip):**

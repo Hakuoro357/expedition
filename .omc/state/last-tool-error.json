@@ -1,7 +1,7 @@
 {
-  "tool_name": "WebFetch",
-  "tool_input_preview": "{\"url\":\"https://docs.gamepush.com/docs/player/state/\",\"prompt\":\"Extract EXACT JavaScript code for gp.player state methods: get(), set(), add(), toggle(), has(), toJSON(), fromJSON(), reset(). Show com...",
-  "error": "Request failed with status code 404",
-  "timestamp": "2026-04-10T07:35:17.929Z",
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"C:\\\\Users\\\\RobotComp.ru\\\\games\\\\Yandex\\\\01-solitaire-expedition\\\" && git status --short && echo \\\"---LOG---\\\" && git log --oneline -8 && echo \\\"---BRANCH---\\\" && git branch --show-cur...",
+  "error": "Exit code 128\n M .claude/settings.local.json\n M .omc/project-memory.json\n M .omc/sessions/caaa9a77-4de2-4215-8ad5-724f2a782f11.json\n D .omc/state/agent-replay-caaa9a77-4de2-4215-8ad5-724f2a782f11.jsonl\n D .omc/state/last-tool-error.json\n M .omc/state/mission-state.json\n D .omc/state/subagent-tracking.json\n M PUBLISH_YANDEX.md\n M package.json\n M promo/cover-800x470-gold.png\n M promo/cover-source-gold.svg\n D promo/gamepush/cover-1080x1920-en.png\n D promo/gamepush/cover-1080x1920-ru.png\n D promo/ga...",
+  "timestamp": "2026-05-02T18:39:34.013Z",
   "retry_count": 1
 }

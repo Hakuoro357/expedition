@@ -1,0 +1,24 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 2 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) built with Phaser 3 + TypeScript + Vite, recently published on GamePush platform. Solo developer, post-release stabilisation phase. The plan addresses techdebt in src/scenes/GameScene.ts (~1850 lines) — a Phaser scene that owns gameplay rendering, drag/tap input, hint system, auto-complete flow, coin economy actions, save persistence, and scene transitions. Existing architecture: Phaser canvas + DOM overlays via createCanvasAnchoredOverlay, AppContext DI, SaveService with debounced cloud-sync. Test stack: vitest, no Phaser mocking infra, 0 tests on GameScene currently.
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: if you see a meaningfully better alternative not yet considered,
+   propose it (not required if plan is converging well).
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap. Severity tags let me filter.
+- If proposing alternatives, add "## Alternative approaches" section.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

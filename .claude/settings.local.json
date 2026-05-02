@@ -14,7 +14,8 @@
       "Bash(grep -l \"createAppNavHtml\\\\|game-overlay__nav\\\\|route-overlay__nav\" /c/Users/RobotComp.ru/games/Yandex/01-solitaire-expedition/src/scenes/*.ts)",
       "Bash(xargs -I {} basename {})",
       "Bash(find C:UsersRobotComp.rugamesYandex01-solitaire-expedition/src -type f -name *.ts)",
-      "Bash(grep -r \"route-overlay__pager\\\\|dragStart\\\\|handlePointer\\\\|changePage\" C:UsersRobotComp.rugamesYandex01-solitaire-expeditionsrc --include=*.ts --include=*.tsx --include=*.css -n)"
+      "Bash(grep -r \"route-overlay__pager\\\\|dragStart\\\\|handlePointer\\\\|changePage\" C:UsersRobotComp.rugamesYandex01-solitaire-expeditionsrc --include=*.ts --include=*.tsx --include=*.css -n)",
+      "Bash(node scripts/renderPromo.mjs)"
     ]
   }
 }

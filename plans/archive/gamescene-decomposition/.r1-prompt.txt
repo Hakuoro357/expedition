@@ -1,0 +1,21 @@
+You are reviewing an engineering plan. Your task is twofold:
+1. Find concerns: gaps, risks, missing edge cases, technical bugs, unclear specs.
+2. Suggest meaningfully better alternatives if you see them — don't limit yourself
+   to nitpicking the current plan. If a fundamentally simpler/safer/more
+   maintainable approach is missed, propose it explicitly in a separate section.
+
+Round: 1 of max 7 (workflow stops at R7 hard limit).
+Domain context: HTML5 web game (Solitaire variant) built with Phaser 3 + TypeScript + Vite, recently published on GamePush platform. Solo developer, post-release stabilisation phase. The plan addresses techdebt in src/scenes/GameScene.ts (~1850 lines) — a Phaser scene that owns gameplay rendering, drag/tap input, hint system, auto-complete flow, coin economy actions, save persistence, and scene transitions. Existing architecture: Phaser canvas + DOM overlays via createCanvasAnchoredOverlay, AppContext DI, SaveService with debounced cloud-sync. Test stack: vitest, no Phaser mocking infra, 0 tests on GameScene currently. Player base is small but growing on GamePush (Russian-speaking) and being considered for VK/OK distribution.
+
+Output format:
+- For each concern: severity tag [CRITICAL] (plan won't work / will cause harm) /
+  [MAJOR] (significant gap, should fix) / [MINOR] (polish, nice-to-have),
+  followed by (1) what's wrong, (2) why it matters, (3) suggested fix.
+- List ALL concerns you find — no cap. Severity tags let me filter.
+- If you have a meaningfully better architectural alternative, add a section
+  "## Alternative approaches" at the end with rationale and trade-offs.
+- End with verdict line — MUST be the LAST non-empty line of your output:
+  either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing punctuation.
+
+=== PLAN ===
