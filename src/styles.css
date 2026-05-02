@@ -69,33 +69,14 @@ body {
   }
 }
 
-/* Landscape mobile: показываем подсказку «Поверни в портрет».
-   Карточная раскладка под landscape не рассчитана, и без полного
-   респонсива она ломается (см. скрин 844×390 — игра уезжает в полоску
-   посередине). По стандартной для YG практике показываем prompt и не
-   пытаемся переверстать игру. */
-@media (orientation: landscape) and (max-height: 600px) {
-  #app {
-    visibility: hidden;
-  }
-  body::after {
-    content: attr(data-rotate-prompt);
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 32px;
-    font-family: "Trebuchet MS", Verdana, sans-serif;
-    font-size: 18px;
-    line-height: 1.5;
-    color: #f5e7c8;
-    background:
-      radial-gradient(circle at top, #304b46 0%, #1e2d2d 45%, #131c1d 100%);
-  }
-}
+/* Landscape: с v0.3.31 игру можно играть и в альбомной ориентации.
+   Phaser настроен на Scale.FIT + CENTER_BOTH — портретный логический
+   canvas (430×844) автоматически вписывается в landscape-viewport
+   с пиллербоксом (чёрные поля по бокам). Раньше здесь был hard
+   blocker «Поверни в портрет», но на десктопных embed'ах (Pikabu Games
+   540px высота) он показывался невпопад и не давал играть. Игрокам
+   мобильных устройств в landscape игра тоже доступна — просто canvas
+   будет поменьше. */
 
 * {
   box-sizing: border-box;
@@ -182,6 +163,36 @@ canvas {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.route-overlay__mute {
+  position: absolute;
+  top: 18px;
+  right: 14px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(218, 201, 161, 0.28);
+  background: rgba(15, 32, 30, 0.72);
+  color: #f6e8c7;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 5;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.route-overlay__mute:hover {
+  background: rgba(22, 46, 44, 0.85);
+}
+
+.route-overlay__mute--muted {
+  color: #caa070;
+  border-color: rgba(202, 160, 112, 0.5);
+  background: rgba(40, 24, 18, 0.78);
 }
 
 .route-overlay__route-svg {
@@ -282,7 +293,7 @@ canvas {
 
 .route-overlay__paginator {
   position: absolute;
-  bottom: 192px;
+  bottom: 210px;
   left: 0;
   right: 0;
   height: 46px;
@@ -335,7 +346,13 @@ canvas {
   left: 32px;
   right: 32px;
   bottom: 84px;
-  height: 102px;
+  /* 120px (было 102px): на Android-вебвью в OK-app шрифт рендерится
+     чуть «жирнее» по вертикали, и 3-строчный line-clamp описания не
+     помещался — 3-я строка резалась снизу. 120px = 14 (pad-top) + 20
+     (title) + 8 (margin) + 59 (3 строки × 14px × 1.4) + 10 (pad-bot)
+     + ~9px запаса под Android-метрики. Paginator выше синхронно сдвинут
+     с 192px на 210px, чтобы 6px-gap между panel и paginator сохранился. */
+  height: 120px;
   padding: 14px 14px 10px;
   text-align: left;
   overflow: hidden;
@@ -528,6 +545,33 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+/* Круглая «?» кнопка правил в правом верхнем углу игрового оверлея. */
+.game-overlay__rules-btn {
+  position: absolute;
+  top: 28px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(218, 201, 161, 0.35);
+  background: rgba(15, 32, 30, 0.78);
+  color: #f6e8c7;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 6;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.game-overlay__rules-btn:hover {
+  background: rgba(22, 46, 44, 0.92);
+  color: #ffd87a;
+  border-color: rgba(255, 216, 122, 0.55);
 }
 
 .game-overlay__top-row {
@@ -753,6 +797,29 @@ canvas {
   background: rgba(206, 184, 142, 0.08);
 }
 
+.game-overlay__action--disabled,
+.game-overlay__action[disabled] {
+  pointer-events: none;
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Подсветка активной кнопки (используется в Settings-from-Game
+   для Settings-иконки, которая и является "Назад"). */
+.game-overlay__action--active {
+  color: #ffd87a;
+}
+
+.game-overlay__action--active .game-overlay__action-icon {
+  filter: drop-shadow(0 0 6px rgba(255, 216, 122, 0.45));
+}
+
+/* Game-style nav внутри SettingsScene: pointer-events:auto поверх
+   контейнера .settings-page (у которого pointer-events:none). */
+.settings-page__game-nav {
+  pointer-events: auto;
+}
+
 .game-overlay__action-icon {
   display: inline-flex;
   align-items: center;
@@ -966,31 +1033,36 @@ canvas {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.detail-page__home {
+/*
+ * DetailScene: переписано в v0.3.28 по фидбеку тестировщиков ВК/ОК —
+ * «Назад» теперь sticky-кнопка внизу панели, а не плавающая pill в
+ * правом верхнем углу. Паттерн идентичен PrologueScene:
+ *   .detail-page__panel         — flex column, overflow:hidden
+ *   .detail-page__scroll-body   — flex:1 1 auto; min-height:0; overflow:auto
+ *   .detail-page__home (button) — flex-shrink:0, всегда видна
+ * При длинных записях/описаниях кнопка не уезжает под фолд.
+ */
+.detail-page__panel {
   position: absolute;
+  left: 20px;
+  right: 20px;
   top: 22px;
-  right: 24px;
-  min-width: 88px;
-  height: 34px;
-  padding: 0 16px;
-  border: 1px solid rgba(218, 201, 161, 0.24);
-  border-radius: 999px;
-  background: rgba(14, 33, 31, 0.28);
-  color: #d9c38d;
-  font-family: "Trebuchet MS", Verdana, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  pointer-events: auto;
+  /* .app-nav высотой 62px прижат к низу канваса; панели оставляем
+     14px воздуха над ней. */
+  bottom: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(218, 201, 161, 0.18);
+  background: rgba(18, 39, 37, 0.38);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
 }
 
 .detail-page__tabs {
-  position: absolute;
-  top: 72px;
-  left: 50%;
-  width: 286px;
-  transform: translateX(-50%);
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -1016,30 +1088,50 @@ canvas {
   color: #f6e8c7;
 }
 
-.detail-page__content {
-  position: absolute;
-  left: 28px;
-  right: 28px;
-  bottom: 96px;
+/*
+ * Scroll-контейнер: скроллится только он. Fade-маска внизу намекает,
+ * что текст продолжается ниже (если есть что прокручивать). Когда
+ * пользователь доскроллил до конца — класс .is-at-bottom убирает маску,
+ * чтобы последний абзац не оставался полупрозрачным.
+ */
+.detail-page__scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  pointer-events: auto;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
 }
 
-.detail-page--entry .detail-page__content {
-  top: 78px;
+.detail-page__scroll-body.is-at-bottom {
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
-.detail-page--entry.detail-page--with-tabs .detail-page__content {
-  top: 124px;
+.detail-page__scroll-body::-webkit-scrollbar {
+  width: 4px;
 }
 
-.detail-page--artifact .detail-page__content {
-  top: 88px;
+.detail-page__scroll-body::-webkit-scrollbar-thumb {
+  background: rgba(218, 201, 161, 0.35);
+  border-radius: 2px;
 }
 
-.detail-page--artifact.detail-page--with-tabs .detail-page__content {
-  top: 124px;
+.detail-page__scroll-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(218, 201, 161, 0.55);
+}
+
+.detail-page__home {
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 46px;
+  border-radius: 14px;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .detail-page__eyebrow {
@@ -1058,7 +1150,7 @@ canvas {
   height: 72px;
   aspect-ratio: 1 / 1;
   flex: 0 0 72px;
-  margin-top: 18px;
+  margin-top: 14px;
   border-radius: 50%;
   overflow: hidden;
   border: 1px solid rgba(240, 223, 181, 0.18);
@@ -1081,10 +1173,10 @@ canvas {
 
 .detail-page__entry-author {
   width: 100%;
-  margin-top: 14px;
+  margin-top: 10px;
   text-align: center;
   font-family: "Trebuchet MS", Verdana, sans-serif;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.04;
   color: #f6e8c7;
@@ -1092,32 +1184,31 @@ canvas {
 
 .detail-page__entry-body {
   width: 100%;
-  flex: 1 1 auto;
-  margin-top: 16px;
-  overflow: auto;
-  padding-right: 8px;
+  margin-top: 12px;
+  padding-bottom: 20px;
   white-space: pre-line;
   font-family: "Trebuchet MS", Verdana, sans-serif;
   font-size: 16px;
   line-height: 1.34;
   color: #e7ddc8;
-  pointer-events: auto;
 }
 
 .detail-page__artifact-image {
   display: block;
-  width: 236px;
+  width: 220px;
   max-width: 100%;
-  height: 352px;
-  max-height: 56vh;
-  margin-top: 18px;
+  height: auto;
+  max-height: 46vh;
+  margin-top: 12px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .detail-page__artifact-description {
-  width: 290px;
-  max-width: 100%;
-  margin-top: 14px;
+  width: 100%;
+  max-width: 290px;
+  margin-top: 12px;
+  padding-bottom: 20px;
   text-align: center;
   font-family: "Trebuchet MS", Verdana, sans-serif;
   font-size: 16px;
@@ -1993,6 +2084,50 @@ canvas {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Кнопка «← Назад» в левом верхнем углу — видна только при входе из GameScene. */
+.settings-page__back {
+  position: absolute;
+  top: 28px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(218, 201, 161, 0.28);
+  background: rgba(15, 32, 30, 0.78);
+  color: #f6e8c7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 4;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.settings-page__back:hover {
+  background: rgba(22, 46, 44, 0.92);
+  color: #ffd87a;
+  border-color: rgba(255, 216, 122, 0.55);
+}
+
+/* Номер билда — сразу над нижним nav'ом, мелкий серый текст. */
+.settings-page__version {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 78px;
+  text-align: center;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(246, 232, 199, 0.45);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+  user-select: text;
+}
+
 .settings-page__title {
   position: absolute;
   top: 30px;
@@ -2044,7 +2179,41 @@ canvas {
   flex: 1 1 0;
 }
 
+/*
+ * Grid 4 колонки × N строк для кнопок локалей. 7 локалей укладываются
+ * в 2 строки (4 + 3). auto-fit с minmax гарантирует, что при сжатии
+ * viewport'а они не вылезут из контейнера.
+ */
+.settings-page__locale-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-page__locale-button {
+  padding: 0 8px;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+/* Селектор удвоен (две одноимённые кнопочные классы + --active) специально:
+   .settings-page__action ниже по файлу определяет border/background/color,
+   и при равной специфичности перебивает наш «активный» стиль. Удвоение
+   .settings-page__locale-button делает специфичность на единицу выше и
+   гарантирует, что золотой градиент применится. */
+.settings-page__locale-button.settings-page__locale-button--active {
+  border-color: #e4c187;
+  background: linear-gradient(180deg, #d4a962 0%, #b68844 100%);
+  color: #1a2422;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.24);
+}
+
 .settings-page__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   min-height: 40px;
   padding: 0 14px;
   border-radius: 16px;
@@ -2057,6 +2226,22 @@ canvas {
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
+}
+
+.settings-page__action > svg {
+  flex-shrink: 0;
+  display: block;
+}
+
+.settings-page__action-label {
+  display: inline-block;
+  line-height: 1;
+}
+
+.settings-page__action--muted {
+  color: #caa070;
+  border-color: rgba(202, 160, 112, 0.45);
+  background: rgba(40, 24, 18, 0.55);
 }
 
 .settings-page__action--wide {
@@ -2256,15 +2441,18 @@ canvas {
   width: 100%;
   max-width: 340px;
   max-height: calc(100% - 32px);
-  padding: 28px 24px 24px;
+  padding: 28px 24px 20px;
   background: #1c3532;
   border: 2px solid #dac9a1;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  overflow-y: auto;
+  gap: 14px;
+  /* Панель сама не скроллится — скроллится только тело (.body), а
+     case-заголовок и кнопка остаются зафиксированными. Так кнопка
+     «Продолжить» всегда видна, даже если текст длинный. */
+  overflow: hidden;
 }
 
 .prologue-overlay__case {
@@ -2279,9 +2467,40 @@ canvas {
 }
 
 .prologue-overlay__body {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  /* Скроллится ТОЛЬКО тело. flex: 1 занимает всё доступное место между
+     case-заголовком и кнопкой. min-height: 0 обязателен — без него
+     flex-элемент не сжимается и scroll не работает. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  /* Fade-индикатор внизу: градиент намекает что текст продолжается
+     ниже видимой области. Маска делает последние 24px полупрозрачными. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
+}
+
+/* При скролле до самого низа fade убирается — в конце текста маска
+   не нужна, иначе последний параграф обрезан полупрозрачностью. */
+.prologue-overlay__body.is-at-bottom {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Кастомный скроллбар, чтобы было видно что здесь прокрутка */
+.prologue-overlay__body::-webkit-scrollbar {
+  width: 4px;
+}
+.prologue-overlay__body::-webkit-scrollbar-thumb {
+  background: rgba(218, 201, 161, 0.35);
+  border-radius: 2px;
+}
+.prologue-overlay__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(218, 201, 161, 0.55);
 }
 
 .prologue-overlay__paragraph {
@@ -2294,5 +2513,126 @@ canvas {
 }
 
 .prologue-overlay__button {
-  margin-top: 6px;
+  margin-top: 4px;
+  /* Кнопка не сжимается и всегда видна — именно это делает её sticky
+     на визуальном уровне (она вне scroll-области body). */
+  flex-shrink: 0;
 }
+
+/*
+ * Primary actions в меню — крупные кнопки «Новая игра» / «Продолжить»,
+ * показываются вверху контентной области в Settings/Start Menu. По UX
+ * требованию тестировщиков ВК/ОК — это главный способ начать новую
+ * сессию или вернуться в текущую.
+ */
+.settings-page__primary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-page__primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(218, 201, 161, 0.35);
+  background: rgba(22, 48, 44, 0.65);
+  color: #f6e8c7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.settings-page__primary-button--primary {
+  /* Акцентная кнопка «Новая игра» — золотистая как prologue CTA. */
+  background: linear-gradient(180deg, #d4a962 0%, #b68844 100%);
+  border-color: #e4c187;
+  color: #1a2422;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
+}
+
+.settings-page__primary-button--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: default;
+}
+
+/*
+ * Confirm-диалог — подтверждение «Новая игра» (сброс прогресса).
+ * Монтируется внутри canvas-overlay host, backdrop закрывает игровой
+ * холст, dialog центрируется.
+ */
+.confirm-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 16, 16, 0.72);
+  z-index: 10;
+  pointer-events: auto;
+  padding: 24px;
+}
+
+.confirm-dialog {
+  background: linear-gradient(180deg, #1c3632 0%, #132220 100%);
+  border: 1px solid rgba(218, 201, 161, 0.45);
+  border-radius: 22px;
+  padding: 22px 22px 20px;
+  max-width: 320px;
+  width: 100%;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+  color: #f6e8c7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  pointer-events: auto;
+}
+
+.confirm-dialog__title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 10px;
+  color: #f6e8c7;
+}
+
+.confirm-dialog__message {
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: center;
+  margin-bottom: 20px;
+  color: rgba(246, 232, 199, 0.85);
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-dialog__button {
+  flex: 1 1 0;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(218, 201, 161, 0.32);
+  background: rgba(15, 32, 30, 0.65);
+  color: #f6e8c7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.confirm-dialog__button--ok {
+  background: linear-gradient(180deg, #d4a962 0%, #b68844 100%);
+  border-color: #e4c187;
+  color: #1a2422;
+}
+

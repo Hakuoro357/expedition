@@ -20,8 +20,10 @@ function getCornerSuitChar(suit: Suit): string {
 }
 
 function getCornerSuitFontSize(_suit: Suit): number {
-  // Increased by 30% from 12px to 16px
-  return 16;
+  // 14px — совпадает с размером ранга (см. createCornerIndexMarkup),
+  // чтобы «5» и «♣» в уголке смотрелись как единый блок одной высоты,
+  // а не «маленький номинал + большая масть».
+  return 14;
 }
 
 function getCenterSuitChar(suit: Suit): string {
@@ -38,9 +40,12 @@ function getCenterSuitChar(suit: Suit): string {
 }
 
 function getCenterSuitFontSize(suit: Suit): number {
-  // Match the visual size of foundation suit symbols, increased by 30%
-  // diamonds needs to be slightly smaller to match proportions
-  return suit === "diamonds" ? 29 : 34;
+  // Уменьшено с 34/29 до 26/22 (v0.3.41) — после увеличения уголка до
+  // 14px центральная масть выглядела непропорционально большой,
+  // визуально «давила» уголки. Теперь центр спокойнее, уголки
+  // читаются как полноценные индикаторы. diamonds чуть меньше
+  // (тоньше глиф у ромба → нужен меньший кегль для оптического баланса).
+  return suit === "diamonds" ? 22 : 26;
 }
 
 function getCenterSuitY(suit: Suit): number {
@@ -75,18 +80,27 @@ function getCenterSuitMarkup(suit: Suit, color: string): string {
 }
 
 function createCornerIndexMarkup(rankLabel: string, suit: Suit, suitFill: string): string {
+  // Шрифт ранга — Georgia (серифный), 14px, bold. До v0.3.41 был
+  // 'Trebuchet MS' 12px: пользователи жаловались, что русское «В»
+  // (Валет) при таком размере и весе путается с «8» — у обоих
+  // визуальная структура «два округлых элемента по вертикали», и
+  // тонкий вертикальный штрих «В» в санс-серифе сливается с бумпами.
+  // Аналогичная проблема с латинским «J» (хук снизу) и в меньшей
+  // степени с турецким «V». Georgia c серифами и контрастом штрихов
+  // даёт «В/J/V» силуэт, явно отличный от «8», а +2px размера
+  // повышают разборчивость без поломки лейаута уголка.
   return `
     <text
       x="0"
       y="0"
       fill="${suitFill}"
-      font-family="'Trebuchet MS', Verdana, sans-serif"
-      font-size="12"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="14"
       font-weight="700"
       text-rendering="geometricPrecision"
       dominant-baseline="middle"
       letter-spacing="0"
-    ><tspan>${rankLabel}</tspan><tspan dx="1" dy="-2" font-family="Georgia, 'Times New Roman', serif" font-size="${getCornerSuitFontSize(suit)}" dominant-baseline="central">${getCornerSuitChar(suit)}</tspan></text>
+    ><tspan>${rankLabel}</tspan><tspan dx="2" font-family="Georgia, 'Times New Roman', serif" font-size="${getCornerSuitFontSize(suit)}" dominant-baseline="middle">${getCornerSuitChar(suit)}</tspan></text>
   `.trim();
 }
 
