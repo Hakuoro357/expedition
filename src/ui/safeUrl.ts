@@ -16,8 +16,10 @@ const TRANSPARENT_PIXEL =
 
 export function safeImageUrl(url: string | null | undefined): string {
   if (typeof url !== "string" || url.length === 0) return TRANSPARENT_PIXEL;
-  // Relative path inside the bundle
-  if (url.startsWith("/")) return url;
+  // Relative path inside the bundle. ВАЖНО: исключаем protocol-relative
+  // (`//evil.com/x.png`) — он матчит startsWith("/") наивно, но позволяет
+  // унаследовать схему страницы и тянуть картинку с произвольного хоста.
+  if (url.startsWith("/") && !url.startsWith("//")) return url;
   // Lower-case the scheme prefix only — leave the rest of the URL intact.
   const lower = url.slice(0, 32).toLowerCase().trim();
   if (lower.startsWith("https://")) return url;
