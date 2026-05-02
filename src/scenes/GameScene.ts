@@ -19,8 +19,7 @@ import {
   cloneGameState,
   drawFromStock,
   getGameStatus,
-  getHint,
-
+  getAllHints,
   moveFoundationToTableau,
   moveTableauToFoundation,
   moveTableauToTableau,
@@ -80,6 +79,22 @@ export class GameScene extends Phaser.Scene {
   private hintsUsed = 0;
   private hintHighlightTimer?: Phaser.Time.TimerEvent;
   private hintGlowObjects: Phaser.GameObjects.GameObject[] = [];
+  /**
+   * Активный DOM-контейнер автокомплит-модалки. Нужен, чтобы renderBoard,
+   * вызываемый несколько раз подряд до клика игрока, не плодил новые
+   * модалки поверх существующей (старый баг: удалялась только верхняя,
+   * под ней оставались призраки и закрывали игру).
+   */
+  private autoCompleteOverlayEl: HTMLElement | null = null;
+  /**
+   * Цикл подсказок: храним уже показанные в рамках текущего состояния
+   * доски. На каждый клик «Подсказка» выдаём следующий неиспользованный
+   * вариант из `getAllHints`. Когда `shownHintKeys` покрывают весь список —
+   * кнопка блокируется. Любой ход игрока меняет fingerprint доски, и сет
+   * сбрасывается в `renderBoard` → кнопка снова активна.
+   */
+  private shownHintKeys = new Set<string>();
+  private lastBoardFingerprint = "";
   /** Кандидат на тап: gameobject, на котором pointerdown зафиксировал
    * касание. Чистится при dragstart или scene-level pointerup. Используется
    * как замена per-container `pointerup`, который на тач-устройствах
@@ -123,14 +138,20 @@ export class GameScene extends Phaser.Scene {
     this.hintsUsed = 0;
     this.hintHighlightTimer?.destroy();
     this.hintHighlightTimer = undefined;
+    this.shownHintKeys.clear();
+    this.lastBoardFingerprint = "";
+    this.autoCompleteOverlayEl = null;
     this.draggedSelection = null;
     this.dragPreviewCards = [];
     this.dragPreviewNodes = [];
     this.tapCandidate = null;
 
-    const { analytics, save, sdk } = getAppContext();
+    const { analytics, sdk } = getAppContext();
     analytics.track("deal_start", { mode, dealId });
-    save.updateCurrentGame(this.gameState);
+    // ВАЖНО: на старте сессии (scene.create) save.updateCurrentGame НЕ
+    // вызываем — GP-тестеры требуют «sync только при сохранении данных,
+    // не на старте». Состояние gameState будет сохранено при первом
+    // реальном ходе игрока (applyState → save.updateCurrentGame).
     sdk.gameplayStart();
 
     // Ensure card back texture is loaded for Phaser rendering
@@ -164,7 +185,12 @@ export class GameScene extends Phaser.Scene {
       this.gameOverlay?.destroy();
       this.gameOverlay = undefined;
       this.gameOverlayCleanup = undefined;
-      getAppContext().sdk.gameplayStop();
+      const ctx = getAppContext();
+      ctx.sdk.gameplayStop();
+      // currentGame копится в памяти без debounced sync (см. SaveService).
+      // При уходе со сцены принудительно сбрасываем его в облако — иначе
+      // прерванная партия не подхватится при следующем заходе.
+      void ctx.save.flush();
     });
   }
 
@@ -242,10 +268,35 @@ export class GameScene extends Phaser.Scene {
     navBar.strokeLineShape(new Phaser.Geom.Line(0, barTop, GAME_WIDTH, barTop));
   }
 
+  /**
+   * Лёгкий fingerprint доски: длины стоков/waste/foundation/tableau + id
+   * верхней waste-карты. Меняется ровно на тех изменениях, которые делают
+   * предыдущие подсказки stale. Считается за O(pile-count), без JSON.
+   */
+  private computeBoardFingerprint(): string {
+    const s = this.gameState;
+    if (!s) return "";
+    return [
+      s.stock.cards.length,
+      s.waste.cards.length,
+      s.foundations.map((f) => f.cards.length).join(","),
+      s.tableau.map((p) => p.cards.length).join(","),
+      s.waste.cards[s.waste.cards.length - 1]?.id ?? "",
+    ].join("|");
+  }
+
   private renderGameOverlay(): void {
     const { i18n } = getAppContext();
     const foundationSuitSymbols = ["♠", "♣", "♦", "♥"];
     const backKey = this.cardBackKey();
+
+    // Сброс цикла подсказок при любом реальном изменении доски —
+    // разблокирует кнопку «Подсказка» после хода игрока (требование UX).
+    const fp = this.computeBoardFingerprint();
+    if (fp !== this.lastBoardFingerprint) {
+      this.lastBoardFingerprint = fp;
+      this.shownHintKeys.clear();
+    }
 
     // Get card back SVG for stock slot display
     let cardBackSvg: string | undefined;
@@ -275,7 +326,15 @@ export class GameScene extends Phaser.Scene {
       })),
       undoLabel: this.getUndoLabel(),
       hintLabel: this.getHintLabel(),
+      // Кнопка заблокирована, только когда все подсказки для текущего
+      // состояния доски уже показаны. Любой ход меняет fingerprint и
+      // очищает shownHintKeys, что возвращает кнопку в активное состояние.
+      hintDisabled: this.getRemainingHints().length === 0,
       rulesLabel: i18n.t("rules"),
+      // Кнопка переименована «Настройки» → «Меню» по требованию ВК/ОК
+      // тестировщиков: это теперь вход в полноценное меню, а не
+      // технический экран настроек.
+      settingsLabel: i18n.t("menu"),
       homeLabel: i18n.t("home"),
       cards: this.getOverlayCards(),
       dragCards: this.dragPreviewCards,
@@ -430,6 +489,7 @@ export class GameScene extends Phaser.Scene {
           | "undo"
           | "hint"
           | "rules"
+          | "settings"
           | "home"
           | undefined;
         switch (action) {
@@ -440,7 +500,25 @@ export class GameScene extends Phaser.Scene {
             this.handleHintAction();
             return;
           case "rules":
+            // Теперь это круглая «?»-кнопка в правом верхнем углу.
             this.showRulesOverlay();
+            return;
+          case "settings":
+            // Открываем Settings с returnTo=game + данные о текущей
+            // партии. Back-кнопка в SettingsScene вернёт игрока в ту же
+            // партию: GameScene.create читает save.progress.currentGame
+            // и восстанавливает ход, на котором вышли.
+            if (this.gameState) {
+              this.scene.start(SCENES.settings, {
+                returnTo: "game",
+                gameData: {
+                  mode: this.gameState.mode,
+                  dealId: this.gameState.dealId,
+                },
+              });
+            } else {
+              this.scene.start(SCENES.settings);
+            }
             return;
           case "home":
             this.showLeaveConfirm();
@@ -513,22 +591,38 @@ export class GameScene extends Phaser.Scene {
     return `${i18n.t("hint")} ${COIN_TOKEN}${ECONOMY.hintCost}`;
   }
 
+  /** Уникальный ключ подсказки для дедупликации в рамках одного состояния доски. */
+  private hintKey(h: HintResult): string {
+    return `${h.from.zone}:${h.from.pileIndex}:${h.from.cardIndex}>${h.to.zone}:${h.to.pileIndex}`;
+  }
+
+  /**
+   * Оставшиеся непоказанные подсказки для текущего состояния доски.
+   * Используется и для выбора следующей подсказки, и для отключения
+   * кнопки когда все варианты исчерпаны.
+   */
+  private getRemainingHints(): HintResult[] {
+    if (!this.gameState) return [];
+    return getAllHints(this.gameState).filter(
+      (h) => !this.shownHintKeys.has(this.hintKey(h)),
+    );
+  }
+
   private handleHintAction(): void {
     if (!this.gameState || this.animating || this.autoCompleting) return;
+
+    const remaining = this.getRemainingHints();
+    if (remaining.length === 0) {
+      // Все варианты показаны в рамках текущего состояния доски — кнопка
+      // и так заблокирована, но на всякий случай guard.
+      this.setStatus(getAppContext().i18n.t("noMoves"));
+      getAppContext().sound.badMove();
+      return;
+    }
 
     const { save, sound, i18n, analytics } = getAppContext();
     const isFirstHint = this.hintsUsed === 0;
     const cost = isFirstHint ? 0 : ECONOMY.hintCost;
-
-    // Сначала проверяем, есть ли вообще полезный ход — деньги списываем
-    // только если подсказка реально найдётся. Иначе игрок платит за «нет
-    // ходов».
-    const hint = getHint(this.gameState);
-    if (!hint) {
-      this.setStatus(i18n.t("noMoves"));
-      sound.badMove();
-      return;
-    }
 
     if (cost > 0) {
       const coins = save.load().progress.coins;
@@ -538,8 +632,12 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       save.addCoins(-cost);
+      // Явный sync в gp.player после списания монет.
+      void save.flush();
     }
 
+    const hint = remaining[0]!;
+    this.shownHintKeys.add(this.hintKey(hint));
     this.hintsUsed++;
     analytics.track("hint_used", { dealId: this.gameState.dealId, cost });
     sound.hint();
@@ -588,6 +686,8 @@ export class GameScene extends Phaser.Scene {
     this.hintHighlightTimer = undefined;
     this.hintGlowObjects.forEach((obj) => obj.destroy());
     this.hintGlowObjects = [];
+    // Больше не перерендерим оверлей из таймера — состояние кнопки
+    // определяется getRemainingHints(), а не наличием подсветки.
   }
 
   private getHintCardPosition(
@@ -770,23 +870,58 @@ export class GameScene extends Phaser.Scene {
 
   private getRulesBodyText(): string {
     const locale = getAppContext().i18n.currentLocale();
-    if (locale === "ru") {
-      return [
+    const texts: Record<typeof locale, string[]> = {
+      ru: [
         "Собери все карты по мастям в верхние стопки: от туза до короля.",
         "",
         "На поле карты кладутся по убыванию, чередуя красные и чёрные масти.",
         "",
         "Переноси открытые карты и стопки, открывай закрытые карты и добирай из колоды слева.",
-      ].join("\n");
-    }
-
-    return [
-      "Build every suit in the top foundations from ace to king.",
-      "",
-      "On the tableau, build downward while alternating red and black cards.",
-      "",
-      "Move open cards and stacks, reveal face-down cards, and draw from the stock on the left.",
-    ].join("\n");
+      ],
+      en: [
+        "Build every suit in the top foundations from ace to king.",
+        "",
+        "On the tableau, build downward while alternating red and black cards.",
+        "",
+        "Move open cards and stacks, reveal face-down cards, and draw from the stock on the left.",
+      ],
+      tr: [
+        "Her takımı üstteki temel yığınlara astan papaza kadar dizin.",
+        "",
+        "Tahtada kartları azalan sırayla, kırmızı ve siyah renkleri değiştirerek yerleştirin.",
+        "",
+        "Açık kartları ve yığınları taşıyın, kapalı kartları açın ve soldaki desteden yeni kart çekin.",
+      ],
+      es: [
+        "Construye cada palo en las bases superiores, del as al rey.",
+        "",
+        "En el tablero, apila en orden descendente alternando cartas rojas y negras.",
+        "",
+        "Mueve cartas y pilas visibles, descubre las cartas boca abajo y roba del mazo a la izquierda.",
+      ],
+      pt: [
+        "Construa cada naipe nas fundações superiores, do ás até o rei.",
+        "",
+        "No tabuleiro, empilhe em ordem decrescente alternando cartas vermelhas e pretas.",
+        "",
+        "Mova cartas e pilhas visíveis, revele cartas viradas para baixo e compre do monte à esquerda.",
+      ],
+      de: [
+        "Lege jede Farbe in den oberen Ablagen vom Ass bis zum König ab.",
+        "",
+        "Auf dem Spielfeld staple absteigend und wechsle rote und schwarze Karten ab.",
+        "",
+        "Verschiebe offene Karten und Stapel, decke verdeckte Karten auf und ziehe aus dem Talon links.",
+      ],
+      fr: [
+        "Construis chaque couleur dans les fondations du haut, de l'as au roi.",
+        "",
+        "Sur le tableau, empile par ordre décroissant en alternant cartes rouges et noires.",
+        "",
+        "Déplace les cartes et les piles visibles, retourne les cartes face cachée et pioche dans le talon à gauche.",
+      ],
+    };
+    return (texts[locale] ?? texts.en).join("\n");
   }
 
   private renderBoard(): void {
@@ -1700,6 +1835,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showAutoCompleteOverlay(): void {
+    // Guard: не плодим дубли. renderBoard вызывается после каждого хода —
+    // если оффер автокомплита доступен, он может сработать несколько раз
+    // до того, как игрок среагирует. Одна модалка за раз.
+    if (this.autoCompleteOverlayEl?.isConnected) return;
+
     const { i18n, sound } = getAppContext();
     sound.goodMove();
 
@@ -1709,6 +1849,7 @@ export class GameScene extends Phaser.Scene {
     const container = document.createElement("div");
     container.className = "game-overlay__rules-overlay";
     container.setAttribute("data-autocomplete-overlay", "true");
+    this.autoCompleteOverlayEl = container;
 
     const backdrop = document.createElement("div");
     backdrop.className = "game-overlay__rules-backdrop";
@@ -1736,7 +1877,7 @@ export class GameScene extends Phaser.Scene {
     // this modal appears. pointerdown is not affected by the guard.
     autoBtn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      container.remove();
+      this.dismissAutoCompleteOverlay();
       this.autoCompleting = true;
       this.runAutoComplete();
     });
@@ -1747,7 +1888,7 @@ export class GameScene extends Phaser.Scene {
     continueBtn.textContent = i18n.t("continue");
     continueBtn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      container.remove();
+      this.dismissAutoCompleteOverlay();
       this.autoCompleting = true;
     });
 
@@ -1761,8 +1902,19 @@ export class GameScene extends Phaser.Scene {
     overlayEl.appendChild(container);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      container.remove();
+      this.dismissAutoCompleteOverlay();
     });
+  }
+
+  /**
+   * Снять модалку автокомплита и при этом зачистить все случайные
+   * призраки (если в DOM зацепились дубли от старых рендеров).
+   */
+  private dismissAutoCompleteOverlay(): void {
+    this.autoCompleteOverlayEl?.remove();
+    this.autoCompleteOverlayEl = null;
+    const host = this.gameOverlay?.getHostElement();
+    host?.querySelectorAll('[data-autocomplete-overlay="true"]').forEach((el) => el.remove());
   }
 
   /** Automatically move all cards to foundation one-by-one with fly animation */

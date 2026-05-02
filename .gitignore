@@ -24,3 +24,9 @@ TEMP_*
 public/audio/**/original/
 assets-source/
 
+# Build artifacts (per-platform zips, ~18MB каждый — пересоздаются packBuild.mjs)
+builds/
+
+# Generated knowledge graph (rebuilds from source via graphify watch)
+graphify-out/
+

@@ -1,4 +1,3 @@
-import { SAVE_KEY } from "@/app/config/gameConfig";
 import { createInitialProgressState } from "@/core/game-state/progress";
 import type { GameState, ProgressState, SaveState } from "@/core/game-state/types";
 import { CHAPTERS, getNextNodeId, isLastNodeInChapter, getFirstNodeOfChapter, getNodeById } from "@/data/chapters";
@@ -7,7 +6,7 @@ import { getRewardById } from "@/data/narrative/rewards";
 import { ECONOMY } from "@/app/config/economy";
 import type { SdkService } from "@/services/sdk/SdkService";
 
-// Static id sets used to scrub merged saves from cloud-injected ghost ids.
+// Static id sets used to scrub saves from cloud-injected ghost ids.
 const KNOWN_NODE_IDS: ReadonlySet<string> = new Set(
   CHAPTERS.flatMap((c) => c.nodes.map((n) => n.id)),
 );
@@ -24,16 +23,14 @@ export function createDefaultSaveState(): SaveState {
 /**
  * Проверяет минимальную целостность объекта SaveState. Не пытается лечить
  * частично корректные данные — если что-то критичное не на месте, безопаснее
- * откатиться на дефолт. Используется и для localStorage, и для облачных сейвов
- * (последние могут прийти в любом виде).
+ * откатиться на дефолт. Используется для облачных сейвов, которые могут
+ * прийти в любом виде (мигрированный плеер GP, старая версия формата и т.п.).
  */
 function isStringArray(x: unknown): x is string[] {
   return Array.isArray(x) && x.every((v) => typeof v === "string");
 }
 
-// Защитные верхние границы — на случай подмены сейва (локального или облачного).
-// Числа за этими пределами не имеют игрового смысла и почти наверняка означают
-// либо повреждение, либо попытку накрутить прогресс/монеты.
+// Защитные верхние границы — на случай подмены cloud-save.
 const MAX_COINS = 1_000_000;
 const MAX_NODES = 1_000;
 const MAX_STREAK = 10_000;
@@ -55,7 +52,21 @@ function isValidSaveState(value: unknown): value is SaveState {
   if (!isStringArray(progress.completedNodes) || progress.completedNodes.length > MAX_NODES) return false;
   if (!isStringArray(progress.artifacts) || progress.artifacts.length > MAX_NODES) return false;
   if (!isBoundedInt(progress.coins, 0, MAX_COINS)) return false;
-  if (progress.locale !== "ru" && progress.locale !== "en" && progress.locale !== "tr") return false;
+  // Все 7 поддерживаемых локалей. До v0.3.42 список был только ru/en/tr —
+  // cloud-save европейских игроков (es/pt/de/fr) проваливал валидацию и
+  // молча сбрасывался к дефолтам. Источник истины — type Locale в
+  // services/i18n/locales.ts; держим в синхроне.
+  if (
+    progress.locale !== "ru" &&
+    progress.locale !== "en" &&
+    progress.locale !== "tr" &&
+    progress.locale !== "es" &&
+    progress.locale !== "pt" &&
+    progress.locale !== "de" &&
+    progress.locale !== "fr"
+  ) {
+    return false;
+  }
   if (!isBoundedInt(progress.streakCount, 0, MAX_STREAK)) return false;
   if (
     progress.dailyClaimedOn !== null &&
@@ -89,10 +100,13 @@ function isValidSaveState(value: unknown): value is SaveState {
   ) {
     return false;
   }
+  if (
+    typeof progress.lastRewardedAt !== "undefined" &&
+    (typeof progress.lastRewardedAt !== "number" || !Number.isFinite(progress.lastRewardedAt))
+  ) {
+    return false;
+  }
 
-  // currentGame: либо null, либо валидный GameState. На повреждённую партию
-  // отвечаем сбросом в null, а не выкидыванием всего сейва — иначе один кривой
-  // обjект из облака стирает прогресс с этого устройства.
   if (v.currentGame !== null && v.currentGame !== undefined) {
     if (!isValidGameState(v.currentGame)) {
       v.currentGame = null;
@@ -103,7 +117,12 @@ function isValidSaveState(value: unknown): value is SaveState {
 
 const VALID_GAME_MODES = new Set(["adventure", "daily", "quick-play"]);
 const VALID_GAME_STATUSES = new Set(["idle", "in_progress", "won", "lost"]);
-const DEAL_ID_RE = /^c\d{1,3}n\d{1,3}$/;
+// Adventure: c<chapter>n<node>, например "c2n4". Daily: daily-YYYY-MM-DD,
+// например "daily-2026-05-02" (см. getDailyDateKey + scenes использующие
+// `daily-${dailyKey}`). До v0.3.42 регэксп пропускал только adventure-формат,
+// и любая сохранённая daily-партия в currentGame при загрузке из облака
+// проваливала isValidGameState и тихо обнулялась.
+const DEAL_ID_RE = /^(c\d{1,3}n\d{1,3}|daily-\d{4}-\d{2}-\d{2})$/;
 const MAX_PILE_CARDS = 64;
 const MAX_FOUNDATIONS = 8;
 const MAX_TABLEAU = 12;
@@ -117,8 +136,6 @@ function isValidPile(value: unknown): boolean {
     return false;
   }
   if (!Array.isArray(p.cards) || p.cards.length > MAX_PILE_CARDS) return false;
-  // Карты дальше не валидируем поэлементно — формат стабильный, а ошибочный
-  // GameState всё равно отбрасывается на следующем шаге.
   return true;
 }
 
@@ -140,10 +157,7 @@ function isValidGameState(value: unknown): value is GameState {
 
 /**
  * Чистит progress от мусора, который мог приехать из облака:
- * - выкидывает unlocked/completed/artifact id'шники, которых нет в статической
- *   таблице глав (защита от инжекта несуществующих узлов);
- * - кэпит длины массивов, чтобы merge не мог их разрастить через unionStrings;
- * - клампит coins/streak/chapter в их валидные диапазоны.
+ * выкидывает незнакомые id'шники, кэпит длины/диапазоны.
  */
 function sanitizeProgress(progress: ProgressState): ProgressState {
   const filterNodes = (ids: string[]): string[] => {
@@ -181,87 +195,202 @@ function sanitizeProgress(progress: ProgressState): ProgressState {
   };
 }
 
-function unionStrings(a: string[], b: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const x of a) if (!seen.has(x)) { seen.add(x); out.push(x); }
-  for (const x of b) if (!seen.has(x)) { seen.add(x); out.push(x); }
-  return out;
-}
-
-function laterDateString(a: string | null, b: string | null): string | null {
-  if (!a) return b;
-  if (!b) return a;
-  return a >= b ? a : b;
-}
-
-export function mergeSaveStates(local: SaveState, cloud: SaveState): SaveState {
-  const lp = local.progress;
-  const cp = cloud.progress;
-  const mergedProgress: ProgressState = {
-      currentChapter: Math.max(lp.currentChapter, cp.currentChapter),
-      unlockedNodes: unionStrings(lp.unlockedNodes, cp.unlockedNodes),
-      completedNodes: unionStrings(lp.completedNodes, cp.completedNodes),
-      coins: Math.max(lp.coins, cp.coins),
-      artifacts: unionStrings(lp.artifacts, cp.artifacts),
-      dailyClaimedOn: laterDateString(lp.dailyClaimedOn, cp.dailyClaimedOn),
-      // Локаль игрока — приоритет у локальной (он явно её выбрал на этом устройстве).
-      locale: lp.locale,
-      streakCount: Math.max(lp.streakCount, cp.streakCount),
-      lastLoginDate: laterDateString(lp.lastLoginDate, cp.lastLoginDate),
-      prologueShown: Boolean(lp.prologueShown || cp.prologueShown),
-      // devAllPlayable — чисто локальный dev-флаг. Никогда не подтягиваем
-      // его из облака, чтобы случайный sync с dev-устройства не разлочил
-      // всё на проде у обычного игрока.
-      devAllPlayable: lp.devAllPlayable,
-  };
-  return {
-    version: 1,
-    progress: sanitizeProgress(mergedProgress),
-    // Текущая партия — отдаём приоритет локальной, чтобы не потерять in-progress.
-    // Облачная партия проходит ту же валидацию через isValidSaveState на входе.
-    currentGame: local.currentGame ?? cloud.currentGame,
-  };
-}
+/**
+ * SaveService — единственный источник истины для игрового сейва.
+ *
+ * Требование тестировщика GamePush (v0.3.0): никакого localStorage,
+ * никакого мерджа. Все данные лежат в поле `save` объекта gp.player,
+ * на клиенте держим только in-memory snapshot.
+ *
+ * Жизненный цикл:
+ *  1. `new SaveService()` — snapshot = defaults (на случай ранних чтений).
+ *  2. BootScene ждёт `sdk.init()`, потом вызывает `save.init(sdk)` —
+ *     подтягивает cloud-снимок, заменяет им in-memory snapshot.
+ *  3. Последующие мутации (addCoins, completeNode, ...) меняют snapshot
+ *     и fire-and-forget отправляют его в `sdk.setCloudSave()`.
+ *  4. `flush()` — async обёртка поверх setCloudSave, используется там,
+ *     где вызывающий должен дождаться подтверждения записи (после
+ *     rewarded-ad, списания монет за подсказку).
+ */
+/**
+ * Debounce для cloud-sync: 5000 мс (увеличено с 800 мс на v0.3.39 после
+ * того как мы упёрлись в потолок gp.player.sync() — 100k вызовов / сутки).
+ *
+ * Стратегия экономии вызовов:
+ *  1. Прогресс (монеты, completedNodes, локаль, громкости) пишется через
+ *     `save()` → `scheduleSync()` с debounce 5 сек. Burst мутаций (например
+ *     RewardScene: completeNode + addCoins подряд) схлопывается в 1 sync.
+ *  2. `currentGame` (доска во время партии) пишется через `updateCurrentGame`
+ *     → `saveLocal()` БЕЗ debounce-таймера. То есть каждый ход / undo /
+ *     drag не запускает sync. Облако обновляется только при flush() —
+ *     конец партии (RewardScene), pagehide, scene shutdown, sdk.onPause.
+ *  3. `lastSyncedJson` — идемпотентный skip: если очередной планируемый
+ *     sync даёт такой же JSON, как последний отправленный — sync не
+ *     делаем, экономим лишний sync.
+ *
+ * Это сокращает 5–15 sync на партию до ~1 sync на партию.
+ */
+const PROGRESS_DEBOUNCE_MS = 5000;
 
 export class SaveService {
-  load(): SaveState {
+  private state: SaveState = createDefaultSaveState();
+  private sdk: SdkService | null = null;
+  /** Таймер дебаунса для отложенного cloud-sync. */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Есть ли незакомиченные изменения в облаке. */
+  private dirty = false;
+  /**
+   * JSON последнего успешно отправленного в облако состояния. Если
+   * очередной sync даёт совпадающий JSON — пропускаем gp.player.sync()
+   * (экономия квоты при no-op мутациях). null = ничего ещё не отправляли.
+   */
+  private lastSyncedJson: string | null = null;
+
+  /**
+   * Подгружает сейв из gp.player (или эквивалента на другой платформе).
+   * Безопасно вызывать несколько раз — перепишет snapshot актуальной
+   * облачной версией. При отсутствии/повреждении cloud-save — snapshot
+   * остаётся на дефолте (чистый старт).
+   */
+  async init(sdk: SdkService): Promise<void> {
+    this.sdk = sdk;
+    let json: string | null = null;
     try {
-      const rawValue = window.localStorage.getItem(SAVE_KEY);
-
-      if (!rawValue) {
-        return createDefaultSaveState();
-      }
-
-      const parsed = JSON.parse(rawValue) as unknown;
-
-      if (!isValidSaveState(parsed)) {
-        console.warn("[save] localStorage state failed schema validation, resetting");
-        return createDefaultSaveState();
-      }
-
-      return parsed;
+      json = await sdk.getCloudSave();
     } catch (error) {
-      console.warn("[save] failed to load state", error);
-      return createDefaultSaveState();
+      console.warn("[save] getCloudSave failed during init", error);
+      json = null;
+    }
+
+    if (!json) {
+      // Первый запуск / очищенный профиль — оставляем дефолтный snapshot
+      // in-memory. НЕ делаем persist на старте: тестировщик GP ругается
+      // «Не нужно делать Sync на старте». Первый игровой ход / смена
+      // настройки сам запустит debounced persist.
+      return;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch (error) {
+      console.warn("[save] cloud save is not valid JSON, falling back to defaults", error);
+      this.state = createDefaultSaveState();
+      // Намеренно НЕ синкуем — ждём реальной пользовательской мутации.
+      return;
+    }
+
+    if (!isValidSaveState(parsed)) {
+      console.warn("[save] cloud save failed schema validation, resetting to defaults");
+      this.state = createDefaultSaveState();
+      return;
+    }
+
+    this.state = {
+      version: 1,
+      progress: sanitizeProgress(parsed.progress),
+      currentGame: parsed.currentGame ?? null,
+    };
+    // Запоминаем загруженный JSON как «уже в облаке», чтобы первый
+    // же no-op save (например, миграция, не меняющая данные) не
+    // спровоцировал лишний sync.
+    this.lastSyncedJson = JSON.stringify(this.state);
+  }
+
+  /** Возвращает in-memory snapshot (синхронно). */
+  load(): SaveState {
+    return this.state;
+  }
+
+  /**
+   * Перезаписывает in-memory snapshot и планирует debounced cloud-sync.
+   * Используется для «значимых» мутаций прогресса (монеты, артефакты,
+   * локаль, громкости) — там без облака игрок потеряет реальные данные.
+   *
+   * Для частых мутаций состояния партии используется `updateCurrentGame`,
+   * который НЕ планирует sync (см. saveLocal).
+   */
+  save(state: SaveState): void {
+    this.state = state;
+    this.dirty = true;
+    this.scheduleSync();
+  }
+
+  /**
+   * Локальное обновление snapshot БЕЗ планирования cloud-sync.
+   * Используется для частых мутаций currentGame (доска во время партии):
+   * каждый ход обновляет in-memory, но в облако уйдёт только при flush()
+   * (pagehide, конец партии, переход на другую сцену, sdk.onPause).
+   */
+  private saveLocal(state: SaveState): void {
+    this.state = state;
+    this.dirty = true;
+  }
+
+  /**
+   * Явно дождаться записи в облако (rewarded, hint, переходы между
+   * сценами, pagehide). Отменяет ожидающий debounce-таймер и пишет сразу.
+   * Идемпотентен: если состояние совпадает с последним отправленным —
+   * sync пропускается (экономия квоты gp.player.sync).
+   */
+  async flush(): Promise<void> {
+    if (!this.sdk) return;
+    if (this.persistTimer !== null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    if (!this.dirty) return;
+    const json = JSON.stringify(this.state);
+    if (json === this.lastSyncedJson) {
+      // Состояние не изменилось с прошлого sync — не тратим квоту.
+      this.dirty = false;
+      return;
+    }
+    this.dirty = false;
+    this.lastSyncedJson = json;
+    try {
+      await this.sdk.setCloudSave(json);
+    } catch (error) {
+      console.warn("[save] flush failed", error);
     }
   }
 
-  save(state: SaveState): void {
-    try {
-      window.localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    } catch (error) {
-      console.warn("[save] failed to persist state", error);
+  /**
+   * Планирует отложенную запись в облако. Повторные вызовы в пределах
+   * окна перезапускают таймер. По истечении окна — пишет в облако,
+   * если состояние изменилось с прошлого sync (idempotent skip).
+   */
+  private scheduleSync(): void {
+    if (!this.sdk) return;
+    if (this.persistTimer !== null) {
+      clearTimeout(this.persistTimer);
     }
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      if (!this.dirty || !this.sdk) return;
+      const json = JSON.stringify(this.state);
+      if (json === this.lastSyncedJson) {
+        // Идемпотентный skip — экономим квоту gp.player.sync.
+        this.dirty = false;
+        return;
+      }
+      this.dirty = false;
+      this.lastSyncedJson = json;
+      // Fire-and-forget. Ошибки логируются внутри setCloudSave.
+      void this.sdk.setCloudSave(json);
+    }, PROGRESS_DEBOUNCE_MS);
   }
 
   updateCurrentGame(currentGame: GameState | null): SaveState {
-    const nextState = {
-      ...this.load(),
-      currentGame
+    const nextState: SaveState = {
+      ...this.state,
+      currentGame,
     };
-
-    this.save(nextState);
+    // НЕ планируем sync: каждый ход партии — десятки мутаций currentGame,
+    // и при debounced sync мы тратили бы 1+ вызов gp.player.sync на партию.
+    // Реальная запись в облако произойдёт при flush() в RewardScene
+    // (конец партии), на pagehide, при scene shutdown или sdk.onPause.
+    this.saveLocal(nextState);
     return nextState;
   }
 
@@ -270,12 +399,10 @@ export class SaveService {
   }
 
   updateProgress(updater: (progress: ProgressState) => ProgressState): SaveState {
-    const currentState = this.load();
-    const nextState = {
-      ...currentState,
-      progress: updater(currentState.progress)
+    const nextState: SaveState = {
+      ...this.state,
+      progress: updater(this.state.progress),
     };
-
     this.save(nextState);
     return nextState;
   }
@@ -308,12 +435,11 @@ export class SaveService {
     artifactAwarded: string | null;
     chapterCompleted: boolean;
   } {
-    const save = this.load();
-    const progress = save.progress;
+    const progress = this.state.progress;
     const node = getNodeById(nodeId);
     const rewardId = node?.rewardId ?? null;
     const reward = rewardId ? getRewardById(rewardId) : undefined;
-    let coinsAwarded = ECONOMY.winCoins;
+    const coinsAwarded = ECONOMY.winCoins;
     let artifactAwarded: string | null = null;
     let chapterCompleted = false;
 
@@ -377,73 +503,5 @@ export class SaveService {
       dailyClaimedOn: dateKey,
       coins: p.coins + ECONOMY.dailyWinCoins,
     }));
-  }
-
-  /**
-   * Загружает облачное сохранение и сливает с локальным по полям:
-   * - completedNodes / unlockedNodes / artifacts → объединение
-   * - coins → max
-   * - currentChapter / streakCount → max
-   * - dailyClaimedOn / lastLoginDate / locale / prologueShown → берём более свежие
-   * - currentGame → берём облачную партию только если локальной нет
-   *
-   * Это устраняет потерю прогресса при двух устройствах: ни одна сторона не
-   * перезатирает другую целиком, и манипулированный сейв не может уменьшить
-   * монеты или украсть артефакты у другой стороны.
-   */
-  async loadFromCloud(sdk: SdkService): Promise<void> {
-    const json = await sdk.getCloudSave();
-    if (!json) {
-      console.log("[save] no cloud save found");
-      return;
-    }
-    let cloudState: unknown;
-    try {
-      cloudState = JSON.parse(json);
-    } catch (error) {
-      console.warn("[save] failed to parse cloud save", error);
-      return;
-    }
-    if (!isValidSaveState(cloudState)) {
-      console.warn("[save] cloud save failed schema validation, ignoring");
-      return;
-    }
-
-    const localState = this.load();
-    const merged = mergeSaveStates(localState, cloudState);
-    this.save(merged);
-    console.log(
-      `[save] cloud merged (local ${localState.progress.completedNodes.length} ` +
-      `+ cloud ${cloudState.progress.completedNodes.length} → ` +
-      `${merged.progress.completedNodes.length} nodes)`,
-    );
-  }
-
-  /**
-   * Отправляет текущее локальное сохранение в облако. Перед отправкой
-   * подтягивает актуальное облачное состояние и сливает с локальным,
-   * чтобы не затереть прогресс, сделанный на другом устройстве между
-   * прошлым `loadFromCloud` и этим пушем.
-   */
-  async pushToCloud(sdk: SdkService): Promise<void> {
-    try {
-      const json = await sdk.getCloudSave();
-      if (json) {
-        let cloudState: unknown;
-        try {
-          cloudState = JSON.parse(json);
-        } catch {
-          cloudState = null;
-        }
-        if (isValidSaveState(cloudState)) {
-          const merged = mergeSaveStates(this.load(), cloudState);
-          this.save(merged);
-        }
-      }
-    } catch (error) {
-      console.warn("[save] pre-push merge failed, pushing local state as-is", error);
-    }
-    const state = this.load();
-    await sdk.setCloudSave(JSON.stringify(state));
   }
 }
