@@ -1,6 +1,10 @@
 import { narrativeEntriesGlobal } from "@/data/narrative/entries.global";
 import { narrativeEntriesRu } from "@/data/narrative/entries.ru";
 import { narrativeEntriesTr } from "@/data/narrative/entries.tr";
+import { narrativeEntriesEs } from "@/data/narrative/entries.es";
+import { narrativeEntriesPt } from "@/data/narrative/entries.pt";
+import { narrativeEntriesDe } from "@/data/narrative/entries.de";
+import { narrativeEntriesFr } from "@/data/narrative/entries.fr";
 
 export type NarrativeEntry = {
   speakerEntityId: string;
@@ -8,12 +12,41 @@ export type NarrativeEntry = {
   body: string;
 };
 
-export function getNarrativeEntry(entryId: string, locale: "ru" | "global" | "tr") {
+// Все поддерживаемые narrative-локали. "global" — исторический ключ
+// (английский текст), используется для callers, которые ещё не
+// перешли на явный "en".
+export type EntryLocale =
+  | "ru"
+  | "global"
+  | "en"
+  | "tr"
+  | "es"
+  | "pt"
+  | "de"
+  | "fr";
+
+export function getNarrativeEntry(entryId: string, locale: EntryLocale) {
   if (locale === "ru") {
     return narrativeEntriesRu[entryId as keyof typeof narrativeEntriesRu] as NarrativeEntry | undefined;
   }
   if (locale === "tr") {
     return (narrativeEntriesTr[entryId as keyof typeof narrativeEntriesTr] ??
+      narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as NarrativeEntry | undefined;
+  }
+  if (locale === "es") {
+    return (narrativeEntriesEs[entryId as keyof typeof narrativeEntriesEs] ??
+      narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as NarrativeEntry | undefined;
+  }
+  if (locale === "pt") {
+    return (narrativeEntriesPt[entryId as keyof typeof narrativeEntriesPt] ??
+      narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as NarrativeEntry | undefined;
+  }
+  if (locale === "de") {
+    return (narrativeEntriesDe[entryId as keyof typeof narrativeEntriesDe] ??
+      narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as NarrativeEntry | undefined;
+  }
+  if (locale === "fr") {
+    return (narrativeEntriesFr[entryId as keyof typeof narrativeEntriesFr] ??
       narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal]) as NarrativeEntry | undefined;
   }
   return narrativeEntriesGlobal[entryId as keyof typeof narrativeEntriesGlobal] as NarrativeEntry | undefined;
@@ -30,7 +63,7 @@ function truncateAtWord(value: string, maxLength: number): string {
   return `${trimmed}…`;
 }
 
-export function getNarrativeEntryExcerpt(entryId: string, locale: "ru" | "global" | "tr"): string | null {
+export function getNarrativeEntryExcerpt(entryId: string, locale: EntryLocale): string | null {
   const entry = getNarrativeEntry(entryId, locale);
   if (!entry) {
     return null;

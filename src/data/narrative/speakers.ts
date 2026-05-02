@@ -1,4 +1,8 @@
-export type NarrativeSpeakerLocale = "ru" | "global" | "tr";
+// Narrative-локали для speaker profile: исторический "global" = английский
+// (Latin names Adrian Cole, Tessa Marlowe, etc.) используется для en/es/pt/de/fr —
+// у этих европейских локалей по конвенции проекта общий международный
+// именной пакет. ru/tr имеют свои локальные именные паки.
+export type NarrativeSpeakerLocale = "ru" | "global" | "tr" | "en" | "es" | "pt" | "de" | "fr";
 
 export type NarrativeSpeakerProfile = {
   entityId: string;
@@ -9,7 +13,7 @@ export type NarrativeSpeakerProfile = {
   portraitKey: string;
 };
 
-const SPEAKER_PROFILES: Record<NarrativeSpeakerLocale, Record<string, NarrativeSpeakerProfile>> = {
+const SPEAKER_PROFILES: Record<"ru" | "global" | "tr", Record<string, NarrativeSpeakerProfile>> = {
   ru: {
     leader: {
       entityId: "leader",
@@ -140,11 +144,26 @@ const SPEAKER_PROFILES: Record<NarrativeSpeakerLocale, Record<string, NarrativeS
   },
 };
 
+/**
+ * Резолвит narrative-локаль в пакет профилей:
+ *   ru → русские имена;
+ *   tr → латинские имена (по конвенции проекта);
+ *   en/es/pt/de/fr/global → латинские имена (global pack).
+ */
+function resolveProfilePack(
+  locale: NarrativeSpeakerLocale,
+): Record<string, NarrativeSpeakerProfile> {
+  if (locale === "ru") return SPEAKER_PROFILES.ru;
+  if (locale === "tr") return SPEAKER_PROFILES.tr;
+  return SPEAKER_PROFILES.global;
+}
+
 export function getNarrativeSpeakerProfile(
   speakerEntityId: string,
   locale: NarrativeSpeakerLocale
 ): NarrativeSpeakerProfile {
-  return SPEAKER_PROFILES[locale][speakerEntityId] ?? {
+  const pack = resolveProfilePack(locale);
+  return pack[speakerEntityId] ?? {
     entityId: speakerEntityId,
     fullName: speakerEntityId,
     shortName: speakerEntityId,

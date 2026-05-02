@@ -1,6 +1,10 @@
 import { rewardTextsGlobal } from "@/data/narrative/rewardTexts.global";
 import { rewardTextsRu } from "@/data/narrative/rewardTexts.ru";
 import { rewardTextsTr } from "@/data/narrative/rewardTexts.tr";
+import { rewardTextsEs } from "@/data/narrative/rewardTexts.es";
+import { rewardTextsPt } from "@/data/narrative/rewardTexts.pt";
+import { rewardTextsDe } from "@/data/narrative/rewardTexts.de";
+import { rewardTextsFr } from "@/data/narrative/rewardTexts.fr";
 
 export type NarrativeRewardType =
   | "diary_page"
@@ -67,8 +71,14 @@ export function getRewardById(rewardId: string): NarrativeReward | undefined {
   return NARRATIVE_REWARDS.find((reward) => reward.rewardId === rewardId);
 }
 
-export function getRewardDisplayText(rewardId: string, locale: "ru" | "global" | "tr") {
+export type RewardTextLocale = "ru" | "global" | "en" | "tr" | "es" | "pt" | "de" | "fr";
+
+export function getRewardDisplayText(rewardId: string, locale: RewardTextLocale) {
   if (locale === "ru") return rewardTextsRu[rewardId as keyof typeof rewardTextsRu];
   if (locale === "tr") return rewardTextsTr[rewardId as keyof typeof rewardTextsTr];
+  if (locale === "es") return rewardTextsEs[rewardId as keyof typeof rewardTextsEs];
+  if (locale === "pt") return rewardTextsPt[rewardId as keyof typeof rewardTextsPt];
+  if (locale === "de") return rewardTextsDe[rewardId as keyof typeof rewardTextsDe];
+  if (locale === "fr") return rewardTextsFr[rewardId as keyof typeof rewardTextsFr];
   return rewardTextsGlobal[rewardId as keyof typeof rewardTextsGlobal];
 }
