@@ -1,0 +1,177 @@
+<!--
+  Portrait cover 540×960 (target 1080×1920). Safe zone: 60..480 × 80..880.
+  Same gold/parchment style as cover-source-gold.svg, re-laid for 9:16.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 960">
+  <defs>
+    <radialGradient id="parchment" cx="50%" cy="45%" r="85%">
+      <stop offset="0%"  stop-color="#f4e3b2"/>
+      <stop offset="55%" stop-color="#dcc079"/>
+      <stop offset="100%" stop-color="#8a6a2c"/>
+    </radialGradient>
+    <linearGradient id="topShade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#0c1517" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#0c1517" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bottomShade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#0c1517" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0c1517" stop-opacity="0.28"/>
+    </linearGradient>
+    <linearGradient id="cardFace" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#fbf3dc"/>
+      <stop offset="100%" stop-color="#dcc594"/>
+    </linearGradient>
+    <linearGradient id="cardBack" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#d4aa6a"/>
+      <stop offset="100%" stop-color="#8a5a18"/>
+    </linearGradient>
+    <linearGradient id="compassNlight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"  stop-color="#e8503a"/>
+      <stop offset="50%" stop-color="#c52a1a"/>
+      <stop offset="100%" stop-color="#7a1408"/>
+    </linearGradient>
+    <linearGradient id="compassDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#7a5418"/>
+      <stop offset="100%" stop-color="#3d2808"/>
+    </linearGradient>
+    <linearGradient id="darkInkText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#3a2408"/>
+      <stop offset="100%" stop-color="#1a0f02"/>
+    </linearGradient>
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.9"/></feComponentTransfer>
+      <feColorMatrix values="1 0 0 0 1
+                             0 1 0 0 0.92
+                             0 0 1 0 0.78
+                             0 0 0 1 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5"/>
+      <feOffset dx="0" dy="5" result="shadow"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Parchment full bleed -->
+  <rect width="540" height="960" fill="url(#parchment)"/>
+  <rect width="540" height="200" fill="url(#topShade)"/>
+  <rect y="760" width="540" height="200" fill="url(#bottomShade)"/>
+
+  <!-- Map decorations on parchment -->
+  <g opacity="0.55" stroke="#6b4010" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- mountains upper area -->
+    <path d="M 70 160 L 110 120 L 148 160 L 186 118 L 224 160 L 260 130" stroke-width="2.6"/>
+    <path d="M 92 160 L 112 138 L 132 160" stroke-width="1.6"/>
+    <path d="M 168 160 L 186 140 L 204 160" stroke-width="1.6"/>
+    <!-- river lower area -->
+    <path d="M 60 700 Q 120 690 170 716 T 260 728 Q 310 720 345 744" stroke-width="2.4"/>
+    <path d="M 75 724 Q 135 712 180 738" stroke-width="1.4" stroke-dasharray="3 3"/>
+    <!-- forest right -->
+    <g fill="#6b4010" stroke="none">
+      <circle cx="390" cy="180" r="3.4"/>
+      <circle cx="412" cy="162" r="3.4"/>
+      <circle cx="434" cy="180" r="3.4"/>
+      <circle cx="410" cy="200" r="3.4"/>
+      <circle cx="448" cy="160" r="3.4"/>
+      <circle cx="470" cy="180" r="3.4"/>
+    </g>
+    <!-- scattered stars / compass points -->
+    <g fill="#6b4010" stroke="none">
+      <circle cx="90" cy="360" r="2"/>
+      <circle cx="450" cy="340" r="2"/>
+      <circle cx="70" cy="460" r="2"/>
+      <circle cx="470" cy="480" r="2"/>
+    </g>
+  </g>
+
+  <!-- expedition route: descending S-curve across bottom half -->
+  <path d="M 100 820 Q 160 770 220 770 T 290 700 Q 340 650 370 600 T 420 520 Q 440 480 420 420"
+        fill="none" stroke="#8c1d1d" stroke-width="4" stroke-dasharray="7 5" opacity="0.92"/>
+
+  <g fill="#8c1d1d" stroke="#3a0808" stroke-width="1.6">
+    <circle cx="100" cy="820" r="6"/>
+    <circle cx="220" cy="770" r="6"/>
+    <circle cx="290" cy="700" r="6"/>
+    <circle cx="370" cy="600" r="6"/>
+    <circle cx="420" cy="420" r="7"/>
+  </g>
+  <g transform="translate(420 420)">
+    <line x1="0" y1="0" x2="0" y2="-26" stroke="#3a0808" stroke-width="2.2"/>
+    <polygon points="0,-26 19,-20 0,-14" fill="#c52a1a" stroke="#3a0808" stroke-width="1"/>
+  </g>
+
+  <!-- ===== Case stamp top-right ===== -->
+  <g transform="translate(450 120) rotate(-8)" filter="url(#softShadow)">
+    <circle r="50" fill="#8c1d1d" stroke="#5a0e0e" stroke-width="3"/>
+    <circle r="42" fill="none" stroke="#f0d2c0" stroke-width="1.4" stroke-opacity="0.7"/>
+    <text y="-4" font-family="Georgia, serif" font-size="14" font-weight="bold"
+          fill="#f6e6d4" text-anchor="middle" letter-spacing="1.2">ДЕЛО</text>
+    <text y="22" font-family="Georgia, serif" font-size="22" font-weight="bold"
+          fill="#f6e6d4" text-anchor="middle">47/3</text>
+  </g>
+
+  <!-- ===== Compass rose: upper-middle ===== -->
+  <g transform="translate(200 280) scale(1.1)">
+    <circle r="92" fill="#f0dba0" fill-opacity="0.9" stroke="#5d4416" stroke-width="3"/>
+    <circle r="84" fill="none" stroke="#8a6a2a" stroke-width="1.5" opacity="0.7"/>
+    <circle r="48" fill="none" stroke="#8a6a2a" stroke-width="1" opacity="0.55"/>
+
+    <polygon points="0,0 -14,-14 -54,-54 -18,-10" fill="#c8a360" stroke="#5d4416" stroke-width="1"/>
+    <polygon points="0,0  14,-14  54,-54  10,-18" fill="#a17a2a" stroke="#5d4416" stroke-width="1"/>
+    <polygon points="0,0  14, 14  54, 54  18, 10" fill="#c8a360" stroke="#5d4416" stroke-width="1"/>
+    <polygon points="0,0 -14, 14 -54, 54 -10, 18" fill="#a17a2a" stroke="#5d4416" stroke-width="1"/>
+
+    <polygon points="0,0 -14,-10 -85,0 -14,10" fill="url(#compassDark)" stroke="#3d2808" stroke-width="1.4"/>
+    <polygon points="0,0  14,-10  85,0  14,10" fill="#a17a2a" stroke="#3d2808" stroke-width="1.4"/>
+    <polygon points="0,0 -10, 14 0, 85  10, 14" fill="url(#compassDark)" stroke="#3d2808" stroke-width="1.4"/>
+
+    <polygon points="0,0 -14,-10 0,-90 14,-10" fill="url(#compassNlight)" stroke="#3a0808" stroke-width="1.6"/>
+
+    <circle r="11" fill="#3a0808" stroke="#f0dba0" stroke-width="2"/>
+    <circle r="5"  fill="#f0dba0"/>
+
+    <text x="0" y="-100" text-anchor="middle" font-family="Georgia, serif"
+          font-size="20" font-weight="bold" fill="#3a0808">С</text>
+  </g>
+
+  <!-- ===== Title block: centered under compass ===== -->
+  <g transform="translate(270 500)" text-anchor="middle" filter="url(#goldGlow)">
+    <text font-family="Georgia, serif" font-size="68" font-weight="bold"
+          fill="url(#darkInkText)" letter-spacing="2">Пасьянс</text>
+    <text y="76" font-family="Georgia, serif" font-size="58" font-weight="bold"
+          fill="url(#darkInkText)" letter-spacing="2">Экспедиция</text>
+  </g>
+
+  <!-- gold separator under title -->
+  <line x1="130" y1="608" x2="410" y2="608" stroke="#5d4416" stroke-width="2.4" opacity="0.75"/>
+
+  <!-- subtitle / tagline (RU, short) -->
+  <text x="270" y="652" text-anchor="middle" font-family="Georgia, serif" font-size="26"
+        font-weight="600" fill="#2a1804" font-style="italic">Пропавшая экспедиция</text>
+
+  <!-- ===== Cards fanned: lower section ===== -->
+  <g transform="translate(270 820)" filter="url(#softShadow)">
+    <g transform="rotate(-22) translate(-44 4)">
+      <rect x="-40" y="-72" width="80" height="112" rx="7" fill="url(#cardBack)" stroke="#5d3a0a" stroke-width="2.2"/>
+      <circle cx="0" cy="-14" r="14" fill="none" stroke="#3a0808" stroke-width="1.6" opacity="0.6"/>
+      <polygon points="0,-29 -4,-18 0,-21 4,-18" fill="#8c1d1d"/>
+    </g>
+    <g transform="rotate(-5) translate(0 -10)">
+      <rect x="-42" y="-78" width="84" height="120" rx="7" fill="url(#cardFace)" stroke="#5d3a0a" stroke-width="2.2"/>
+      <text x="-30" y="-52" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#1b1b1b">A</text>
+      <text x="-30" y="-32" font-family="Georgia, serif" font-size="17" fill="#1b1b1b">♠</text>
+      <text x="0" y="8" font-family="Georgia, serif" font-size="40" text-anchor="middle" fill="#1b1b1b">♠</text>
+      <text x="30" y="34" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#1b1b1b" transform="rotate(180 30 34)">A</text>
+    </g>
+    <g transform="rotate(12) translate(44 0)">
+      <rect x="-42" y="-78" width="84" height="120" rx="7" fill="url(#cardFace)" stroke="#5d3a0a" stroke-width="2.2"/>
+      <text x="-30" y="-52" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#a01818">K</text>
+      <text x="-30" y="-32" font-family="Georgia, serif" font-size="17" fill="#a01818">♥</text>
+      <text x="0" y="8" font-family="Georgia, serif" font-size="40" text-anchor="middle" fill="#a01818">♥</text>
+      <text x="30" y="34" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#a01818" transform="rotate(180 30 34)">K</text>
+    </g>
+  </g>
+</svg>

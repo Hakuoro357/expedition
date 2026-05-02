@@ -7,6 +7,7 @@ import sharp from "sharp";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const promoDir = path.resolve(here, "..", "promo");
+const gamepushDir = path.join(promoDir, "gamepush");
 
 const TARGETS = [
   { src: "icon-source.svg",        out: "icon-512.png",                width: 512, height: 512 },
@@ -14,11 +15,22 @@ const TARGETS = [
   { src: "cover-source-solid.svg", out: "cover-800x470-solid.png",     width: 800, height: 470 },
   { src: "cover-source-gold.svg",  out: "cover-800x470-gold.png",      width: 800, height: 470 },
   { src: "cover-source-route.svg", out: "cover-800x470-route.png",     width: 800, height: 470 },
+  // GamePush-обложки для RU. EN/TR не трогаем (там свои cover-source-gold-{en,tr}.svg,
+  // выражают «Solitaire Expedition» — ожидаемое international-название).
+  // Landscape 1920x1080 — из основного landscape-SVG (viewBox 800x470 ≈ 16:9.4).
+  { src: "cover-source-gold.svg",          dir: gamepushDir, out: "cover-1920x1080-ru.png", width: 1920, height: 1080 },
+  // Portrait 1080x1920 — отдельный SVG с viewBox 540x960 (9:16).
+  // Одним landscape-файлом портрет не сделать: либо вытянутые элементы, либо
+  // обрезанный кадр. Перекомпонованы: компас сверху, заголовок по центру,
+  // карты снизу, маршрут и штамп вписаны в новые пропорции.
+  { src: "cover-source-gold-portrait.svg", dir: gamepushDir, out: "cover-1080x1920-ru.png", width: 1080, height: 1920 },
 ];
 
-for (const { src, out, width, height } of TARGETS) {
+for (const target of TARGETS) {
+  const { src, out, width, height } = target;
+  const outDir = target.dir ?? promoDir;
   const srcPath = path.join(promoDir, src);
-  const outPath = path.join(promoDir, out);
+  const outPath = path.join(outDir, out);
   try {
     await fs.access(srcPath);
   } catch {

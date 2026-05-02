@@ -158,9 +158,9 @@
   <!-- ===== Title block: dark ink on parchment, with subtle light glow halo ===== -->
   <g transform="translate(485 200)" filter="url(#goldGlow)">
     <text font-family="Georgia, serif" font-size="42" font-weight="bold"
-          fill="url(#darkInkText)" letter-spacing="1">Solitaire</text>
-    <text y="52" font-family="Georgia, serif" font-size="42" font-weight="bold"
-          fill="url(#darkInkText)" letter-spacing="1">Expedition</text>
+          fill="url(#darkInkText)" letter-spacing="1">Пасьянс</text>
+    <text y="52" font-family="Georgia, serif" font-size="38" font-weight="bold"
+          fill="url(#darkInkText)" letter-spacing="1">Экспедиция</text>
   </g>
 
   <!-- gold separator under title -->
