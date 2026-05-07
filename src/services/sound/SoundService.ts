@@ -2,9 +2,12 @@
  * Audio engine: real sample playback via Web Audio API.
  *
  * SFX: short one-shot buffers (card_place, card_flip, ui_click, ...).
- * BGM: scene-based playback. A "scene" maps to one or more tracks.
- *   - "map"  → single looping track (bgm_map)
- *   - "game" → playlist of bgm_game_a and bgm_game_b, chained with a long crossfade
+ * BGM: scene-based playback. A "scene" maps to one or more tracks
+ * randomly picked at scene start, then chained with long crossfades.
+ * v0.3.49: ротация выровнена — все треки с равным весом.
+ *   - "map"  → Autumn Dusk Lutenist (обе версии) — Dion-inspired pastoral
+ *   - "game" → 4 Grasslight/Tundra + 2 Lantern Journal + 2 Autumn Dusk
+ *              Lutenist (8 треков, по 1/8 каждый)
  *
  * Files are loaded lazily on first call to loadAll(). Missing files
  * do not crash the game — affected sounds simply go silent.
@@ -31,11 +34,14 @@ export type BgmScene = "map" | "game";
 
 /** Internal track keys (1:1 with mp3 files). */
 type BgmTrack =
-  | "map"
-  | "game_c" // Grasslight Dorian — favourite, weighted ×3 in playlist
-  | "game_d" // Grasslight Dorian (1) — favourite, weighted ×3 in playlist
+  | "autumn_a" // Autumn Dusk Lutenist — Dion-inspired pastoral
+  | "autumn_b" // Autumn Dusk Lutenist (1) — alt take
+  | "game_c" // Grasslight Dorian
+  | "game_d" // Grasslight Dorian (1)
   | "game_e" // Tundra Breathwork
-  | "game_f"; // Tundra Breathwork (1)
+  | "game_f" // Tundra Breathwork (1)
+  | "lantern_a" // Lantern Journal — Dion-inspired ambient
+  | "lantern_b"; // Lantern Journal (1) — alt take
 
 const SFX_FILES: Record<SfxKey, string> = {
   card_place: "audio/sfx/sfx_card_place.mp3",
@@ -54,23 +60,38 @@ const SFX_FILES: Record<SfxKey, string> = {
   hint: "audio/sfx/sfx_hint.mp3",
 };
 
+// URL-encoded для пробелов и скобок в именах файлов — fetch принимает
+// сырые пути, но encoding явный и надёжен в любой среде (dev / prod /
+// CDN). Имена файлов оставлены без переименования — авторские названия
+// из Suno.
 const BGM_FILES: Record<BgmTrack, string> = {
-  map: "audio/music/bgm_map.mp3",
+  autumn_a: "audio/bgm/Autumn%20Dusk%20Lutenist.mp3",
+  autumn_b: "audio/bgm/Autumn%20Dusk%20Lutenist%20%281%29.mp3",
   game_c: "audio/music/bgm_game_c.mp3",
   game_d: "audio/music/bgm_game_d.mp3",
   game_e: "audio/music/bgm_game_e.mp3",
   game_f: "audio/music/bgm_game_f.mp3",
+  lantern_a: "audio/bgm/Lantern%20Journal.mp3",
+  lantern_b: "audio/bgm/Lantern%20Journal%20%281%29.mp3",
 };
 
-// Дубликаты в плейлисте = вес. Grasslight (c, d) × 3, Tundra (e, f) × 1.
-// Случайный выбор автоматически даст ~75% времени любимым трекам.
+// На v0.3.49 переработана ротация — все треки идут с равным весом.
+// Старый bgm_map.mp3 удалён из preload и из public.
+//   map: только Autumn Dusk Lutenist (обе версии) — 50/50
+//   game: 4 старых + 2 Lantern + 2 Autumn = 8 треков, по 1/8 = ~12.5%
+// Между треками в одной сцене работает chain-crossfade 4 сек
+// (см. CHAIN_CROSSFADE_SEC).
 const SCENE_PLAYLISTS: Record<BgmScene, BgmTrack[]> = {
-  map: ["map"],
+  map: ["autumn_a", "autumn_b"],
   game: [
-    "game_c", "game_c", "game_c",
-    "game_d", "game_d", "game_d",
+    "game_c",
+    "game_d",
     "game_e",
     "game_f",
+    "lantern_a",
+    "lantern_b",
+    "autumn_a",
+    "autumn_b",
   ],
 };
 
