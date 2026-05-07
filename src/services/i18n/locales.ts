@@ -445,7 +445,7 @@ export const locales = {
     adLabel: "Werbung",
   },
   fr: {
-    title: "Klondike : Expédition",
+    title: "Klondike : Expédition",
     subtitle: "Un voyage paisible à travers les donnes classiques du Klondike.",
     play: "Jouer",
     daily: "Itinéraire du jour",
