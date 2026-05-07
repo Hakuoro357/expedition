@@ -8,6 +8,7 @@ import { getNodeById } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { getNarrativeEntry } from "@/data/narrative/entries";
 import { getPointTitleByDealId } from "@/data/narrative/points";
+import { getRewardById } from "@/data/narrative/rewards";
 import { getNarrativeSpeakerProfile } from "@/data/narrative/speakers";
 import { resolvePortraitUrl } from "@/data/portraitAssetUrls";
 import { getRouteSheetByDealId, ROUTE_SHEETS } from "@/data/routeSheets";
@@ -80,7 +81,18 @@ export class DetailScene extends Phaser.Scene {
     const sheet = getRouteSheetByDealId(node.id) ?? ROUTE_SHEETS[0];
     const entry = node.entryId ? getNarrativeEntry(node.entryId, locale) : undefined;
     const speaker = entry ? getNarrativeSpeakerProfile(entry.speakerEntityId, locale) : undefined;
-    const artifact = node.artifactId ? getArtifactById(node.artifactId) : undefined;
+    // Резолвинг артефакта симметричен `rewardRevealItems.ts` (L60):
+    // когда reward задаёт собственный `collectibleArtifactId`, он
+    // приоритетнее, чем `node.artifactId`. До v0.3.43 здесь учитывался
+    // только `node.artifactId` — если reward подменяет артефакт, а у
+    // узла artifactId === null, артефакт «не находился» и activeTab
+    // молча перепрыгивал с "artifact" на "entry" (L87-88). Это
+    // воспринималось пользователем как «тап по плитке артефакта
+    // открывает запись». Теперь обе сцены используют один и тот же
+    // expectedArtifactId.
+    const reward = node.rewardId ? getRewardById(node.rewardId) : undefined;
+    const expectedArtifactId = reward?.collectibleArtifactId ?? node.artifactId ?? null;
+    const artifact = expectedArtifactId ? getArtifactById(expectedArtifactId) : undefined;
     const canShowEntry = Boolean(entry);
     const canShowArtifact = Boolean(artifact);
 
