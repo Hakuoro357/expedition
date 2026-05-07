@@ -65,10 +65,15 @@ export class TitleScene extends Phaser.Scene {
    */
   private renderBackground(): void {
     if (this.textures.exists("title-collage")) {
-      this.add
+      // Cover-fit: масштабируем по большей из двух дробей (как CSS
+      // background-size: cover). Сохраняет пропорции картинки —
+      // setDisplaySize(GAME_WIDTH, GAME_HEIGHT) её бы сплющил, потому
+      // что коллаж 1080x1920 (0.5625) шире чем canvas 390x844 (0.46).
+      const img = this.add
         .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "title-collage")
-        .setOrigin(0.5)
-        .setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
     } else {
       const bg = this.add.graphics();
       bg.fillGradientStyle(0x0a1e1c, 0x0a1e1c, 0x10201f, 0x162e2c, 1);
