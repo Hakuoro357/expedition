@@ -2,15 +2,13 @@ import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
-import { createInitialProgressState } from "@/core/game-state/progress";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { createSettingsSceneOverlayHtml } from "@/scenes/settingsSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
-import { showConfirmDialog } from "@/ui/confirmDialog";
 
 type SettingsNavTarget = "archive" | "daily" | "settings" | "home";
-type ReturnTo = "game" | "map" | "archive" | "reward" | "startmenu";
+type ReturnTo = "game" | "map" | "archive" | "reward" | "title";
 
 /**
  * Параметры входа в SettingsScene. Когда открыли из GameScene —
@@ -23,9 +21,10 @@ type ReturnTo = "game" | "map" | "archive" | "reward" | "startmenu";
  * чтобы при возврате восстановить экран награды с теми же параметрами
  * (без повторного начисления/sfx, через `returnFromDetail: true`).
  *
- * `returnTo: "startmenu"` — особый режим стартового меню. Сцена
- * запускается из BootScene при открытии игры, показывает primary-actions
- * «Новая игра» / «Продолжить», не рисует bottom-nav и кнопку «← Назад».
+ * `returnTo: "title"` — открыто из TitleScene (с v0.3.43). «← Назад»
+ * возвращает на TitleScene. Раньше был режим "startmenu", в котором
+ * SettingsScene и сама была entry point'ом — теперь это отдельный
+ * TitleScene, и SettingsScene становится чистой страницей настроек.
  */
 export type SettingsSceneData = {
   returnTo?: ReturnTo;
@@ -92,21 +91,6 @@ export class SettingsScene extends Phaser.Scene {
     // иконки и реального gain'а bus'ов, если gp.sounds.isMuted мигнёт между
     // вызовами (preloader-ad и т.п.).
     const platformMuted = sound.isPlatformMuted();
-    const isStartMenu = this.returnTo === "startmenu";
-    // На стартовом меню «Продолжить» задизейблена до первого прохождения
-    // пролога (первый запуск игры). После prologueShown=true кнопка всегда
-    // активна: либо поведёт в активную партию (currentGame in progress),
-    // либо на карту (partия завершена / отсутствует).
-    const continueDisabled = isStartMenu && !currentState.progress.prologueShown;
-    // Primary-кнопка (золотая) — та, которая в текущем контексте
-    // рекомендованное действие:
-    //  - если есть прогресс (пролог пройден или есть активная партия) —
-    //    «Продолжить» (логично вернуться к тому, что делал).
-    //  - иначе первый запуск — «Новая игра» (единственный разумный путь).
-    const hasProgressToContinue =
-      currentState.progress.prologueShown || currentState.currentGame !== null;
-    const primaryButton: "new-game" | "continue" =
-      hasProgressToContinue && !continueDisabled ? "continue" : "new-game";
     // 7 UI-локалей. Порядок: ru/en/tr сверху (исторические), затем es/pt/de/fr
     // (добавлены в v0.3.30). Галочка ставится через active-стиль + префикс "✓".
     const localeCodes = ["ru", "en", "tr", "es", "pt", "de", "fr"] as const;
@@ -116,9 +100,13 @@ export class SettingsScene extends Phaser.Scene {
       label: code.toUpperCase(),
       active: currentLocale === code,
     }));
+    // Bottom nav зеркалит сцену-origin. С v0.3.43 startmenu больше не
+    // существует (вынесен в TitleScene), и nav показывается всегда.
+    // Если открыли из TitleScene — навигация по умолчанию (archive/
+    // daily/menu) тоже работает: «Меню» как active возвращает на title
+    // через handleGoBack.
     const html = createSettingsSceneOverlayHtml({
-      // В режиме startmenu — заголовок «Меню», иначе «Настройки».
-      title: isStartMenu ? i18n.t("menu") : i18n.t("settings"),
+      title: i18n.t("settings"),
       languageLabel: i18n.t("language"),
       localeOptions,
       sfxLabel: i18n.t("sound"),
@@ -128,36 +116,29 @@ export class SettingsScene extends Phaser.Scene {
       muted: platformMuted,
       sfxVolume: sound.getSfxVolume(),
       musicVolume: sound.getMusicVolume(),
-      // Primary-actions: «Новая игра» всегда видима; «Продолжить» —
-      // disabled только в startmenu при первом запуске.
-      primaryActions: {
-        newGameLabel: i18n.t("newGame"),
-        continueLabel: i18n.t("continue"),
-        continueDisabled,
-        primaryButton,
-      },
-      // Back-кнопка «← Назад» показывается во всех режимах КРОМЕ startmenu:
-      // в стартовом меню нет «назад» — есть только primary-actions.
-      backLabel: isStartMenu ? undefined : i18n.t("back"),
+      // primaryActions удалены в v0.3.43: «Начать»/«Продолжить» теперь
+      // живут только на TitleScene. Settings — чистая страница настроек.
+      backLabel: i18n.t("back"),
       // Bottom nav зеркалит сцену-origin:
       //   Map → archive / daily / menu(active)
       //   Archive (DiaryScene) → home / daily / menu(active)
-      //   startmenu → nav вообще не показываем.
+      //   TitleScene → archive / daily / menu(active) — стандартный
+      //   набор, повторный клик по «Меню» вернёт на title через
+      //   handleGoBack.
       // Когда открыли из Game — map-nav скрывается, показывается
       // game-style bar (см. gameNavLabels ниже).
-      navItems: isStartMenu
-        ? undefined
-        : this.returnTo === "archive"
-        ? [
-            { id: "home", label: i18n.t("backToMap"), active: false },
-            { id: "daily", label: i18n.t("daily"), active: false },
-            { id: "settings", label: i18n.t("menu"), active: true },
-          ]
-        : [
-            { id: "archive", label: i18n.t("archive"), active: false },
-            { id: "daily", label: i18n.t("daily"), active: false },
-            { id: "settings", label: i18n.t("menu"), active: true },
-          ],
+      navItems:
+        this.returnTo === "archive"
+          ? [
+              { id: "home", label: i18n.t("backToMap"), active: false },
+              { id: "daily", label: i18n.t("daily"), active: false },
+              { id: "settings", label: i18n.t("menu"), active: true },
+            ]
+          : [
+              { id: "archive", label: i18n.t("archive"), active: false },
+              { id: "daily", label: i18n.t("daily"), active: false },
+              { id: "settings", label: i18n.t("menu"), active: true },
+            ],
       // Если открыли из Game — показываем game-style bottom bar вместо
       // обычного map-nav, чтобы игрок визуально оставался в контексте
       // партии. Undo/Hint будут disabled, «Меню» работает как «назад»,
@@ -230,14 +211,6 @@ export class SettingsScene extends Phaser.Scene {
             this.renderOverlay();
             return;
           }
-          case "primary-new-game":
-            // Async flow: показать inline-модалку подтверждения, при OK —
-            // полный сброс прогресса + переход в пролог.
-            void this.handlePrimaryNewGame();
-            return;
-          case "primary-continue":
-            this.handlePrimaryContinue();
-            return;
           case "go-back":
             this.handleGoBack();
             return;
@@ -416,71 +389,10 @@ export class SettingsScene extends Phaser.Scene {
       this.scene.start(SCENES.diary);
       return;
     }
-    if (this.returnTo === "startmenu") {
-      // В startmenu «Назад» невозможен (кнопка скрыта), но защитимся на
-      // случай программной симуляции клика: повторяем поведение continue.
-      this.handlePrimaryContinue();
+    if (this.returnTo === "title") {
+      this.scene.start(SCENES.title);
       return;
     }
     this.scene.start(SCENES.map);
-  }
-
-  /**
-   * Primary action «Новая игра»: если игроку есть что терять (пролог
-   * пройден или есть активная/завершённая партия) — показать confirm.
-   * На чистом старте (первый запуск, prologueShown=false, нет
-   * currentGame) — сразу стартуем пролог без вопроса, терять нечего.
-   */
-  private async handlePrimaryNewGame(): Promise<void> {
-    const { i18n, save } = getAppContext();
-    if (!this.overlay) return;
-    const state = save.load();
-    const hasSomethingToLose = state.progress.prologueShown || state.currentGame !== null;
-    if (hasSomethingToLose) {
-      const confirmed = await showConfirmDialog({
-        parent: this.overlay.getHostElement(),
-        title: i18n.t("newGame"),
-        message: i18n.t("confirmResetProgress"),
-        okLabel: i18n.t("newGame"),
-        cancelLabel: i18n.t("back"),
-      });
-      if (!confirmed) return;
-    }
-    // Сохраняем текущий выбранный язык, иначе initial state вернёт ru
-    // и игрок, игравший на en/tr, внезапно увидит русский пролог.
-    const keepLocale = state.progress.locale;
-    save.save({
-      version: 1,
-      progress: { ...createInitialProgressState(), locale: keepLocale },
-      currentGame: null,
-    });
-    this.scene.start(SCENES.prologue);
-  }
-
-  /**
-   * Primary action «Продолжить»:
-   *   - startmenu: если пролог ещё не проходили — ничего не делаем
-   *     (кнопка должна быть disabled). Если есть активная партия —
-   *     resume в GameScene. Иначе — Map.
-   *   - game/map/archive: то же самое, что «Назад» — возврат в origin.
-   */
-  private handlePrimaryContinue(): void {
-    if (this.returnTo !== "startmenu") {
-      this.handleGoBack();
-      return;
-    }
-    const { save } = getAppContext();
-    const state = save.load();
-    if (!state.progress.prologueShown) {
-      // Disabled no-op — защитимся на случай программного клика.
-      return;
-    }
-    const cg = state.currentGame;
-    const inProgress = cg && cg.status !== "won" && cg.status !== "lost";
-    if (inProgress) {
-      this.scene.start(SCENES.game, { resumeCurrentGame: true });
-    } else {
-      this.scene.start(SCENES.map);
-    }
   }
 }

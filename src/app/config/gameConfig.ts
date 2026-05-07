@@ -28,6 +28,7 @@ export const GAME_OFFSET_X = (GAME_CANVAS_WIDTH - GAME_WIDTH) / 2;
 export const SCENES = {
   boot: "boot",
   devPreview: "dev-preview",
+  title: "title",
   prologue: "prologue",
   map: "map",
   detail: "detail",

@@ -12,6 +12,7 @@ import { MapScene } from "@/scenes/MapScene";
 import { PrologueScene } from "@/scenes/PrologueScene";
 import { RewardScene } from "@/scenes/RewardScene";
 import { SettingsScene } from "@/scenes/SettingsScene";
+import { TitleScene } from "@/scenes/TitleScene";
 
 export function createGame(parent: HTMLElement): Phaser.Game {
   const resolution = typeof window === "undefined" ? 1 : getGameResolution(window.devicePixelRatio || 1);
@@ -24,6 +25,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
   // в production выкинет dead-branch и неиспользуемый импорт.
   const scenes: Phaser.Types.Scenes.SceneType[] = [
     BootScene,
+    TitleScene,
     PrologueScene,
     MapScene,
     DetailScene,

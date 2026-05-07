@@ -2566,6 +2566,102 @@ canvas {
 }
 
 /*
+ * TitleScene (с v0.3.43) — отдельный стартовый экран. Минималистичный
+ * лейаут: hero-блок (заголовок + саб-тайтл) в верхней трети, столбец
+ * из 3 кнопок («Начать»/«Продолжить»/«Настройки») в нижней трети.
+ * Между ними оставлено пустое пространство — там будет коллаж-фон
+ * (когда подложат promo/title-collage.webp).
+ */
+.title-scene-root {
+  /* Полностью покрывает canvas — fill через canvasOverlay. */
+}
+
+.title-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 32px 96px;
+  pointer-events: none;
+}
+
+.title-scene__hero {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 32px;
+}
+
+.title-scene__title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  color: #f6e8c7;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.title-scene__subtitle {
+  margin: 14px 0 0;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #d9c38d;
+  opacity: 0.86;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.title-scene__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.title-scene__button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(206, 184, 142, 0.46);
+  background: rgba(15, 32, 30, 0.82);
+  color: #f6e8c7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.title-scene__button:active {
+  transform: translateY(1px);
+}
+
+.title-scene__button--primary {
+  /* Золотая основная — те же градиент/тень, что у settings-page__primary-button--primary,
+     чтобы visual language игры был единым. */
+  background: linear-gradient(180deg, #d4a962 0%, #b68844 100%);
+  border-color: #e4c187;
+  color: #1a2422;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
+}
+
+.title-scene__button--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: default;
+}
+
+/*
  * Confirm-диалог — подтверждение «Новая игра» (сброс прогресса).
  * Монтируется внутри canvas-overlay host, backdrop закрывает игровой
  * холст, dialog центрируется.

@@ -39,24 +39,6 @@ type SettingsSceneOverlayParams = {
   /** 0..1 */
   musicVolume: number;
   /**
-   * Блок primary-actions («Новая игра» / «Продолжить») сверху контентной
-   * области. Если undefined — блок не рендерим (например в dev-preview
-   * или тестах). По умолчанию добавляется из SettingsScene.
-   */
-  primaryActions?: {
-    newGameLabel: string;
-    continueLabel: string;
-    /** true — кнопка «Продолжить» визуально/функционально задизейблена (первый запуск). */
-    continueDisabled: boolean;
-    /**
-     * Какая из кнопок — визуально primary (золотая).
-     * Если есть активная партия/прогресс — «Продолжить» становится
-     * рекомендованным действием, и золотым выделяется она. Иначе
-     * (первый запуск, прогресса нет) — primary у «Новая игра».
-     */
-    primaryButton: "new-game" | "continue";
-  };
-  /**
    * Если undefined — bottom-nav не рендерим вообще. Используется для
    * режима `startmenu` (стартовое меню не показывает archive/daily,
    * только primary-actions).
@@ -141,7 +123,6 @@ export function createSettingsSceneOverlayHtml({
   gameNavLabels,
   navItems,
   versionLabel,
-  primaryActions,
 }: SettingsSceneOverlayParams): string {
   // Иконка-spearker: sound-on / sound-off. Inline SVG вместо <img>, чтобы
   // не плодить файлы и легко перекрашивать через currentColor.
@@ -156,31 +137,13 @@ export function createSettingsSceneOverlayHtml({
   const backBtnHtml = backLabel
     ? `  <button class="settings-page__back" type="button" data-settings-action="go-back" aria-label="${escapeHtml(backLabel)}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>${escapeHtml(backLabel)}</span></button>`
     : "";
-  const primaryActionsHtml = primaryActions
-    ? (() => {
-        // Порядок кнопок фиксированный: «Новая игра» сверху, «Продолжить»
-        // ниже — одинаковый layout во всех контекстах. Только стиль primary
-        // (золотой) переключается на ту кнопку, которая рекомендована
-        // в текущем состоянии (есть прогресс → continue; чистый старт →
-        // new-game).
-        const newGameIsPrimary = primaryActions.primaryButton === "new-game";
-        const continueIsPrimary = primaryActions.primaryButton === "continue";
-        const newGameClass = `settings-page__primary-button${newGameIsPrimary ? " settings-page__primary-button--primary" : ""}`;
-        const continueClass = `settings-page__primary-button${continueIsPrimary ? " settings-page__primary-button--primary" : ""}${primaryActions.continueDisabled ? " settings-page__primary-button--disabled" : ""}`;
-        return [
-          '    <section class="settings-page__section settings-page__primary-actions">',
-          `      <button class="${newGameClass}" data-settings-action="primary-new-game" type="button">${escapeHtml(primaryActions.newGameLabel)}</button>`,
-          `      <button class="${continueClass}" data-settings-action="primary-continue" type="button"${primaryActions.continueDisabled ? ' disabled aria-disabled="true"' : ""}>${escapeHtml(primaryActions.continueLabel)}</button>`,
-          "    </section>",
-        ].join("");
-      })()
-    : "";
+  // primaryActions блок удалён в v0.3.43 — «Начать»/«Продолжить» теперь
+  // живут только на TitleScene. Settings — чистая страница настроек.
   return [
     '<div class="settings-page">',
     backBtnHtml,
     `  <div class="settings-page__title">${escapeHtml(title)}</div>`,
     '  <div class="settings-page__content">',
-    primaryActionsHtml,
     '    <section class="settings-page__section">',
     `      <div class="settings-page__label">${escapeHtml(languageLabel)}</div>`,
     '      <div class="settings-page__locale-grid">',
