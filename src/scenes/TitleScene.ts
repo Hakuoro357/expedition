@@ -53,21 +53,41 @@ export class TitleScene extends Phaser.Scene {
   }
 
   /**
-   * Заглушка под коллаж: тёмно-теаловый вертикальный градиент +
-   * мягкая радиальная золотая подсветка ближе к верхней трети (там,
-   * где будет hero-блок с заголовком). Когда коллаж появится — этот
-   * метод заменяется на 3 строки с this.add.image.
+   * Фон TitleScene. Если ассет `title-collage` загрузился (см.
+   * BootScene.preload) — рисуем его full-bleed. Если нет — fallback
+   * на градиент-заглушку (тёмно-теаловый + золотая подсветка),
+   * чтобы сцена не оставалась белой/чёрной во время первой
+   * генерации картинки.
+   *
+   * Поверх коллажа всегда кладём лёгкий dark gradient на нижние
+   * 35%, чтобы кнопки и subtitle оставались читаемыми независимо
+   * от плотности коллажа в этой зоне.
    */
   private renderBackground(): void {
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x0a1e1c, 0x0a1e1c, 0x10201f, 0x162e2c, 1);
-    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    // Лёгкое golden-glow в области заголовка — намёк на фонарь над
-    // картой в нарративе.
-    bg.fillStyle(0xd4a962, 0.08);
-    bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 320, 220);
-    bg.fillStyle(0xd4a962, 0.04);
-    bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 480, 320);
+    if (this.textures.exists("title-collage")) {
+      this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "title-collage")
+        .setOrigin(0.5)
+        .setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      const bg = this.add.graphics();
+      bg.fillGradientStyle(0x0a1e1c, 0x0a1e1c, 0x10201f, 0x162e2c, 1);
+      bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      bg.fillStyle(0xd4a962, 0.08);
+      bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 320, 220);
+      bg.fillStyle(0xd4a962, 0.04);
+      bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 480, 320);
+    }
+    // Dark gradient на нижние 38% — гарантия читаемости кнопок и
+    // subtitle независимо от того, насколько светлая картинка под
+    // ними. Если в коллаже нижняя зона уже тёмная (по промпту так и
+    // должно быть), эффект почти незаметен; если коллаж получился
+    // слишком светлым внизу — overlay сделает кнопки читаемыми.
+    const overlay = this.add.graphics();
+    const overlayHeight = Math.round(GAME_HEIGHT * 0.38);
+    const overlayTop = GAME_HEIGHT - overlayHeight;
+    overlay.fillGradientStyle(0x081010, 0x081010, 0x081010, 0x081010, 0, 0, 0.78, 0.78);
+    overlay.fillRect(0, overlayTop, GAME_WIDTH, overlayHeight);
   }
 
   private renderOverlay(): void {

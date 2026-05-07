@@ -54,6 +54,11 @@ export class BootScene extends Phaser.Scene {
     this.load.svg("bg-chapter1", "assets/backgrounds/bg-chapter1.svg", { width: 390, height: 844 });
     this.load.svg("bg-chapter2", "assets/backgrounds/bg-chapter2.svg", { width: 390, height: 844 });
     this.load.svg("bg-chapter3", "assets/backgrounds/bg-chapter3.svg", { width: 390, height: 844 });
+    // TitleScene collage — generated externally per the prompt в
+    // docs/specs/2026-05-02-gamescene-decomposition.md (см. также
+    // комментарий в TitleScene.renderBackground). Если файла нет —
+    // Phaser кинет 404, TitleScene останется на градиент-заглушке.
+    this.load.image("title-collage", "assets/backgrounds/title-collage.png");
     this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 48, height: 76 });
     this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 48, height: 76 });
     this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 48, height: 76 });

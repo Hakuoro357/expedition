@@ -39,9 +39,11 @@ type SettingsSceneOverlayParams = {
   /** 0..1 */
   musicVolume: number;
   /**
-   * Если undefined — bottom-nav не рендерим вообще. Используется для
-   * режима `startmenu` (стартовое меню не показывает archive/daily,
-   * только primary-actions).
+   * Если undefined — bottom-nav не рендерим вообще. С v0.3.44
+   * используется для first-run-из-TitleScene (пролог ещё не пройден):
+   * скрываем nav, чтобы игрок не обошёл стартовый funnel через
+   * Archive/Daily. Раньше (до v0.3.43) использовалось для режима
+   * `startmenu` — он удалён, теперь стартовый экран это TitleScene.
    */
   navItems?: AppNavItem[];
   /**

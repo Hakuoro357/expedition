@@ -101,10 +101,13 @@ export class SettingsScene extends Phaser.Scene {
       active: currentLocale === code,
     }));
     // Bottom nav зеркалит сцену-origin. С v0.3.43 startmenu больше не
-    // существует (вынесен в TitleScene), и nav показывается всегда.
-    // Если открыли из TitleScene — навигация по умолчанию (archive/
-    // daily/menu) тоже работает: «Меню» как active возвращает на title
-    // через handleGoBack.
+    // существует (вынесен в TitleScene), и nav показывается всегда —
+    // КРОМЕ first-run: если игрок зашёл в Settings из TitleScene и ещё
+    // не прошёл пролог, nav прячется. Иначе можно тапнуть Daily или
+    // Archive и обойти стартовый funnel (старая startmenu-логика
+    // защищала тем же — codex поймал v0.3.43 регрессию).
+    const isFirstRunFromTitle =
+      this.returnTo === "title" && !currentState.progress.prologueShown;
     const html = createSettingsSceneOverlayHtml({
       title: i18n.t("settings"),
       languageLabel: i18n.t("language"),
@@ -125,10 +128,15 @@ export class SettingsScene extends Phaser.Scene {
       //   TitleScene → archive / daily / menu(active) — стандартный
       //   набор, повторный клик по «Меню» вернёт на title через
       //   handleGoBack.
+      //   First-run из TitleScene (пролог не пройден) → nav СКРЫТ,
+      //   только «← Назад» + сами настройки. Гарантия что игрок не
+      //   обойдёт пролог тапом по Daily/Archive до того, как игра
+      //   объяснилась.
       // Когда открыли из Game — map-nav скрывается, показывается
       // game-style bar (см. gameNavLabels ниже).
-      navItems:
-        this.returnTo === "archive"
+      navItems: isFirstRunFromTitle
+        ? undefined
+        : this.returnTo === "archive"
           ? [
               { id: "home", label: i18n.t("backToMap"), active: false },
               { id: "daily", label: i18n.t("daily"), active: false },

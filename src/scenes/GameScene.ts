@@ -638,20 +638,37 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const remaining = this.getRemainingHints();
+    let remaining = this.getRemainingHints();
     if (remaining.length === 0) {
-      // Подсказок нет — info-модалка вместо silent setStatus. Кнопка
-      // hint всегда активна (no-cheating-tell), без модалки click был
-      // бы немой, и игроки могли бы тапать кнопку, чтобы беспалатно
-      // проверять «остались ли ходы». Монеты НЕ списываем.
-      sound.badMove();
-      void showInfoDialog({
-        parent: this.gameOverlay!.getHostElement(),
-        title: i18n.t("hint"),
-        message: i18n.t("noMoves"),
-        okLabel: i18n.t("ok"),
-      });
-      return;
+      // Различаем два сценария «нечего показать»:
+      //
+      //   1. Реально нет ходов: getAllHints вернул пустой массив.
+      //      Тогда модалка «Возможных ходов нет» — корректное
+      //      сообщение, и игрок видит, что ситуация безвыходная.
+      //
+      //   2. Все подсказки на текущей доске уже были показаны
+      //      (shownHintKeys фильтрует их в getRemainingHints), но
+      //      ходы есть. Раньше тут было setStatus("noMoves") — это
+      //      врало игроку. Сейчас сбрасываем shownHintKeys для этого
+      //      состояния доски и берём первый hint заново — пусть
+      //      повторно увидит подсказку, которую уже видел. За это
+      //      списываем монеты как обычно.
+      const allHintsCount = getAllHints(this.gameState).length;
+      if (allHintsCount === 0) {
+        sound.badMove();
+        void showInfoDialog({
+          parent: this.gameOverlay!.getHostElement(),
+          title: i18n.t("hint"),
+          message: i18n.t("noMoves"),
+          okLabel: i18n.t("ok"),
+        });
+        return;
+      }
+      // Подсказки циклятся: shownHintKeys чистим и идём дальше как
+      // если бы нажали в первый раз. Перевычисляем remaining (после
+      // clear там точно есть хотя бы 1 hint, потому что allHintsCount > 0).
+      this.shownHintKeys.clear();
+      remaining = this.getRemainingHints();
     }
 
     save.addCoins(-cost);
