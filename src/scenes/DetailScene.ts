@@ -105,7 +105,7 @@ export class DetailScene extends Phaser.Scene {
     }
 
     this.children.removeAll(true);
-    this.renderBackground(sheet.background.topColor, sheet.background.bottomColor, sheet.background.glowColor);
+    this.renderBackground(sheet);
 
     // Для артефакта локализация по старой схеме: ru/tr свои переводы,
     // остальные (en/es/pt/de/fr) — английский fallback. Это MVP:
@@ -171,18 +171,37 @@ export class DetailScene extends Phaser.Scene {
     this.bindOverlayEvents();
   }
 
-  private renderBackground(topColor: number, bottomColor: number, glowColor: number): void {
-    const background = this.add.graphics();
-    background.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
-    background.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    background.fillStyle(glowColor, 0.18);
-    background.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
-    background.fillStyle(glowColor, 0.1);
-    background.fillEllipse(GAME_WIDTH / 2, 332, 360, 220);
+  private renderBackground(sheet: (typeof ROUTE_SHEETS)[number]): void {
+    const { topColor, bottomColor, glowColor } = sheet.background;
+    const collageKey = `map-chapter-${sheet.page}`;
+    const hasCollage = this.textures.exists(collageKey);
 
-    const field = this.add.graphics();
-    field.fillStyle(topColor, 0.4);
-    field.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT);
+    if (hasCollage) {
+      // Используем коллаж главы как фон. DetailScene имеет тёмную
+      // карточку-панель в центре поверх — фон работает на полях,
+      // tint при 0.5 alpha сохраняет читаемость карточки и при этом
+      // даёт почувствовать атмосферу главы.
+      const img = this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, collageKey)
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
+      const tint = this.add.graphics();
+      tint.fillStyle(topColor, 0.5);
+      tint.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      const background = this.add.graphics();
+      background.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+      background.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      background.fillStyle(glowColor, 0.18);
+      background.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
+      background.fillStyle(glowColor, 0.1);
+      background.fillEllipse(GAME_WIDTH / 2, 332, 360, 220);
+
+      const field = this.add.graphics();
+      field.fillStyle(topColor, 0.4);
+      field.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT);
+    }
 
     const navBar = this.add.graphics();
     navBar.fillStyle(0x10201f, 0.96);

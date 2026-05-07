@@ -182,27 +182,78 @@ export class MapScene extends Phaser.Scene {
   }
 
   private renderBackground(page: (typeof ROUTE_SHEETS)[number]): void {
-    const background = this.add.graphics();
-    background.fillGradientStyle(
-      page.background.topColor,
-      page.background.topColor,
-      page.background.bottomColor,
-      page.background.bottomColor,
-      1,
-    );
-    background.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    background.fillStyle(page.background.glowColor, 0.18);
-    background.fillEllipse(GAME_WIDTH / 2, 138, 320, 164);
-    background.fillStyle(page.background.glowColor, 0.1);
-    background.fillEllipse(GAME_WIDTH / 2, 324, 360, 220);
-    this.content?.add(background);
+    // Если для текущей страницы (=главы) есть коллаж-картинка — кладём
+    // её первым слоем как cover-fit, сверху тинт цветом главы для
+    // сохранения per-chapter mood'а. Иначе fallback на старый градиент.
+    const collageKey = `map-chapter-${page.page}`;
+    const hasCollage = this.textures.exists(collageKey);
+    const layers: Phaser.GameObjects.GameObject[] = [];
+
+    if (hasCollage) {
+      const img = this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, collageKey)
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
+      layers.push(img);
+
+      // Tint поверх коллажа: цвет главы (topColor) при 0.25 alpha.
+      // Раньше было 0.58 — слишком плотный зелёный «гасил» пергамент,
+      // картинка теряла детали и выглядела как старый плоский фон с
+      // намёком на коллаж сквозь дымку. На 0.25 пергамент дышит,
+      // chapter-identity цвета чувствуется, но не доминирует. Если
+      // route-кружки на конкретной главе будут плохо читаться — можно
+      // выйти на 0.35 для этой главы через per-chapter override, но
+      // глобально 0.25 — золотая середина.
+      const tint = this.add.graphics();
+      tint.fillStyle(page.background.topColor, 0.25);
+      tint.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      layers.push(tint);
+    } else {
+      const background = this.add.graphics();
+      background.fillGradientStyle(
+        page.background.topColor,
+        page.background.topColor,
+        page.background.bottomColor,
+        page.background.bottomColor,
+        1,
+      );
+      background.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      layers.push(background);
+    }
+
+    // Glow-эллипсы — мягкий объёмный акцент сверху и снизу. На
+    // градиентном фоне они нужны (создают объём из плоской заливки).
+    // На коллаже они избыточны — лантерна и естественная подсветка
+    // картинки уже создают объём; искусственный glow поверх выглядит
+    // как «плёнка». Поэтому добавляем только если коллажа нет.
+    if (!hasCollage) {
+      const glow = this.add.graphics();
+      glow.fillStyle(page.background.glowColor, 0.18);
+      glow.fillEllipse(GAME_WIDTH / 2, 138, 320, 164);
+      glow.fillStyle(page.background.glowColor, 0.1);
+      glow.fillEllipse(GAME_WIDTH / 2, 324, 360, 220);
+      layers.push(glow);
+    }
+
+    this.content?.add(layers);
   }
 
   private renderPageSurface(page: (typeof ROUTE_SHEETS)[number]): void {
     const fieldHeight = GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT;
-    const sheet = this.add.graphics();
-    sheet.fillStyle(page.background.topColor, 0.42);
-    sheet.fillRect(0, 0, GAME_WIDTH, fieldHeight);
+    const layers: Phaser.GameObjects.GameObject[] = [];
+
+    // Tint-плашка поверх фона. Когда фон — градиент, она усиливает
+    // цвет главы. Когда фон — коллаж, в renderBackground мы уже
+    // положили один tint-слой; добавлять второй здесь = переборщить
+    // с темнотой и забить детали коллажа. Поэтому пропускаем.
+    const collageKey = `map-chapter-${page.page}`;
+    if (!this.textures.exists(collageKey)) {
+      const sheet = this.add.graphics();
+      sheet.fillStyle(page.background.topColor, 0.42);
+      sheet.fillRect(0, 0, GAME_WIDTH, fieldHeight);
+      layers.push(sheet);
+    }
 
     const navBar = this.add.graphics();
     navBar.fillStyle(0x10201f, 0.96);
@@ -211,8 +262,9 @@ export class MapScene extends Phaser.Scene {
     navBar.strokeLineShape(
       new Phaser.Geom.Line(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT),
     );
+    layers.push(navBar);
 
-    this.content?.add([sheet, navBar]);
+    this.content?.add(layers);
   }
 
   private renderPoints(

@@ -60,9 +60,25 @@ export class DiaryScene extends Phaser.Scene {
 
     this.archiveEntries = this.buildArchiveEntries(narrativeLocale);
 
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x162927);
-    this.add
-      .rectangle(GAME_WIDTH / 2, (GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT) / 2, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, 0x213733, 0.58);
+    if (this.textures.exists("diary-collage")) {
+      // DiaryScene — архив, выкладка находок. Коллаж 3×4 предметов
+      // под equally-distributed soft light. Tint 0.55 alpha — нужно
+      // достаточно затемнения чтобы grid из карточек артефактов
+      // поверх читался без давления, но и коллаж проступал
+      // самобытно (это не «фон» а «стол на котором всё лежит»).
+      const img = this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "diary-collage")
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
+      const tint = this.add.graphics();
+      tint.fillStyle(0x162927, 0.55);
+      tint.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x162927);
+      this.add
+        .rectangle(GAME_WIDTH / 2, (GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT) / 2, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, 0x213733, 0.58);
+    }
     const navBar = this.add.graphics();
     navBar.fillStyle(0x10201f, 0.96);
     navBar.lineStyle(1, 0x4f6964, 0.35);

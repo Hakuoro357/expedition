@@ -202,24 +202,34 @@ canvas {
 }
 
 .route-overlay__route-segment {
-  stroke: rgba(216, 197, 157, 0.22);
-  stroke-width: 3;
+  /* Future-segment: до v0.3.46 был 0.22 alpha — на градиентном фоне
+     читался как «лёгкий пунктир», но на коллаже-пергаменте растворялся.
+     Бампаю до 0.55 + width 3.5px чтобы маршрут был осязаем целиком,
+     не только до текущей ноды. */
+  stroke: rgba(228, 213, 174, 0.55);
+  stroke-width: 3.5;
   stroke-linecap: round;
 }
 
 .route-overlay__route-segment--visible {
-  stroke: rgba(216, 197, 157, 0.78);
+  stroke: rgba(228, 213, 174, 0.92);
   stroke-width: 5;
 }
 
 .route-overlay__route-point-future-ring {
-  fill: rgba(39, 65, 61, 0.46);
-  stroke: rgba(216, 197, 157, 0.18);
-  stroke-width: 2;
+  /* До v0.3.46: fill 0.46 + stroke 0.18 — на пергаменте кружки
+     выглядели как washed-out пятна. Усиливаю: чуть плотнее тёмный
+     fill (отличает «будущее» от «пройденного» по mood'у), и
+     заметно жирнее stroke 0.7 + 2.5px чтобы граница была чёткой. */
+  fill: rgba(20, 38, 36, 0.62);
+  stroke: rgba(228, 213, 174, 0.7);
+  stroke-width: 2.5;
 }
 
 .route-overlay__route-point-future-dot {
-  fill: rgba(231, 221, 194, 0.18);
+  /* Точка в центре будущей ноды — раньше 0.18, теперь 0.55. На
+     контрастном пергаменте 0.18 практически не виден. */
+  fill: rgba(228, 213, 174, 0.55);
 }
 
 .route-overlay__route-point--passed .route-overlay__route-point-main {
@@ -244,7 +254,11 @@ canvas {
   font-family: "Trebuchet MS", Verdana, sans-serif;
   font-size: 16px;
   font-weight: 700;
-  dominant-baseline: middle;
+  /* dominant-baseline: middle центрирует относительно x-height. Для
+     цифр (без descenders) визуальный центр чуть выше — отсюда
+     ощущение «номера съехали вниз». central центрирует по геометрии
+     ascender/descender и для цифр даёт правильный визуальный центр. */
+  dominant-baseline: central;
   text-anchor: middle;
   fill: #f6e8c7;
 }
@@ -257,12 +271,19 @@ canvas {
 .route-overlay__route-point-title {
   font-family: "Trebuchet MS", Verdana, sans-serif;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 18px;
-  color: rgba(218, 201, 161, 0.78);
+  color: rgba(238, 222, 184, 0.96);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Drop-shadow + второй слой shadow создают tвёрдую «выпуклую»
+     обводку вокруг текста. На пергаменте без этого подписи тонут.
+     Multi-layer shadow дешевле чем text-stroke, шире кросс-браузер. */
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.85),
+    0 0 4px rgba(0, 0, 0, 0.7),
+    0 0 8px rgba(0, 0, 0, 0.45);
 }
 
 .route-overlay__dev-tools {
@@ -356,8 +377,17 @@ canvas {
   padding: 14px 14px 10px;
   text-align: left;
   overflow: hidden;
-  border-top: 1px solid rgba(206, 184, 142, 0.18);
-  background: linear-gradient(180deg, rgba(22, 43, 41, 0.18) 0%, rgba(22, 43, 41, 0) 100%);
+  /* С v0.3.46, когда у главы есть коллаж-фон, под панелью может быть
+     плотный журнал с почерком — без backdrop текст сливается. Тёмная
+     полупрозрачная плашка + blur гарантируют читаемость; если фон
+     просто градиент, blur почти не виден, тёмная плашка читается
+     как лёгкая «тень». Cross-platform: backdrop-filter поддерживается
+     везде кроме старого FF — там тёмная плашка одна делает работу. */
+  border-radius: 14px;
+  border: 1px solid rgba(206, 184, 142, 0.22);
+  background: rgba(8, 16, 16, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .route-overlay__active-point-title {

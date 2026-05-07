@@ -21,8 +21,24 @@ export class PrologueScene extends Phaser.Scene {
     const { i18n, analytics } = getAppContext();
     analytics.track("prologue_open", {});
 
-    // Solid background — same dark tone as rules overlay
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x132220);
+    if (this.textures.exists("prologue-collage")) {
+      // PrologueScene — момент перед выходом, конверт на офисном
+      // столе с тёмно-зелёным блоттером. Tint 0.5: текст пролога
+      // (нарративный) должен оставаться абсолютно читаемым, при этом
+      // crimson-акцент сургучной печати должен пробиваться сквозь
+      // тинт чтобы создавать визуальный якорь.
+      const img = this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "prologue-collage")
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
+      const tint = this.add.graphics();
+      tint.fillStyle(0x132220, 0.5);
+      tint.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      // Solid background — same dark tone as rules overlay
+      this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x132220);
+    }
 
     const locale = i18n.currentLocale();
     // Fallback на английский, а не русский — для неизвестной локали

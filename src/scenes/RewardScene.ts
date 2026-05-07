@@ -206,13 +206,29 @@ export class RewardScene extends Phaser.Scene {
     const sheet = getRouteSheetByDealId(dealId) ?? ROUTE_SHEETS[0];
     const { topColor, bottomColor, glowColor } = sheet.background;
 
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
-    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    bg.fillStyle(glowColor, 0.18);
-    bg.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
-    bg.fillStyle(glowColor, 0.1);
-    bg.fillEllipse(GAME_WIDTH / 2, 332, 360, 220);
+    if (this.textures.exists("reward-collage")) {
+      // RewardScene — эмоциональный момент находки. Коллаж с
+      // артефактом крупно, tint на 0.4 alpha (тоньше чем GameScene
+      // 0.6 и DetailScene 0.5): хочется чтобы amber-glow артефакта
+      // на картинке прорывался через тинт. Per-chapter цвет тинта
+      // всё равно ощущается, но не давит.
+      const img = this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "reward-collage")
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
+      const tint = this.add.graphics();
+      tint.fillStyle(topColor, 0.4);
+      tint.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      const bg = this.add.graphics();
+      bg.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+      bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      bg.fillStyle(glowColor, 0.18);
+      bg.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
+      bg.fillStyle(glowColor, 0.1);
+      bg.fillEllipse(GAME_WIDTH / 2, 332, 360, 220);
+    }
 
     const navBar = this.add.graphics();
     navBar.fillStyle(0x10201f, 0.96);

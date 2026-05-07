@@ -158,14 +158,32 @@ export class GameScene extends Phaser.Scene {
     // Ensure card back texture is loaded for Phaser rendering
     this.ensureCardBackTexture();
 
-    // Background — use route sheet colors for consistent theming
+    // Background — переиспользуем map-chapter-N коллаж текущей главы
+    // если он загружен; иначе fallback на градиент по цветам route-sheet.
+    // Здесь tint плотнее чем на MapScene (0.6 vs 0.25): карты должны
+    // контрастировать с фоном, иначе сложно читать ранг и масть. Глава
+    // всё равно ощущается через цвет тинта (тёплый янтарь для гл.4 vs
+    // холодный сине-серый для гл.3 и т.д.).
     const sheet = getRouteSheetByDealId(dealId) ?? ROUTE_SHEETS[0];
     const { topColor, bottomColor, glowColor } = sheet.background;
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
-    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    bg.fillStyle(glowColor, 0.12);
-    bg.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
+    const collageKey = `map-chapter-${sheet.page}`;
+    const hasCollage = this.textures.exists(collageKey);
+    if (hasCollage) {
+      const img = this.add
+        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, collageKey)
+        .setOrigin(0.5);
+      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
+      img.setScale(scale);
+      const tint = this.add.graphics();
+      tint.fillStyle(topColor, 0.6);
+      tint.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      const bg = this.add.graphics();
+      bg.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+      bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      bg.fillStyle(glowColor, 0.12);
+      bg.fillEllipse(GAME_WIDTH / 2, 148, 320, 164);
+    }
     // Dim overlay so board stays readable
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a1e1c, 0.35);
     this.renderBottomBar();

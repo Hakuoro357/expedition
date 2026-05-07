@@ -51,14 +51,28 @@ export class BootScene extends Phaser.Scene {
       console.warn(`[boot] failed to load asset: ${file.key}`);
     });
 
-    this.load.svg("bg-chapter1", "assets/backgrounds/bg-chapter1.svg", { width: 390, height: 844 });
-    this.load.svg("bg-chapter2", "assets/backgrounds/bg-chapter2.svg", { width: 390, height: 844 });
-    this.load.svg("bg-chapter3", "assets/backgrounds/bg-chapter3.svg", { width: 390, height: 844 });
+    // Старые bg-chapter*.svg удалены из preload в v0.3.46 — заменены
+    // на коллажи map-chapter-N (см. ниже). SVG-файлы ещё в репо как
+    // fallback, но в код не подключаются.
     // TitleScene collage — generated externally per the prompt в
     // docs/specs/2026-05-02-gamescene-decomposition.md (см. также
     // комментарий в TitleScene.renderBackground). Если файла нет —
     // Phaser кинет 404, TitleScene останется на градиент-заглушке.
     this.load.image("title-collage", "assets/backgrounds/title-collage.webp");
+    // Карта-коллажи по главам. Загружаем то, что есть — если файла
+    // нет (главы 2/3 пока не сгенерированы), Phaser кинет 404, а
+    // MapScene.renderBackground упадёт на existing-gradient fallback
+    // через `textures.exists("map-chapter-N")` check.
+    this.load.image("map-chapter-1", "assets/backgrounds/map-chapter1.webp");
+    this.load.image("map-chapter-2", "assets/backgrounds/map-chapter2.webp");
+    this.load.image("map-chapter-3", "assets/backgrounds/map-chapter3.webp");
+    this.load.image("map-chapter-4", "assets/backgrounds/map-chapter4.webp");
+    // Per-scene коллажи — RewardScene, DiaryScene, PrologueScene.
+    // Каждая использует свою картинку через `textures.exists()`-fallback
+    // на старый градиент, если файл по какой-то причине не загрузился.
+    this.load.image("reward-collage", "assets/backgrounds/reward-collage.webp");
+    this.load.image("diary-collage", "assets/backgrounds/diary-collage.webp");
+    this.load.image("prologue-collage", "assets/backgrounds/prologue-collage.webp");
     this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 48, height: 76 });
     this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 48, height: 76 });
     this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 48, height: 76 });
