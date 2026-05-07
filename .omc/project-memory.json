@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1777735341575,
+  "lastScanned": 1778154346900,
   "projectRoot": "C:\\Users\\RobotComp.ru\\games\\Yandex\\01-solitaire-expedition",
   "techStack": {
     "languages": [
@@ -76,21 +76,21 @@
       "path": "assets-source",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1777735341507,
+      "lastAccessed": 1778154346858,
       "keyFiles": []
     },
     "builds": {
       "path": "builds",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1777735341508,
+      "lastAccessed": 1778154346859,
       "keyFiles": []
     },
     "dist": {
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 1,
-      "lastAccessed": 1777735341519,
+      "lastAccessed": 1778154346870,
       "keyFiles": [
         "index.html"
       ]
@@ -98,15 +98,17 @@
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 0,
-      "lastAccessed": 1777735341521,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1778154346871,
+      "keyFiles": [
+        "tomorrow-plan.md"
+      ]
     },
     "graphify-out": {
       "path": "graphify-out",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1777735341521,
+      "lastAccessed": 1778154346871,
       "keyFiles": [
         "cost.json",
         "graph.html",
@@ -115,11 +117,21 @@
         "manifest.json"
       ]
     },
+    "plans": {
+      "path": "plans",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1778154346872,
+      "keyFiles": [
+        "gamescene-decomposition-decision-log-r3.md",
+        "gamescene-decomposition-final.md"
+      ]
+    },
     "promo": {
       "path": "promo",
       "purpose": null,
       "fileCount": 55,
-      "lastAccessed": 1777735341522,
+      "lastAccessed": 1778154346873,
       "keyFiles": [
         "16x9_screenshot-1-prologue-en.png",
         "16x9_screenshot-1-prologue-tr.png",
@@ -132,14 +144,14 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 0,
-      "lastAccessed": 1777735341524,
+      "lastAccessed": 1778154346873,
       "keyFiles": []
     },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 9,
-      "lastAccessed": 1777735341527,
+      "lastAccessed": 1778154346874,
       "keyFiles": [
         "captureScreenshots.mjs",
         "captureVideo.mjs",
@@ -152,7 +164,7 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 3,
-      "lastAccessed": 1777735341528,
+      "lastAccessed": 1778154346874,
       "keyFiles": [
         "env.d.ts",
         "main.ts",
@@ -163,14 +175,14 @@
       "path": "test-results",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1777735341534,
+      "lastAccessed": 1778154346875,
       "keyFiles": []
     },
     "dist\\assets": {
       "path": "dist\\assets",
       "purpose": "Static assets",
       "fileCount": 35,
-      "lastAccessed": 1777735341544,
+      "lastAccessed": 1778154346876,
       "keyFiles": [
         "artifact_archive_seal_grid-DSXZrvDk.png",
         "artifact_archive_seal_grid_blur-rnJZLdgv.png",
@@ -181,7 +193,7 @@
       "path": "public\\assets",
       "purpose": "Static assets",
       "fileCount": 1,
-      "lastAccessed": 1777735341548,
+      "lastAccessed": 1778154346878,
       "keyFiles": [
         "icon-loading.png"
       ]
@@ -190,7 +202,7 @@
       "path": "src\\app",
       "purpose": "Application code",
       "fileCount": 2,
-      "lastAccessed": 1777735341550,
+      "lastAccessed": 1778154346879,
       "keyFiles": [
         "rendering.test.ts",
         "rendering.ts"
@@ -200,14 +212,14 @@
       "path": "src\\assets",
       "purpose": "Static assets",
       "fileCount": 0,
-      "lastAccessed": 1777735341551,
+      "lastAccessed": 1778154346879,
       "keyFiles": []
     },
     "src\\data": {
       "path": "src\\data",
       "purpose": "Data files",
       "fileCount": 9,
-      "lastAccessed": 1777735341553,
+      "lastAccessed": 1778154346880,
       "keyFiles": [
         "artifactAssetUrls.ts",
         "artifacts.ts",
@@ -218,142 +230,244 @@
       "path": "src\\services",
       "purpose": "Business logic services",
       "fileCount": 0,
-      "lastAccessed": 1777735341554,
+      "lastAccessed": 1778154346880,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
-      "path": "src\\services\\save\\SaveService.ts",
-      "accessCount": 3,
-      "lastAccessed": 1777735511811,
-      "type": "file"
-    },
-    {
-      "path": "src\\ui\\safeUrl.ts",
-      "accessCount": 2,
-      "lastAccessed": 1777735584888,
-      "type": "file"
-    },
-    {
-      "path": "src",
-      "accessCount": 1,
-      "lastAccessed": 1777735383460,
+      "path": "src\\styles.css",
+      "accessCount": 33,
+      "lastAccessed": 1778166384229,
       "type": "directory"
     },
     {
-      "path": "src\\data\\dailyDeals.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777735391645,
+      "path": "src\\scenes\\GameScene.ts",
+      "accessCount": 30,
+      "lastAccessed": 1778160807873,
       "type": "file"
     },
     {
       "path": "src\\services\\i18n\\locales.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777735489137,
+      "accessCount": 27,
+      "lastAccessed": 1778166993807,
       "type": "file"
     },
     {
-      "path": "src\\ui\\escapeHtml.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777735489400,
+      "path": "src\\scenes\\DiaryScene.ts",
+      "accessCount": 23,
+      "lastAccessed": 1778164959314,
+      "type": "directory"
+    },
+    {
+      "path": "src\\scenes\\SettingsScene.ts",
+      "accessCount": 15,
+      "lastAccessed": 1778157836367,
       "type": "file"
     },
     {
-      "path": "src\\services\\save\\SaveService.test.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777735527609,
+      "path": "src\\scenes\\DetailScene.ts",
+      "accessCount": 15,
+      "lastAccessed": 1778164942071,
       "type": "file"
     },
     {
-      "path": "src\\ui\\escapeHtml.test.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777735546521,
+      "path": "src\\scenes\\BootScene.ts",
+      "accessCount": 14,
+      "lastAccessed": 1778163110430,
       "type": "file"
     },
     {
-      "path": "src\\ui\\safeUrl.test.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777735566400,
-      "type": "file"
+      "path": "src\\services\\sound\\SoundService.ts",
+      "accessCount": 11,
+      "lastAccessed": 1778168188854,
+      "type": "directory"
     },
     {
-      "path": "docs\\specs\\2026-05-02-gamescene-decomposition.md",
-      "accessCount": 1,
-      "lastAccessed": 1777735634530,
+      "path": "src\\scenes\\settingsSceneOverlay.ts",
+      "accessCount": 8,
+      "lastAccessed": 1778157853512,
       "type": "file"
     },
     {
       "path": "package.json",
-      "accessCount": 1,
-      "lastAccessed": 1777735640671,
+      "accessCount": 7,
+      "lastAccessed": 1778168480371,
       "type": "file"
     },
     {
-      "path": "plans\\.r1-prompt.txt",
-      "accessCount": 1,
-      "lastAccessed": 1777735777936,
+      "path": "src\\scenes\\MapScene.ts",
+      "accessCount": 6,
+      "lastAccessed": 1778159497300,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-review-r1.md",
-      "accessCount": 1,
-      "lastAccessed": 1777735870731,
+      "path": "src\\scenes\\TitleScene.ts",
+      "accessCount": 5,
+      "lastAccessed": 1778158721569,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-decision-log-r1.md",
-      "accessCount": 1,
-      "lastAccessed": 1777735910081,
+      "path": "src\\scenes\\archiveSceneOverlay.ts",
+      "accessCount": 4,
+      "lastAccessed": 1778164368245,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-draft-r2.md",
-      "accessCount": 1,
-      "lastAccessed": 1777735973930,
+      "path": "src\\app\\config\\economy.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778155724155,
       "type": "file"
     },
     {
-      "path": "plans\\.r2-prompt.txt",
-      "accessCount": 1,
-      "lastAccessed": 1777735992690,
+      "path": "src\\ui\\confirmDialog.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778155812187,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-review-r2.md",
-      "accessCount": 1,
-      "lastAccessed": 1777736079989,
+      "path": "src\\app\\config\\gameConfig.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778155958625,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-decision-log-r2.md",
-      "accessCount": 1,
-      "lastAccessed": 1777736113740,
+      "path": "src\\app\\bootstrap\\createGame.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778156037212,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-draft-r3.md",
-      "accessCount": 1,
-      "lastAccessed": 1777736200850,
+      "path": "src\\scenes\\RewardScene.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778163139649,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-review-r3.md",
-      "accessCount": 1,
-      "lastAccessed": 1777736353581,
+      "path": "src\\scenes\\PrologueScene.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778163232319,
+      "type": "directory"
+    },
+    {
+      "path": "src\\scenes",
+      "accessCount": 3,
+      "lastAccessed": 1778164256089,
+      "type": "directory"
+    },
+    {
+      "path": "src\\scenes\\gameSceneOverlay.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778154892500,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-decision-log-r3.md",
-      "accessCount": 1,
-      "lastAccessed": 1777736385802,
+      "path": "src\\scenes\\rewardRevealItems.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778154989981,
       "type": "file"
     },
     {
-      "path": "plans\\gamescene-decomposition-final.md",
-      "accessCount": 1,
-      "lastAccessed": 1777736489585,
+      "path": "src\\scenes\\settingsSceneOverlay.test.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778158750908,
       "type": "file"
+    },
+    {
+      "path": "src\\data\\routeSheets.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778160290235,
+      "type": "directory"
+    },
+    {
+      "path": "src",
+      "accessCount": 2,
+      "lastAccessed": 1778163349265,
+      "type": "directory"
+    },
+    {
+      "path": "src\\scenes\\archiveSceneOverlay.test.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778164611888,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\rewardSceneOverlay.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778154882933,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\gameSceneUndo.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778154902448,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\gameSceneOverlay.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778154902797,
+      "type": "file"
+    },
+    {
+      "path": "src\\main.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778155632084,
+      "type": "directory"
+    },
+    {
+      "path": "src\\scenes\\titleSceneOverlay.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778155978236,
+      "type": "file"
+    },
+    {
+      "path": "src\\scenes\\titleSceneOverlay.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778156275641,
+      "type": "file"
+    },
+    {
+      "path": "docs\\specs\\2026-05-04-gamepush-socials.md",
+      "accessCount": 1,
+      "lastAccessed": 1778156329943,
+      "type": "file"
+    },
+    {
+      "path": "plans\\v0343-code-review-r1-prompt.txt",
+      "accessCount": 1,
+      "lastAccessed": 1778156799353,
+      "type": "file"
+    },
+    {
+      "path": "plans\\v0345-xiaomi-review-r1-prompt.txt",
+      "accessCount": 1,
+      "lastAccessed": 1778158539563,
+      "type": "file"
+    },
+    {
+      "path": "plans\\v0345-xiaomi-review-r1.md",
+      "accessCount": 1,
+      "lastAccessed": 1778158688671,
+      "type": "file"
+    },
+    {
+      "path": "src\\data\\artifacts.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778164314110,
+      "type": "directory"
+    },
+    {
+      "path": "src\\data\\artifactAssetUrls.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778164396425,
+      "type": "directory"
+    },
+    {
+      "path": "src\\data\\chapters.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778164861303,
+      "type": "directory"
     }
   ],
   "userDirectives": []

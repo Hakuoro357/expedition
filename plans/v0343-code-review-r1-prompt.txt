@@ -1,0 +1,57 @@
+You are reviewing a code change in an HTML5 web game project (Solitaire:
+Expedition, Phaser 3 + TypeScript + Vite, published on GamePush). The
+change is v0.3.42 → v0.3.43 and bundles four user-facing commits:
+
+1. fix(detail): tap on artifact tile in RewardScene was opening the
+   "entry" tab instead of "artifact". Root cause: DetailScene resolved
+   artifact via `node.artifactId` only, missing the case where the
+   reward defines its own `collectibleArtifactId`. Fix mirrors the
+   existing rewardRevealItems resolver.
+2. feat(game): hint/undo cost bumped 10 → 30 each. Removed "first
+   hint/undo free" tier. Made hint button always enabled (was disabled
+   when no hint exists — leaked info to players). On click without
+   available hint: info-modal "Возможных ходов нет", coins NOT
+   deducted. Coin-guard fires BEFORE hint-availability check
+   (intentional ordering — empty wallet shouldn't reveal "no hints").
+3. feat(title): introduced TitleScene as a separate first scene with
+   three buttons (Start/Continue/Settings) and a placeholder gradient
+   background. Previously BootScene routed to SettingsScene with
+   `returnTo: "startmenu"`. Now SettingsScene is a clean settings
+   page; primary actions (new game / continue) live only on Title.
+   Settings opened from Title returns via new `returnTo: "title"`
+   branch in handleGoBack.
+4. docs+chore: GP-socials future-work spec + version bump. No code.
+
+Domain context constraints:
+- GamePush has a strict quota on `gp.player.sync()` calls. SaveService
+  has explicit two-track persistence (progress = debounced 5s sync,
+  currentGame = no-debounce, flushed on lifecycle hooks). Don't suggest
+  adding writes that bypass this.
+- 7 UI locales: ru/en/tr/es/pt/de/fr. Locale keys are added in
+  src/services/i18n/locales.ts. Tests pass: 122/122.
+- Phaser scenes plus DOM overlays via createCanvasAnchoredOverlay (text
+  rendering happens in HTML overlays, not Phaser canvas).
+- The build also passes typecheck (tsc --noEmit). Vite emits warning
+  about chunk size but that's pre-existing.
+
+Your task — review the unified diff below and report:
+1. Bugs / regressions / edge cases that the diff introduces.
+2. Subtle correctness issues (e.g. wrong import, misordered guards,
+   missing null check, broken accessibility).
+3. Copy-paste hazards or duplicated logic that should be a shared helper.
+4. Inconsistency with existing project conventions (DI via getAppContext,
+   overlay test patterns, locale-key naming, save-flow rules).
+5. Anything you'd send back as a blocker before merging to main.
+
+Output format:
+- For each concern: severity tag [CRITICAL] (will break / data-loss) /
+  [MAJOR] (significant gap, should fix) / [MINOR] (polish / nice-to-have).
+- For each: (1) what's wrong, (2) why it matters, (3) suggested fix
+  with file:line reference where possible.
+- List ALL concerns — no cap.
+- End with verdict line — MUST be the LAST non-empty line:
+  either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing
+  punctuation.
+
+=== UNIFIED DIFF ===

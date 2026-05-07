@@ -1,0 +1,207 @@
+diff --git a/package.json b/package.json
+index 1d86115..b8d8902 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "solitaire-expedition",
+   "private": true,
+-  "version": "0.3.43",
++  "version": "0.3.45",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/src/scenes/BootScene.ts b/src/scenes/BootScene.ts
+index 86135f7..1fd351e 100644
+--- a/src/scenes/BootScene.ts
++++ b/src/scenes/BootScene.ts
+@@ -54,6 +54,11 @@ export class BootScene extends Phaser.Scene {
+     this.load.svg("bg-chapter1", "assets/backgrounds/bg-chapter1.svg", { width: 390, height: 844 });
+     this.load.svg("bg-chapter2", "assets/backgrounds/bg-chapter2.svg", { width: 390, height: 844 });
+     this.load.svg("bg-chapter3", "assets/backgrounds/bg-chapter3.svg", { width: 390, height: 844 });
++    // TitleScene collage — generated externally per the prompt в
++    // docs/specs/2026-05-02-gamescene-decomposition.md (см. также
++    // комментарий в TitleScene.renderBackground). Если файла нет —
++    // Phaser кинет 404, TitleScene останется на градиент-заглушке.
++    this.load.image("title-collage", "assets/backgrounds/title-collage.webp");
+     this.load.svg("card-back-compass", "assets/cards/back-compass.svg", { width: 48, height: 76 });
+     this.load.svg("card-back-map",     "assets/cards/back-map.svg",     { width: 48, height: 76 });
+     this.load.svg("card-back-default", "assets/cards/back-default.svg", { width: 48, height: 76 });
+diff --git a/src/scenes/GameScene.ts b/src/scenes/GameScene.ts
+index 6f6f8df..624eed1 100644
+--- a/src/scenes/GameScene.ts
++++ b/src/scenes/GameScene.ts
+@@ -638,20 +638,37 @@ export class GameScene extends Phaser.Scene {
+       return;
+     }
+ 
+-    const remaining = this.getRemainingHints();
++    let remaining = this.getRemainingHints();
+     if (remaining.length === 0) {
+-      // Подсказок нет — info-модалка вместо silent setStatus. Кнопка
+-      // hint всегда активна (no-cheating-tell), без модалки click был
+-      // бы немой, и игроки могли бы тапать кнопку, чтобы беспалатно
+-      // проверять «остались ли ходы». Монеты НЕ списываем.
+-      sound.badMove();
+-      void showInfoDialog({
+-        parent: this.gameOverlay!.getHostElement(),
+-        title: i18n.t("hint"),
+-        message: i18n.t("noMoves"),
+-        okLabel: i18n.t("ok"),
+-      });
+-      return;
++      // Различаем два сценария «нечего показать»:
++      //
++      //   1. Реально нет ходов: getAllHints вернул пустой массив.
++      //      Тогда модалка «Возможных ходов нет» — корректное
++      //      сообщение, и игрок видит, что ситуация безвыходная.
++      //
++      //   2. Все подсказки на текущей доске уже были показаны
++      //      (shownHintKeys фильтрует их в getRemainingHints), но
++      //      ходы есть. Раньше тут было setStatus("noMoves") — это
++      //      врало игроку. Сейчас сбрасываем shownHintKeys для этого
++      //      состояния доски и берём первый hint заново — пусть
++      //      повторно увидит подсказку, которую уже видел. За это
++      //      списываем монеты как обычно.
++      const allHintsCount = getAllHints(this.gameState).length;
++      if (allHintsCount === 0) {
++        sound.badMove();
++        void showInfoDialog({
++          parent: this.gameOverlay!.getHostElement(),
++          title: i18n.t("hint"),
++          message: i18n.t("noMoves"),
++          okLabel: i18n.t("ok"),
++        });
++        return;
++      }
++      // Подсказки циклятся: shownHintKeys чистим и идём дальше как
++      // если бы нажали в первый раз. Перевычисляем remaining (после
++      // clear там точно есть хотя бы 1 hint, потому что allHintsCount > 0).
++      this.shownHintKeys.clear();
++      remaining = this.getRemainingHints();
+     }
+ 
+     save.addCoins(-cost);
+diff --git a/src/scenes/SettingsScene.ts b/src/scenes/SettingsScene.ts
+index 9c31f62..9a0a983 100644
+--- a/src/scenes/SettingsScene.ts
++++ b/src/scenes/SettingsScene.ts
+@@ -101,10 +101,13 @@ export class SettingsScene extends Phaser.Scene {
+       active: currentLocale === code,
+     }));
+     // Bottom nav зеркалит сцену-origin. С v0.3.43 startmenu больше не
+-    // существует (вынесен в TitleScene), и nav показывается всегда.
+-    // Если открыли из TitleScene — навигация по умолчанию (archive/
+-    // daily/menu) тоже работает: «Меню» как active возвращает на title
+-    // через handleGoBack.
++    // существует (вынесен в TitleScene), и nav показывается всегда —
++    // КРОМЕ first-run: если игрок зашёл в Settings из TitleScene и ещё
++    // не прошёл пролог, nav прячется. Иначе можно тапнуть Daily или
++    // Archive и обойти стартовый funnel (старая startmenu-логика
++    // защищала тем же — codex поймал v0.3.43 регрессию).
++    const isFirstRunFromTitle =
++      this.returnTo === "title" && !currentState.progress.prologueShown;
+     const html = createSettingsSceneOverlayHtml({
+       title: i18n.t("settings"),
+       languageLabel: i18n.t("language"),
+@@ -125,10 +128,15 @@ export class SettingsScene extends Phaser.Scene {
+       //   TitleScene → archive / daily / menu(active) — стандартный
+       //   набор, повторный клик по «Меню» вернёт на title через
+       //   handleGoBack.
++      //   First-run из TitleScene (пролог не пройден) → nav СКРЫТ,
++      //   только «← Назад» + сами настройки. Гарантия что игрок не
++      //   обойдёт пролог тапом по Daily/Archive до того, как игра
++      //   объяснилась.
+       // Когда открыли из Game — map-nav скрывается, показывается
+       // game-style bar (см. gameNavLabels ниже).
+-      navItems:
+-        this.returnTo === "archive"
++      navItems: isFirstRunFromTitle
++        ? undefined
++        : this.returnTo === "archive"
+           ? [
+               { id: "home", label: i18n.t("backToMap"), active: false },
+               { id: "daily", label: i18n.t("daily"), active: false },
+diff --git a/src/scenes/TitleScene.ts b/src/scenes/TitleScene.ts
+index f00090d..b013695 100644
+--- a/src/scenes/TitleScene.ts
++++ b/src/scenes/TitleScene.ts
+@@ -53,21 +53,46 @@ export class TitleScene extends Phaser.Scene {
+   }
+ 
+   /**
+-   * Заглушка под коллаж: тёмно-теаловый вертикальный градиент +
+-   * мягкая радиальная золотая подсветка ближе к верхней трети (там,
+-   * где будет hero-блок с заголовком). Когда коллаж появится — этот
+-   * метод заменяется на 3 строки с this.add.image.
++   * Фон TitleScene. Если ассет `title-collage` загрузился (см.
++   * BootScene.preload) — рисуем его full-bleed. Если нет — fallback
++   * на градиент-заглушку (тёмно-теаловый + золотая подсветка),
++   * чтобы сцена не оставалась белой/чёрной во время первой
++   * генерации картинки.
++   *
++   * Поверх коллажа всегда кладём лёгкий dark gradient на нижние
++   * 35%, чтобы кнопки и subtitle оставались читаемыми независимо
++   * от плотности коллажа в этой зоне.
+    */
+   private renderBackground(): void {
+-    const bg = this.add.graphics();
+-    bg.fillGradientStyle(0x0a1e1c, 0x0a1e1c, 0x10201f, 0x162e2c, 1);
+-    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+-    // Лёгкое golden-glow в области заголовка — намёк на фонарь над
+-    // картой в нарративе.
+-    bg.fillStyle(0xd4a962, 0.08);
+-    bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 320, 220);
+-    bg.fillStyle(0xd4a962, 0.04);
+-    bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 480, 320);
++    if (this.textures.exists("title-collage")) {
++      // Cover-fit: масштабируем по большей из двух дробей (как CSS
++      // background-size: cover). Сохраняет пропорции картинки —
++      // setDisplaySize(GAME_WIDTH, GAME_HEIGHT) её бы сплющил, потому
++      // что коллаж 1080x1920 (0.5625) шире чем canvas 390x844 (0.46).
++      const img = this.add
++        .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "title-collage")
++        .setOrigin(0.5);
++      const scale = Math.max(GAME_WIDTH / img.width, GAME_HEIGHT / img.height);
++      img.setScale(scale);
++    } else {
++      const bg = this.add.graphics();
++      bg.fillGradientStyle(0x0a1e1c, 0x0a1e1c, 0x10201f, 0x162e2c, 1);
++      bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
++      bg.fillStyle(0xd4a962, 0.08);
++      bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 320, 220);
++      bg.fillStyle(0xd4a962, 0.04);
++      bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 480, 320);
++    }
++    // Dark gradient на нижние 38% — гарантия читаемости кнопок и
++    // subtitle независимо от того, насколько светлая картинка под
++    // ними. Если в коллаже нижняя зона уже тёмная (по промпту так и
++    // должно быть), эффект почти незаметен; если коллаж получился
++    // слишком светлым внизу — overlay сделает кнопки читаемыми.
++    const overlay = this.add.graphics();
++    const overlayHeight = Math.round(GAME_HEIGHT * 0.38);
++    const overlayTop = GAME_HEIGHT - overlayHeight;
++    overlay.fillGradientStyle(0x081010, 0x081010, 0x081010, 0x081010, 0, 0, 0.78, 0.78);
++    overlay.fillRect(0, overlayTop, GAME_WIDTH, overlayHeight);
+   }
+ 
+   private renderOverlay(): void {
+diff --git a/src/scenes/settingsSceneOverlay.ts b/src/scenes/settingsSceneOverlay.ts
+index 7e8999e..3b8ba43 100644
+--- a/src/scenes/settingsSceneOverlay.ts
++++ b/src/scenes/settingsSceneOverlay.ts
+@@ -39,9 +39,11 @@ type SettingsSceneOverlayParams = {
+   /** 0..1 */
+   musicVolume: number;
+   /**
+-   * Если undefined — bottom-nav не рендерим вообще. Используется для
+-   * режима `startmenu` (стартовое меню не показывает archive/daily,
+-   * только primary-actions).
++   * Если undefined — bottom-nav не рендерим вообще. С v0.3.44
++   * используется для first-run-из-TitleScene (пролог ещё не пройден):
++   * скрываем nav, чтобы игрок не обошёл стартовый funnel через
++   * Archive/Daily. Раньше (до v0.3.43) использовалось для режима
++   * `startmenu` — он удалён, теперь стартовый экран это TitleScene.
+    */
+   navItems?: AppNavItem[];
+   /**

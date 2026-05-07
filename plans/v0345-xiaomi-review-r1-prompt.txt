@@ -1,0 +1,70 @@
+You are reviewing a code change in an HTML5 web game project (Solitaire:
+Expedition, Phaser 3 + TypeScript + Vite, published on GamePush). The
+change is v0.3.43 → v0.3.45, two commits addressing a prior codex review
+plus an asset finalization.
+
+CONTEXT — what was the prior codex review about (v0.3.42 → v0.3.43):
+- New TitleScene replaced SettingsScene-as-startmenu as the first scene.
+- Hint button bumped to 30 coins, no free-tier; button is always
+  enabled, modal "Возможных ходов нет" on click without hint.
+- DetailScene fix for artifact tab opening as entry tab.
+
+Codex flagged 2 MAJOR concerns:
+1. `getRemainingHints().length === 0` ≠ "no possible moves" — it could
+   mean "all hints already cycled through" because shownHintKeys filters
+   them out. Modal would lie to the player.
+2. After the TitleScene split, Settings opened from Title now showed
+   bottom nav (archive/daily/menu) always. First-run users could tap
+   Daily and skip the prologue funnel.
+
+THIS REVIEW — what changed in v0.3.44 + v0.3.45 (the diff below):
+1. GameScene.handleHintAction now distinguishes `getAllHints(state).length
+   === 0` (real no-moves → modal) from `remaining empty but allHints > 0`
+   (cycle exhausted → clear shownHintKeys, recompute remaining, charge
+   coins as normal, show first hint again).
+2. SettingsScene.renderOverlay computes `isFirstRunFromTitle` flag and
+   passes `navItems: undefined` when set. Defends against Title→Settings
+   →Daily prologue bypass.
+3. TitleScene.renderBackground loads `title-collage` texture if present,
+   uses cover-fit scaling (`Math.max(scaleX, scaleY)`) to preserve
+   aspect ratio — earlier `setDisplaySize(GAME_WIDTH, GAME_HEIGHT)` was
+   distorting 1080×1920 into 390×844. Falls back to gradient placeholder
+   if texture missing. Adds a darken-overlay graphics over the bottom
+   38% so buttons stay readable regardless of collage's bottom density.
+4. BootScene preloads title-collage.webp.
+5. Stale "startmenu" reference in settingsSceneOverlay docstring updated.
+6. v0.3.45 also: PNG variants deleted, single optimized WebP at 244 KB.
+
+Domain context constraints:
+- 7 UI locales: ru/en/tr/es/pt/de/fr.
+- Tests pass: 122/122 (no new tests for v0.3.44 / v0.3.45 changes —
+  potential gap).
+- DI via getAppContext, DOM overlays via createCanvasAnchoredOverlay.
+- GamePush quota minimisation rules apply (don't burn extra
+  gp.player.sync calls).
+
+Your task — review the unified diff below specifically focused on whether
+the v0.3.44 / v0.3.45 changes correctly address the codex concerns
+without introducing new issues:
+1. Does the hint-cycle fix actually fix the bug, or is there a remaining
+   false-positive (e.g. partial state where remaining is empty for
+   another reason)?
+2. Does the first-run-from-title nav guard cover all bypass paths?
+   Are there other ways for a first-run player to reach Daily/Archive?
+3. Is the cover-fit math correct? Does the darken overlay break
+   anything (z-order, click handling)?
+4. Are there missing tests, missing comments, or copy-paste hazards?
+5. Anything codex would flag again on a re-review?
+
+Output format:
+- For each concern: severity tag [CRITICAL] (will break / data-loss) /
+  [MAJOR] (significant gap, should fix) / [MINOR] (polish / nice-to-have).
+- For each: (1) what's wrong, (2) why it matters, (3) suggested fix
+  with file:line reference where possible.
+- List ALL concerns — no cap.
+- End with verdict line — MUST be the LAST non-empty line:
+  either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing
+  punctuation.
+
+=== UNIFIED DIFF ===

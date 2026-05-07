@@ -1,0 +1,1298 @@
+diff --git a/docs/specs/2026-05-04-gamepush-socials.md b/docs/specs/2026-05-04-gamepush-socials.md
+new file mode 100644
+index 0000000..66dd38f
+--- /dev/null
++++ b/docs/specs/2026-05-04-gamepush-socials.md
+@@ -0,0 +1,122 @@
++# GamePush social actions integration (future-work stub)
++
++**Status:** parked / not scheduled. Recorded 2026-05-04 как future-work
++после фидбека пользователя по доке `docs.gamepush.com/ru/docs/social-actions/`.
++
++**Priority:** low — реализация после стабилизации основного gameplay
++loop'а и подтверждения квоты.
++
++## Цель
++
++Связать игру с платформенной community-страницей (VK Group / Odnoklassniki
++Community / Telegram-канал — зависит от платформы публикации) и
++задействовать `gp.socials.*` для share / invite / join-community.
++Цель — органический рост аудитории через социальные сигналы (поделился
++победой → друг видит у себя в ленте → клик по карточке → запуск игры
++с автоматическим credit'ом инвайтеру).
++
++## API surface (по docs.gamepush.com/ru/docs/social-actions/)
++
++| Method | Что делает |
++|---|---|
++| `gp.socials.share({ title, description, imageUrl })` | Постит ссылку на игру в платформенный feed (VK wall / OK feed / Telegram chat). Контент карточки берётся либо из Open Graph мета-тегов в index.html, либо из аргумента (если платформа поддерживает override). |
++| `gp.socials.invite({ friendId? })` | Отправляет приглашение другу. Без `friendId` — открывает платформенный picker. Платформенно-зависимо: на VK работает через `VK.api`, на OK — через `FAPI.UI.showInvite`. |
++| `gp.socials.joinCommunity()` | Открывает диалог вступления в community, заранее настроенную в panel.gamepush.com. Без аргументов; community URL хранится в дашборде. |
++
++Точные сигнатуры и параметры подтвердить непосредственно перед
++реализацией — на момент записи stub'а полный TypeScript-typedef из GP
++SDK не загружался.
++
++## Prerequisites (что нужно до интеграции)
++
++1. **Создать community** на каждой платформе, где публикуется игра:
++   - **VK**: создать сообщество (vk.com/groups → создать) с типом
++     «Сообщество разработчиков» или «Игра». Прикрепить аватар +
++     краткое описание игры с упоминанием экспедиционного нарратива.
++   - **OK**: создать группу на ok.ru с тем же позиционированием.
++   - **Telegram** (если применимо): создать публичный канал
++     `@solitaire_expedition` или похожий.
++2. **Зарегистрировать community URL** в `panel.gamepush.com → Project
++   27547 → Settings → Social`. Это активирует `gp.socials.joinCommunity()` —
++   без записи в дашборде SDK-метод вернёт ошибку.
++3. **Open Graph мета-теги** в `index.html`:
++   ```html
++   <meta property="og:title" content="Solitaire: Expedition">
++   <meta property="og:description" content="...">
++   <meta property="og:image" content="https://.../promo/cover-1200x630.png">
++   <meta property="og:url" content="https://...">
++   <meta property="og:type" content="website">
++   ```
++   Без них `gp.socials.share()` не будет красиво рендерить карточку
++   в VK/OK ленте.
++4. **Cover-картинка 1200×630** для og:image (отдельно от существующих
++   GamePush promo). Уже есть `promo/cover-800x470-gold.png` —
++   downscale в 1200×630 + перегенерация webp/png пары.
++
++## Quota implications (открытый вопрос)
++
++Документация явно НЕ упоминает квоту для `gp.socials.*`. Гипотеза —
++эти вызовы НЕ списываются с 100k/day analytics-квоты, потому что
++это платформенные действия (VK/OK API проксируются через GP SDK), а
++не GP-events. Гипотезу подтвердить запросом в GP support перед
++интеграцией.
++
++Если квота тратится — добавить throttling: лимит 1 share / 1 invite
++на сессию через cooldown в `localStorage` или поле игрока (для
++cross-device persistence).
++
++См. директиву «Игры с GamePush: каждый вызов SDK — платная квота» в
++`~/.claude/CLAUDE.md` и `~/.claude/plan-mistakes/gamepush.md` (gp-001…008).
++
++## Recommended integration touchpoints
++
++Минимальный набор для первой итерации (отдельный план/ревью на каждый):
++
++### 1. RewardScene → «Поделиться победой»
++После `reveal-items` показа в RewardScene добавить опциональную
++кнопку «Поделиться» рядом с continue. Клик → `gp.socials.share` с:
++- title: «Глава N — точка X пройдена!» (локализованно)
++- description: первая фраза найденной записи
++- imageUrl: full-size картинка артефакта (если получен), иначе
++  cover-1200x630.
++
++**Cooldown**: одна share-кнопка на партию, не на каждой победе.
++**Гейт**: не показывать кнопку на repeat-победах (`returnFromDetail=true`).
++
++### 2. TitleScene или Settings → «Сообщество»
++Кнопка «Наше сообщество» вызывает `gp.socials.joinCommunity()`.
++Виден ТОЛЬКО если community настроена в дашборде — иначе скрыть
++(защита от мёртвой кнопки). Размещение:
++- Вариант A: 4-я кнопка на TitleScene (после Settings) — высокая
++  заметность, но шумит на минималистичном экране.
++- Вариант B: отдельная секция в Settings → новая категория «О игре» с
++  links к community и к credits. Менее шумно.
++
++Рекомендуется вариант B как для первого захода — легко скрыть, если
++квота окажется проблемой.
++
++## Что не делаем сейчас
++
++- Rewarded-видео-за-share (тактика удержания) — отдельный план.
++- Invite boosts (бонус монет за приглашение друга) — нужен server-side
++  validation, у нас его нет.
++- Leaderboards — выходит за рамки социалов как таковых, отдельная
++  механика.
++- Achievements UI — `gp.achievements.*` это другая категория, не socials.
++
++## Открытые вопросы для пользователя
++
++1. Какие community уже созданы / нужно ли создавать с нуля?
++2. На какой платформе пилотировать интеграцию первой — VK или OK?
++3. Тратится ли квота на `gp.socials.*`? (Запрос в GP support.)
++4. Хотим ли «Поделиться» на каждой победе (с throttling) или только
++   после прохождения главы?
++5. Где разместить «Сообщество» — TitleScene 4-я кнопка vs Settings
++   отдельная секция?
++6. Какой контент share-карточки на каждый из 7 локалей — генерим из
++   нарратива или фиксированный «Я играю в Solitaire: Expedition»?
++
++## Acceptance шага сейчас
++
++Документ существует в `docs/specs/`. Никакого SDK-кода не написано.
++Stub служит чек-листом для следующей итерации.
+diff --git a/package.json b/package.json
+index c710430..1d86115 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "solitaire-expedition",
+   "private": true,
+-  "version": "0.3.42",
++  "version": "0.3.43",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/src/app/bootstrap/createGame.ts b/src/app/bootstrap/createGame.ts
+index 5d1579f..f5810e3 100644
+--- a/src/app/bootstrap/createGame.ts
++++ b/src/app/bootstrap/createGame.ts
+@@ -12,6 +12,7 @@ import { MapScene } from "@/scenes/MapScene";
+ import { PrologueScene } from "@/scenes/PrologueScene";
+ import { RewardScene } from "@/scenes/RewardScene";
+ import { SettingsScene } from "@/scenes/SettingsScene";
++import { TitleScene } from "@/scenes/TitleScene";
+ 
+ export function createGame(parent: HTMLElement): Phaser.Game {
+   const resolution = typeof window === "undefined" ? 1 : getGameResolution(window.devicePixelRatio || 1);
+@@ -24,6 +25,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
+   // в production выкинет dead-branch и неиспользуемый импорт.
+   const scenes: Phaser.Types.Scenes.SceneType[] = [
+     BootScene,
++    TitleScene,
+     PrologueScene,
+     MapScene,
+     DetailScene,
+diff --git a/src/app/config/economy.ts b/src/app/config/economy.ts
+index 478905e..4113a43 100644
+--- a/src/app/config/economy.ts
++++ b/src/app/config/economy.ts
+@@ -14,10 +14,12 @@ export const ECONOMY = {
+ 
+   /** Cost to restart after losing */
+   restartCost: 40,
+-  /** Cost per undo */
+-  undoCost: 10,
+-  /** Cost per hint (after first free one) */
+-  hintCost: 10,
++  /** Cost per undo. Раньше был 10 + первая отмена бесплатно — убрали
++   *  в v0.3.43, free-tier размывал экономику и игроки этим злоупотребляли. */
++  undoCost: 30,
++  /** Cost per hint. Раньше был 10 + первая подсказка бесплатно — убрали
++   *  в v0.3.43 по тем же причинам, что и undo. */
++  hintCost: 30,
+ 
+   /** Starting coins for a brand new player */
+   startingCoins: 30,
+diff --git a/src/app/config/gameConfig.ts b/src/app/config/gameConfig.ts
+index ba25890..e009448 100644
+--- a/src/app/config/gameConfig.ts
++++ b/src/app/config/gameConfig.ts
+@@ -28,6 +28,7 @@ export const GAME_OFFSET_X = (GAME_CANVAS_WIDTH - GAME_WIDTH) / 2;
+ export const SCENES = {
+   boot: "boot",
+   devPreview: "dev-preview",
++  title: "title",
+   prologue: "prologue",
+   map: "map",
+   detail: "detail",
+diff --git a/src/scenes/BootScene.ts b/src/scenes/BootScene.ts
+index 8ae2916..86135f7 100644
+--- a/src/scenes/BootScene.ts
++++ b/src/scenes/BootScene.ts
+@@ -247,11 +247,11 @@ export class BootScene extends Phaser.Scene {
+       return;
+     }
+ 
+-    // Всегда открываем стартовое меню (SettingsScene в режиме "startmenu").
+-    // Там игрок выбирает «Новая игра» (идёт в Prologue) или «Продолжить»
+-    // (возобновляет активную партию / идёт на карту). Первый запуск:
+-    // «Продолжить» задизейблена, активна только «Новая игра». Требование
+-    // тестировщиков ВК/ОК — полноценное стартовое меню как точка входа.
+-    this.scene.start(SCENES.settings, { returnTo: "startmenu" });
++    // С v0.3.43 — отдельная TitleScene как первая интерактивная сцена.
++    // Раньше тут была SettingsScene в режиме `returnTo: "startmenu"` —
++    // совмещённая «главная-настройки-стартменю» страница. Сейчас
++    // разделено: TitleScene (минималистичный коллаж + 3 кнопки),
++    // SettingsScene (чистые настройки: язык, звук, сброс).
++    this.scene.start(SCENES.title);
+   }
+ }
+diff --git a/src/scenes/DetailScene.ts b/src/scenes/DetailScene.ts
+index 5496da2..3cc4758 100644
+--- a/src/scenes/DetailScene.ts
++++ b/src/scenes/DetailScene.ts
+@@ -8,6 +8,7 @@ import { getNodeById } from "@/data/chapters";
+ import { getDailyDateKey } from "@/data/dailyDeals";
+ import { getNarrativeEntry } from "@/data/narrative/entries";
+ import { getPointTitleByDealId } from "@/data/narrative/points";
++import { getRewardById } from "@/data/narrative/rewards";
+ import { getNarrativeSpeakerProfile } from "@/data/narrative/speakers";
+ import { resolvePortraitUrl } from "@/data/portraitAssetUrls";
+ import { getRouteSheetByDealId, ROUTE_SHEETS } from "@/data/routeSheets";
+@@ -80,7 +81,18 @@ export class DetailScene extends Phaser.Scene {
+     const sheet = getRouteSheetByDealId(node.id) ?? ROUTE_SHEETS[0];
+     const entry = node.entryId ? getNarrativeEntry(node.entryId, locale) : undefined;
+     const speaker = entry ? getNarrativeSpeakerProfile(entry.speakerEntityId, locale) : undefined;
+-    const artifact = node.artifactId ? getArtifactById(node.artifactId) : undefined;
++    // Резолвинг артефакта симметричен `rewardRevealItems.ts` (L60):
++    // когда reward задаёт собственный `collectibleArtifactId`, он
++    // приоритетнее, чем `node.artifactId`. До v0.3.43 здесь учитывался
++    // только `node.artifactId` — если reward подменяет артефакт, а у
++    // узла artifactId === null, артефакт «не находился» и activeTab
++    // молча перепрыгивал с "artifact" на "entry" (L87-88). Это
++    // воспринималось пользователем как «тап по плитке артефакта
++    // открывает запись». Теперь обе сцены используют один и тот же
++    // expectedArtifactId.
++    const reward = node.rewardId ? getRewardById(node.rewardId) : undefined;
++    const expectedArtifactId = reward?.collectibleArtifactId ?? node.artifactId ?? null;
++    const artifact = expectedArtifactId ? getArtifactById(expectedArtifactId) : undefined;
+     const canShowEntry = Boolean(entry);
+     const canShowArtifact = Boolean(artifact);
+ 
+diff --git a/src/scenes/GameScene.ts b/src/scenes/GameScene.ts
+index ec741f2..6f6f8df 100644
+--- a/src/scenes/GameScene.ts
++++ b/src/scenes/GameScene.ts
+@@ -33,6 +33,7 @@ import { formatCard } from "@/features/board/formatCard";
+ import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
+ import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+ import { COIN_ICON_HTML, COIN_TOKEN } from "@/ui/coinIcon";
++import { showInfoDialog } from "@/ui/confirmDialog";
+ import { escapeHtml } from "@/ui/escapeHtml";
+ import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, type GameOverlayEmptySlot, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
+ import {
+@@ -326,10 +327,16 @@ export class GameScene extends Phaser.Scene {
+       })),
+       undoLabel: this.getUndoLabel(),
+       hintLabel: this.getHintLabel(),
++      // hintDisabled всегда false (v0.3.43): кнопка раньше дизейблилась
++      // когда `getRemainingHints().length === 0`. Это «читерский тёлл» —
++      // игрок видит «нечего показывать» бесплатно, тапает раздачу заново
++      // без покупки подсказки. Теперь кнопка всегда активна, при клике
++      // без доступной подсказки показывается модалка «Возможных ходов нет»
++      // (handleHintAction), монеты не списываются.
+       // Кнопка заблокирована, только когда все подсказки для текущего
+       // состояния доски уже показаны. Любой ход меняет fingerprint и
+       // очищает shownHintKeys, что возвращает кнопку в активное состояние.
+-      hintDisabled: this.getRemainingHints().length === 0,
++      hintDisabled: false,
+       rulesLabel: i18n.t("rules"),
+       // Кнопка переименована «Настройки» → «Меню» по требованию ВК/ОК
+       // тестировщиков: это теперь вход в полноценное меню, а не
+@@ -553,18 +560,19 @@ export class GameScene extends Phaser.Scene {
+       return;
+     }
+ 
+-    const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
+-    const cost = isFirstUndo ? 0 : ECONOMY.undoCost;
+-    if (cost > 0) {
+-      const coins = save.load().progress.coins;
+-      if (coins < cost) {
+-        this.history.push(previousState); // put it back
+-        this.setStatus(i18n.t("notEnoughCoins"));
+-        sound.badMove();
+-        return;
+-      }
+-      save.addCoins(-cost);
++    // v0.3.43: free-первая-отмена убрана. Теперь каждый undo стоит
++    // ECONOMY.undoCost (30 монет на момент бампа). Это упростило
++    // экономику и убрало эксплойт «делать ход → undo бесплатно для
++    // разведки».
++    const cost = ECONOMY.undoCost;
++    const coins = save.load().progress.coins;
++    if (coins < cost) {
++      this.history.push(previousState); // put it back
++      this.setStatus(i18n.t("notEnoughCoins"));
++      sound.badMove();
++      return;
+     }
++    save.addCoins(-cost);
+     this.gameState = {
+       ...previousState,
+       undoCount: previousState.undoCount + 1,
+@@ -580,14 +588,13 @@ export class GameScene extends Phaser.Scene {
+ 
+   private getUndoLabel(): string {
+     const { i18n } = getAppContext();
+-    const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
+-    if (isFirstUndo) return i18n.t("undo");
++    // v0.3.43: free-первая-отмена убрана. Цена теперь всегда видна.
+     return `${i18n.t("undo")} ${COIN_TOKEN}${ECONOMY.undoCost}`;
+   }
+ 
+   private getHintLabel(): string {
+     const { i18n } = getAppContext();
+-    if (this.hintsUsed === 0) return i18n.t("hint");
++    // v0.3.43: free-первая-подсказка убрана. Цена теперь всегда видна.
+     return `${i18n.t("hint")} ${COIN_TOKEN}${ECONOMY.hintCost}`;
+   }
+ 
+@@ -611,30 +618,45 @@ export class GameScene extends Phaser.Scene {
+   private handleHintAction(): void {
+     if (!this.gameState || this.animating || this.autoCompleting) return;
+ 
++    const { save, sound, i18n, analytics } = getAppContext();
++    const cost = ECONOMY.hintCost;
++
++    // Порядок guard'ов важен:
++    //   1. Coin-guard ПЕРВЫМ: цена подсказки в UI отображается на самой
++    //      кнопке, поэтому игрок знает, что подсказка платная. Если у
++    //      него нет монет — он видит «Недостаточно монет», без раскрытия
++    //      доступности подсказок.
++    //   2. Hint-availability guard ВТОРЫМ: только после прохождения
++    //      coin-check. Если подсказок нет — модалка «Возможных ходов
++    //      нет» (i18n.t("noMoves")), монеты НЕ списываются.
++    // Без этого порядка игрок с пустым кошельком получал бы «нет
++    // подсказок» — это слил бы information о состоянии доски.
++    const coins = save.load().progress.coins;
++    if (coins < cost) {
++      this.setStatus(i18n.t("notEnoughCoins"));
++      sound.badMove();
++      return;
++    }
++
+     const remaining = this.getRemainingHints();
+     if (remaining.length === 0) {
+-      // Все варианты показаны в рамках текущего состояния доски — кнопка
+-      // и так заблокирована, но на всякий случай guard.
+-      this.setStatus(getAppContext().i18n.t("noMoves"));
+-      getAppContext().sound.badMove();
++      // Подсказок нет — info-модалка вместо silent setStatus. Кнопка
++      // hint всегда активна (no-cheating-tell), без модалки click был
++      // бы немой, и игроки могли бы тапать кнопку, чтобы беспалатно
++      // проверять «остались ли ходы». Монеты НЕ списываем.
++      sound.badMove();
++      void showInfoDialog({
++        parent: this.gameOverlay!.getHostElement(),
++        title: i18n.t("hint"),
++        message: i18n.t("noMoves"),
++        okLabel: i18n.t("ok"),
++      });
+       return;
+     }
+ 
+-    const { save, sound, i18n, analytics } = getAppContext();
+-    const isFirstHint = this.hintsUsed === 0;
+-    const cost = isFirstHint ? 0 : ECONOMY.hintCost;
+-
+-    if (cost > 0) {
+-      const coins = save.load().progress.coins;
+-      if (coins < cost) {
+-        this.setStatus(i18n.t("notEnoughCoins"));
+-        sound.badMove();
+-        return;
+-      }
+-      save.addCoins(-cost);
+-      // Явный sync в gp.player после списания монет.
+-      void save.flush();
+-    }
++    save.addCoins(-cost);
++    // Явный sync в gp.player после списания монет.
++    void save.flush();
+ 
+     const hint = remaining[0]!;
+     this.shownHintKeys.add(this.hintKey(hint));
+diff --git a/src/scenes/SettingsScene.ts b/src/scenes/SettingsScene.ts
+index d6b29cf..9c31f62 100644
+--- a/src/scenes/SettingsScene.ts
++++ b/src/scenes/SettingsScene.ts
+@@ -2,15 +2,13 @@ import Phaser from "phaser";
+ 
+ import { getAppContext } from "@/app/config/appContext";
+ import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+-import { createInitialProgressState } from "@/core/game-state/progress";
+ import { getDailyDateKey } from "@/data/dailyDeals";
+ import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
+ import { createSettingsSceneOverlayHtml } from "@/scenes/settingsSceneOverlay";
+ import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+-import { showConfirmDialog } from "@/ui/confirmDialog";
+ 
+ type SettingsNavTarget = "archive" | "daily" | "settings" | "home";
+-type ReturnTo = "game" | "map" | "archive" | "reward" | "startmenu";
++type ReturnTo = "game" | "map" | "archive" | "reward" | "title";
+ 
+ /**
+  * Параметры входа в SettingsScene. Когда открыли из GameScene —
+@@ -23,9 +21,10 @@ type ReturnTo = "game" | "map" | "archive" | "reward" | "startmenu";
+  * чтобы при возврате восстановить экран награды с теми же параметрами
+  * (без повторного начисления/sfx, через `returnFromDetail: true`).
+  *
+- * `returnTo: "startmenu"` — особый режим стартового меню. Сцена
+- * запускается из BootScene при открытии игры, показывает primary-actions
+- * «Новая игра» / «Продолжить», не рисует bottom-nav и кнопку «← Назад».
++ * `returnTo: "title"` — открыто из TitleScene (с v0.3.43). «← Назад»
++ * возвращает на TitleScene. Раньше был режим "startmenu", в котором
++ * SettingsScene и сама была entry point'ом — теперь это отдельный
++ * TitleScene, и SettingsScene становится чистой страницей настроек.
+  */
+ export type SettingsSceneData = {
+   returnTo?: ReturnTo;
+@@ -92,21 +91,6 @@ export class SettingsScene extends Phaser.Scene {
+     // иконки и реального gain'а bus'ов, если gp.sounds.isMuted мигнёт между
+     // вызовами (preloader-ad и т.п.).
+     const platformMuted = sound.isPlatformMuted();
+-    const isStartMenu = this.returnTo === "startmenu";
+-    // На стартовом меню «Продолжить» задизейблена до первого прохождения
+-    // пролога (первый запуск игры). После prologueShown=true кнопка всегда
+-    // активна: либо поведёт в активную партию (currentGame in progress),
+-    // либо на карту (partия завершена / отсутствует).
+-    const continueDisabled = isStartMenu && !currentState.progress.prologueShown;
+-    // Primary-кнопка (золотая) — та, которая в текущем контексте
+-    // рекомендованное действие:
+-    //  - если есть прогресс (пролог пройден или есть активная партия) —
+-    //    «Продолжить» (логично вернуться к тому, что делал).
+-    //  - иначе первый запуск — «Новая игра» (единственный разумный путь).
+-    const hasProgressToContinue =
+-      currentState.progress.prologueShown || currentState.currentGame !== null;
+-    const primaryButton: "new-game" | "continue" =
+-      hasProgressToContinue && !continueDisabled ? "continue" : "new-game";
+     // 7 UI-локалей. Порядок: ru/en/tr сверху (исторические), затем es/pt/de/fr
+     // (добавлены в v0.3.30). Галочка ставится через active-стиль + префикс "✓".
+     const localeCodes = ["ru", "en", "tr", "es", "pt", "de", "fr"] as const;
+@@ -116,9 +100,13 @@ export class SettingsScene extends Phaser.Scene {
+       label: code.toUpperCase(),
+       active: currentLocale === code,
+     }));
++    // Bottom nav зеркалит сцену-origin. С v0.3.43 startmenu больше не
++    // существует (вынесен в TitleScene), и nav показывается всегда.
++    // Если открыли из TitleScene — навигация по умолчанию (archive/
++    // daily/menu) тоже работает: «Меню» как active возвращает на title
++    // через handleGoBack.
+     const html = createSettingsSceneOverlayHtml({
+-      // В режиме startmenu — заголовок «Меню», иначе «Настройки».
+-      title: isStartMenu ? i18n.t("menu") : i18n.t("settings"),
++      title: i18n.t("settings"),
+       languageLabel: i18n.t("language"),
+       localeOptions,
+       sfxLabel: i18n.t("sound"),
+@@ -128,36 +116,29 @@ export class SettingsScene extends Phaser.Scene {
+       muted: platformMuted,
+       sfxVolume: sound.getSfxVolume(),
+       musicVolume: sound.getMusicVolume(),
+-      // Primary-actions: «Новая игра» всегда видима; «Продолжить» —
+-      // disabled только в startmenu при первом запуске.
+-      primaryActions: {
+-        newGameLabel: i18n.t("newGame"),
+-        continueLabel: i18n.t("continue"),
+-        continueDisabled,
+-        primaryButton,
+-      },
+-      // Back-кнопка «← Назад» показывается во всех режимах КРОМЕ startmenu:
+-      // в стартовом меню нет «назад» — есть только primary-actions.
+-      backLabel: isStartMenu ? undefined : i18n.t("back"),
++      // primaryActions удалены в v0.3.43: «Начать»/«Продолжить» теперь
++      // живут только на TitleScene. Settings — чистая страница настроек.
++      backLabel: i18n.t("back"),
+       // Bottom nav зеркалит сцену-origin:
+       //   Map → archive / daily / menu(active)
+       //   Archive (DiaryScene) → home / daily / menu(active)
+-      //   startmenu → nav вообще не показываем.
++      //   TitleScene → archive / daily / menu(active) — стандартный
++      //   набор, повторный клик по «Меню» вернёт на title через
++      //   handleGoBack.
+       // Когда открыли из Game — map-nav скрывается, показывается
+       // game-style bar (см. gameNavLabels ниже).
+-      navItems: isStartMenu
+-        ? undefined
+-        : this.returnTo === "archive"
+-        ? [
+-            { id: "home", label: i18n.t("backToMap"), active: false },
+-            { id: "daily", label: i18n.t("daily"), active: false },
+-            { id: "settings", label: i18n.t("menu"), active: true },
+-          ]
+-        : [
+-            { id: "archive", label: i18n.t("archive"), active: false },
+-            { id: "daily", label: i18n.t("daily"), active: false },
+-            { id: "settings", label: i18n.t("menu"), active: true },
+-          ],
++      navItems:
++        this.returnTo === "archive"
++          ? [
++              { id: "home", label: i18n.t("backToMap"), active: false },
++              { id: "daily", label: i18n.t("daily"), active: false },
++              { id: "settings", label: i18n.t("menu"), active: true },
++            ]
++          : [
++              { id: "archive", label: i18n.t("archive"), active: false },
++              { id: "daily", label: i18n.t("daily"), active: false },
++              { id: "settings", label: i18n.t("menu"), active: true },
++            ],
+       // Если открыли из Game — показываем game-style bottom bar вместо
+       // обычного map-nav, чтобы игрок визуально оставался в контексте
+       // партии. Undo/Hint будут disabled, «Меню» работает как «назад»,
+@@ -230,14 +211,6 @@ export class SettingsScene extends Phaser.Scene {
+             this.renderOverlay();
+             return;
+           }
+-          case "primary-new-game":
+-            // Async flow: показать inline-модалку подтверждения, при OK —
+-            // полный сброс прогресса + переход в пролог.
+-            void this.handlePrimaryNewGame();
+-            return;
+-          case "primary-continue":
+-            this.handlePrimaryContinue();
+-            return;
+           case "go-back":
+             this.handleGoBack();
+             return;
+@@ -416,71 +389,10 @@ export class SettingsScene extends Phaser.Scene {
+       this.scene.start(SCENES.diary);
+       return;
+     }
+-    if (this.returnTo === "startmenu") {
+-      // В startmenu «Назад» невозможен (кнопка скрыта), но защитимся на
+-      // случай программной симуляции клика: повторяем поведение continue.
+-      this.handlePrimaryContinue();
++    if (this.returnTo === "title") {
++      this.scene.start(SCENES.title);
+       return;
+     }
+     this.scene.start(SCENES.map);
+   }
+-
+-  /**
+-   * Primary action «Новая игра»: если игроку есть что терять (пролог
+-   * пройден или есть активная/завершённая партия) — показать confirm.
+-   * На чистом старте (первый запуск, prologueShown=false, нет
+-   * currentGame) — сразу стартуем пролог без вопроса, терять нечего.
+-   */
+-  private async handlePrimaryNewGame(): Promise<void> {
+-    const { i18n, save } = getAppContext();
+-    if (!this.overlay) return;
+-    const state = save.load();
+-    const hasSomethingToLose = state.progress.prologueShown || state.currentGame !== null;
+-    if (hasSomethingToLose) {
+-      const confirmed = await showConfirmDialog({
+-        parent: this.overlay.getHostElement(),
+-        title: i18n.t("newGame"),
+-        message: i18n.t("confirmResetProgress"),
+-        okLabel: i18n.t("newGame"),
+-        cancelLabel: i18n.t("back"),
+-      });
+-      if (!confirmed) return;
+-    }
+-    // Сохраняем текущий выбранный язык, иначе initial state вернёт ru
+-    // и игрок, игравший на en/tr, внезапно увидит русский пролог.
+-    const keepLocale = state.progress.locale;
+-    save.save({
+-      version: 1,
+-      progress: { ...createInitialProgressState(), locale: keepLocale },
+-      currentGame: null,
+-    });
+-    this.scene.start(SCENES.prologue);
+-  }
+-
+-  /**
+-   * Primary action «Продолжить»:
+-   *   - startmenu: если пролог ещё не проходили — ничего не делаем
+-   *     (кнопка должна быть disabled). Если есть активная партия —
+-   *     resume в GameScene. Иначе — Map.
+-   *   - game/map/archive: то же самое, что «Назад» — возврат в origin.
+-   */
+-  private handlePrimaryContinue(): void {
+-    if (this.returnTo !== "startmenu") {
+-      this.handleGoBack();
+-      return;
+-    }
+-    const { save } = getAppContext();
+-    const state = save.load();
+-    if (!state.progress.prologueShown) {
+-      // Disabled no-op — защитимся на случай программного клика.
+-      return;
+-    }
+-    const cg = state.currentGame;
+-    const inProgress = cg && cg.status !== "won" && cg.status !== "lost";
+-    if (inProgress) {
+-      this.scene.start(SCENES.game, { resumeCurrentGame: true });
+-    } else {
+-      this.scene.start(SCENES.map);
+-    }
+-  }
+ }
+diff --git a/src/scenes/TitleScene.ts b/src/scenes/TitleScene.ts
+new file mode 100644
+index 0000000..f00090d
+--- /dev/null
++++ b/src/scenes/TitleScene.ts
+@@ -0,0 +1,175 @@
++import Phaser from "phaser";
++
++import { getAppContext } from "@/app/config/appContext";
++import {
++  GAME_CANVAS_WIDTH,
++  GAME_HEIGHT,
++  GAME_OFFSET_X,
++  GAME_WIDTH,
++  SCENES,
++} from "@/app/config/gameConfig";
++import { createInitialProgressState } from "@/core/game-state/progress";
++import { createTitleSceneOverlayHtml } from "@/scenes/titleSceneOverlay";
++import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
++import { showConfirmDialog } from "@/ui/confirmDialog";
++
++/**
++ * TitleScene — первая сцена игры (с v0.3.43). Заменила собой
++ * `SettingsScene` в режиме `returnTo: "startmenu"` как entry point из
++ * BootScene. Оставлена минималистичной: коллаж-фон + три кнопки
++ * (Начать / Продолжить / Настройки). Локаль-кнопки и звуковые слайдеры
++ * перенесены в SettingsScene — она теперь чистая страница настроек.
++ *
++ * Background: пока ассета `promo/title-collage.webp` нет, рендерим
++ * тёмно-теаловый градиент с лёгкой золотой подсветкой по центру —
++ * перекликается с фонарём из нарратива. Когда коллаж готов:
++ *   1. положить файл по `public/assets/title-collage.webp`
++ *   2. в `BootScene.preload` добавить
++ *      `this.load.image("title-collage", "assets/title-collage.webp")`
++ *   3. в `renderBackground()` ниже заменить блок graphics на
++ *      `this.add.image(GAME_CANVAS_WIDTH/2, GAME_HEIGHT/2, "title-collage")
++ *        .setOrigin(0.5).setDisplaySize(GAME_CANVAS_WIDTH, GAME_HEIGHT)`
++ */
++export class TitleScene extends Phaser.Scene {
++  private overlay?: CanvasOverlayHandle;
++  private overlayCleanup?: () => void;
++
++  constructor() {
++    super(SCENES.title);
++  }
++
++  create(): void {
++    this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
++    getAppContext().sound.playBgm("map");
++    this.renderBackground();
++    this.renderOverlay();
++
++    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
++      this.overlayCleanup?.();
++      this.overlay?.destroy();
++      this.overlay = undefined;
++      this.overlayCleanup = undefined;
++    });
++  }
++
++  /**
++   * Заглушка под коллаж: тёмно-теаловый вертикальный градиент +
++   * мягкая радиальная золотая подсветка ближе к верхней трети (там,
++   * где будет hero-блок с заголовком). Когда коллаж появится — этот
++   * метод заменяется на 3 строки с this.add.image.
++   */
++  private renderBackground(): void {
++    const bg = this.add.graphics();
++    bg.fillGradientStyle(0x0a1e1c, 0x0a1e1c, 0x10201f, 0x162e2c, 1);
++    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
++    // Лёгкое golden-glow в области заголовка — намёк на фонарь над
++    // картой в нарративе.
++    bg.fillStyle(0xd4a962, 0.08);
++    bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 320, 220);
++    bg.fillStyle(0xd4a962, 0.04);
++    bg.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT * 0.32, 480, 320);
++  }
++
++  private renderOverlay(): void {
++    const { i18n, save } = getAppContext();
++    const state = save.load();
++    // «Продолжить» доступна только после первого прохождения пролога.
++    // Чистый старт (prologueShown=false/undefined) → кнопка disabled,
++    // primary переключается на «Начать». Явное приведение к boolean
++    // нужно потому что prologueShown в типе ProgressState помечен как
++    // optional (boolean | undefined).
++    const continueEnabled = Boolean(state.progress.prologueShown);
++
++    const html = createTitleSceneOverlayHtml({
++      title: i18n.t("title"),
++      subtitle: i18n.t("subtitle"),
++      newGameLabel: i18n.t("newGame"),
++      continueLabel: i18n.t("continue"),
++      continueEnabled,
++      settingsLabel: i18n.t("settings"),
++    });
++
++    this.overlay = createCanvasAnchoredOverlay({
++      scene: this,
++      html,
++      className: "title-scene-root",
++      logicalWidth: GAME_CANVAS_WIDTH,
++      logicalHeight: GAME_HEIGHT,
++    });
++    this.bindOverlayEvents(continueEnabled);
++  }
++
++  private bindOverlayEvents(continueEnabled: boolean): void {
++    if (!this.overlay) return;
++    const root = this.overlay.getInnerElement();
++    const disposers: Array<() => void> = [];
++
++    root.querySelectorAll<HTMLElement>("[data-title-action]").forEach((el) => {
++      const action = el.dataset.titleAction;
++      const onClick = (): void => {
++        if (action === "new-game") {
++          void this.handleNewGame();
++        } else if (action === "continue") {
++          if (!continueEnabled) return; // защита от программного клика
++          this.handleContinue();
++        } else if (action === "settings") {
++          this.scene.start(SCENES.settings, { returnTo: "title" });
++        }
++      };
++      el.style.pointerEvents = "auto";
++      el.addEventListener("click", onClick);
++      disposers.push(() => el.removeEventListener("click", onClick));
++    });
++
++    this.overlayCleanup = () => disposers.forEach((d) => d());
++  }
++
++  /**
++   * «Начать»: на чистом старте — сразу пролог. Если пролог уже
++   * пройден или есть активная партия — confirm reset (теряем
++   * прогресс), потом сброс progress + переход в пролог.
++   */
++  private async handleNewGame(): Promise<void> {
++    const { i18n, save } = getAppContext();
++    if (!this.overlay) return;
++    const state = save.load();
++    const hasSomethingToLose =
++      state.progress.prologueShown || state.currentGame !== null;
++    if (hasSomethingToLose) {
++      const confirmed = await showConfirmDialog({
++        parent: this.overlay.getHostElement(),
++        title: i18n.t("newGame"),
++        message: i18n.t("confirmResetProgress"),
++        okLabel: i18n.t("newGame"),
++        cancelLabel: i18n.t("back"),
++      });
++      if (!confirmed) return;
++    }
++    // Сохраняем выбранный язык — initial state вернул бы дефолтный ru,
++    // и игрок на en/tr увидел бы русский пролог.
++    const keepLocale = state.progress.locale;
++    save.save({
++      version: 1,
++      progress: { ...createInitialProgressState(), locale: keepLocale },
++      currentGame: null,
++    });
++    this.scene.start(SCENES.prologue);
++  }
++
++  /**
++   * «Продолжить»: возврат в активную партию (если есть и не
++   * завершена) или на карту. На первом запуске сюда не попадаем —
++   * кнопка disabled.
++   */
++  private handleContinue(): void {
++    const { save } = getAppContext();
++    const state = save.load();
++    const cg = state.currentGame;
++    const inProgress = cg && cg.status !== "won" && cg.status !== "lost";
++    if (inProgress) {
++      this.scene.start(SCENES.game, { resumeCurrentGame: true });
++    } else {
++      this.scene.start(SCENES.map);
++    }
++  }
++}
+diff --git a/src/scenes/settingsSceneOverlay.ts b/src/scenes/settingsSceneOverlay.ts
+index 8d0e83d..7e8999e 100644
+--- a/src/scenes/settingsSceneOverlay.ts
++++ b/src/scenes/settingsSceneOverlay.ts
+@@ -38,24 +38,6 @@ type SettingsSceneOverlayParams = {
+   sfxVolume: number;
+   /** 0..1 */
+   musicVolume: number;
+-  /**
+-   * Блок primary-actions («Новая игра» / «Продолжить») сверху контентной
+-   * области. Если undefined — блок не рендерим (например в dev-preview
+-   * или тестах). По умолчанию добавляется из SettingsScene.
+-   */
+-  primaryActions?: {
+-    newGameLabel: string;
+-    continueLabel: string;
+-    /** true — кнопка «Продолжить» визуально/функционально задизейблена (первый запуск). */
+-    continueDisabled: boolean;
+-    /**
+-     * Какая из кнопок — визуально primary (золотая).
+-     * Если есть активная партия/прогресс — «Продолжить» становится
+-     * рекомендованным действием, и золотым выделяется она. Иначе
+-     * (первый запуск, прогресса нет) — primary у «Новая игра».
+-     */
+-    primaryButton: "new-game" | "continue";
+-  };
+   /**
+    * Если undefined — bottom-nav не рендерим вообще. Используется для
+    * режима `startmenu` (стартовое меню не показывает archive/daily,
+@@ -141,7 +123,6 @@ export function createSettingsSceneOverlayHtml({
+   gameNavLabels,
+   navItems,
+   versionLabel,
+-  primaryActions,
+ }: SettingsSceneOverlayParams): string {
+   // Иконка-spearker: sound-on / sound-off. Inline SVG вместо <img>, чтобы
+   // не плодить файлы и легко перекрашивать через currentColor.
+@@ -156,31 +137,13 @@ export function createSettingsSceneOverlayHtml({
+   const backBtnHtml = backLabel
+     ? `  <button class="settings-page__back" type="button" data-settings-action="go-back" aria-label="${escapeHtml(backLabel)}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>${escapeHtml(backLabel)}</span></button>`
+     : "";
+-  const primaryActionsHtml = primaryActions
+-    ? (() => {
+-        // Порядок кнопок фиксированный: «Новая игра» сверху, «Продолжить»
+-        // ниже — одинаковый layout во всех контекстах. Только стиль primary
+-        // (золотой) переключается на ту кнопку, которая рекомендована
+-        // в текущем состоянии (есть прогресс → continue; чистый старт →
+-        // new-game).
+-        const newGameIsPrimary = primaryActions.primaryButton === "new-game";
+-        const continueIsPrimary = primaryActions.primaryButton === "continue";
+-        const newGameClass = `settings-page__primary-button${newGameIsPrimary ? " settings-page__primary-button--primary" : ""}`;
+-        const continueClass = `settings-page__primary-button${continueIsPrimary ? " settings-page__primary-button--primary" : ""}${primaryActions.continueDisabled ? " settings-page__primary-button--disabled" : ""}`;
+-        return [
+-          '    <section class="settings-page__section settings-page__primary-actions">',
+-          `      <button class="${newGameClass}" data-settings-action="primary-new-game" type="button">${escapeHtml(primaryActions.newGameLabel)}</button>`,
+-          `      <button class="${continueClass}" data-settings-action="primary-continue" type="button"${primaryActions.continueDisabled ? ' disabled aria-disabled="true"' : ""}>${escapeHtml(primaryActions.continueLabel)}</button>`,
+-          "    </section>",
+-        ].join("");
+-      })()
+-    : "";
++  // primaryActions блок удалён в v0.3.43 — «Начать»/«Продолжить» теперь
++  // живут только на TitleScene. Settings — чистая страница настроек.
+   return [
+     '<div class="settings-page">',
+     backBtnHtml,
+     `  <div class="settings-page__title">${escapeHtml(title)}</div>`,
+     '  <div class="settings-page__content">',
+-    primaryActionsHtml,
+     '    <section class="settings-page__section">',
+     `      <div class="settings-page__label">${escapeHtml(languageLabel)}</div>`,
+     '      <div class="settings-page__locale-grid">',
+diff --git a/src/scenes/titleSceneOverlay.test.ts b/src/scenes/titleSceneOverlay.test.ts
+new file mode 100644
+index 0000000..3c01362
+--- /dev/null
++++ b/src/scenes/titleSceneOverlay.test.ts
+@@ -0,0 +1,70 @@
++import { describe, expect, it } from "vitest";
++
++import { createTitleSceneOverlayHtml } from "@/scenes/titleSceneOverlay";
++
++describe("titleSceneOverlay", () => {
++  it("renders title, subtitle and three buttons with continue enabled", () => {
++    const html = createTitleSceneOverlayHtml({
++      title: "Solitaire: Expedition",
++      subtitle: "An expedition off the official map",
++      newGameLabel: "New Game",
++      continueLabel: "Continue",
++      continueEnabled: true,
++      settingsLabel: "Settings",
++    });
++
++    expect(html).toContain("title-scene");
++    expect(html).toContain("Solitaire: Expedition");
++    expect(html).toContain("An expedition off the official map");
++    expect(html).toContain('data-title-action="new-game"');
++    expect(html).toContain('data-title-action="continue"');
++    expect(html).toContain('data-title-action="settings"');
++    // continueEnabled=true → primary стиль на «Continue», у «New Game» — вторичный
++    expect(html).toContain("title-scene__button--primary");
++    // disabled-классу здесь не место
++    expect(html).not.toContain("title-scene__button--disabled");
++    expect(html).not.toContain("disabled aria-disabled");
++  });
++
++  it("disables continue and shifts primary to new-game on first launch", () => {
++    const html = createTitleSceneOverlayHtml({
++      title: "Solitaire: Expedition",
++      subtitle: "Sub",
++      newGameLabel: "Начать",
++      continueLabel: "Продолжить",
++      continueEnabled: false,
++      settingsLabel: "Настройки",
++    });
++
++    // disabled-классу место — на кнопке «Продолжить»
++    expect(html).toContain("title-scene__button--disabled");
++    expect(html).toContain('disabled aria-disabled="true"');
++    // primary должен быть на «New Game», а не на «Continue»
++    const newGameMatch = html.match(
++      /<button class="([^"]*)" data-title-action="new-game"/,
++    );
++    expect(newGameMatch).not.toBeNull();
++    expect(newGameMatch![1]).toContain("title-scene__button--primary");
++    const continueMatch = html.match(
++      /<button class="([^"]*)" data-title-action="continue"/,
++    );
++    expect(continueMatch).not.toBeNull();
++    expect(continueMatch![1]).not.toContain("title-scene__button--primary");
++  });
++
++  it("escapes HTML in user-provided labels", () => {
++    const html = createTitleSceneOverlayHtml({
++      title: "<script>x</script>",
++      subtitle: '"quoted"',
++      newGameLabel: "&amp;",
++      continueLabel: "Continue",
++      continueEnabled: true,
++      settingsLabel: "Settings",
++    });
++
++    expect(html).not.toContain("<script>");
++    expect(html).toContain("&lt;script&gt;");
++    expect(html).toContain("&quot;quoted&quot;");
++    expect(html).toContain("&amp;amp;");
++  });
++});
+diff --git a/src/scenes/titleSceneOverlay.ts b/src/scenes/titleSceneOverlay.ts
+new file mode 100644
+index 0000000..0bbfd17
+--- /dev/null
++++ b/src/scenes/titleSceneOverlay.ts
+@@ -0,0 +1,50 @@
++import { escapeHtml } from "@/ui/escapeHtml";
++
++export type TitleSceneOverlayParams = {
++  title: string;
++  subtitle: string;
++  newGameLabel: string;
++  continueLabel: string;
++  /** false → кнопка «Продолжить» дизейблена (первый запуск, prologueShown=false). */
++  continueEnabled: boolean;
++  settingsLabel: string;
++};
++
++/**
++ * HTML для титульной страницы. Структура минималистичная:
++ *   - hero: заголовок «Solitaire: Expedition» + краткий саб-тайтл
++ *   - column из 3 кнопок: «Начать», «Продолжить» (опционально dimmed),
++ *     «Настройки»
++ *
++ * Локаль-кнопки сюда НЕ добавляются — они только в SettingsScene
++ * (плюс `?lang=` в URL). Цель TitleScene — минимум визуального шума
++ * на первом экране, чтобы коллаж-фон работал.
++ *
++ * Primary-стиль (золотой) у кнопки «Продолжить», если она enabled —
++ * это рекомендуемое действие для возвращающегося игрока. На первом
++ * запуске «Продолжить» dimmed → primary переключается на «Начать».
++ */
++export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): string {
++  const { title, subtitle, newGameLabel, continueLabel, continueEnabled, settingsLabel } =
++    params;
++  const newGameIsPrimary = !continueEnabled;
++  const continueIsPrimary = continueEnabled;
++  const newGameClass = `title-scene__button${newGameIsPrimary ? " title-scene__button--primary" : ""}`;
++  const continueClass =
++    `title-scene__button${continueIsPrimary ? " title-scene__button--primary" : ""}` +
++    `${continueEnabled ? "" : " title-scene__button--disabled"}`;
++  const continueDisabledAttr = continueEnabled ? "" : ' disabled aria-disabled="true"';
++  return [
++    '<div class="title-scene">',
++    '  <header class="title-scene__hero">',
++    `    <h1 class="title-scene__title">${escapeHtml(title)}</h1>`,
++    `    <p class="title-scene__subtitle">${escapeHtml(subtitle)}</p>`,
++    "  </header>",
++    '  <nav class="title-scene__buttons">',
++    `    <button class="${newGameClass}" data-title-action="new-game" type="button">${escapeHtml(newGameLabel)}</button>`,
++    `    <button class="${continueClass}" data-title-action="continue" type="button"${continueDisabledAttr}>${escapeHtml(continueLabel)}</button>`,
++    `    <button class="title-scene__button" data-title-action="settings" type="button">${escapeHtml(settingsLabel)}</button>`,
++    "  </nav>",
++    "</div>",
++  ].join("");
++}
+diff --git a/src/services/i18n/locales.ts b/src/services/i18n/locales.ts
+index 4828b63..72ff277 100644
+--- a/src/services/i18n/locales.ts
++++ b/src/services/i18n/locales.ts
+@@ -52,6 +52,7 @@ export const locales = {
+     autoCompleteTitle: "All cards revealed!",
+     autoCompleteBody: "Auto-complete the game?",
+     close: "Close",
++    ok: "OK",
+     leaveTitle: "Leave game?",
+     leaveBody: "Your progress in this deal will be saved.",
+     leaveConfirm: "Leave",
+@@ -126,6 +127,7 @@ export const locales = {
+     autoCompleteTitle: "Все карты открыты!",
+     autoCompleteBody: "Собрать пасьянс автоматически?",
+     close: "Закрыть",
++    ok: "ОК",
+     leaveTitle: "Покинуть игру?",
+     leaveBody: "Прогресс расклада будет сохранён.",
+     leaveConfirm: "Уйти",
+@@ -199,6 +201,7 @@ export const locales = {
+     autoCompleteTitle: "Tüm kartlar açıldı!",
+     autoCompleteBody: "Oyun otomatik tamamlansın mı?",
+     close: "Kapat",
++    ok: "Tamam",
+     leaveTitle: "Oyundan çıkılsın mı?",
+     leaveBody: "Bu açılımdaki ilerleme kaydedilecek.",
+     leaveConfirm: "Çık",
+@@ -272,6 +275,7 @@ export const locales = {
+     autoCompleteTitle: "¡Todas las cartas reveladas!",
+     autoCompleteBody: "¿Completar el juego automáticamente?",
+     close: "Cerrar",
++    ok: "OK",
+     leaveTitle: "¿Salir del juego?",
+     leaveBody: "Tu progreso en esta mano se guardará.",
+     leaveConfirm: "Salir",
+@@ -345,6 +349,7 @@ export const locales = {
+     autoCompleteTitle: "Todas as cartas reveladas!",
+     autoCompleteBody: "Completar o jogo automaticamente?",
+     close: "Fechar",
++    ok: "OK",
+     leaveTitle: "Sair do jogo?",
+     leaveBody: "Seu progresso nesta mão será salvo.",
+     leaveConfirm: "Sair",
+@@ -418,6 +423,7 @@ export const locales = {
+     autoCompleteTitle: "Alle Karten aufgedeckt!",
+     autoCompleteBody: "Spiel automatisch vervollständigen?",
+     close: "Schließen",
++    ok: "OK",
+     leaveTitle: "Spiel verlassen?",
+     leaveBody: "Dein Fortschritt in diesem Spiel wird gespeichert.",
+     leaveConfirm: "Verlassen",
+@@ -491,6 +497,7 @@ export const locales = {
+     autoCompleteTitle: "Toutes les cartes révélées !",
+     autoCompleteBody: "Compléter la partie automatiquement ?",
+     close: "Fermer",
++    ok: "OK",
+     leaveTitle: "Quitter la partie ?",
+     leaveBody: "Ta progression dans cette donne sera sauvegardée.",
+     leaveConfirm: "Quitter",
+diff --git a/src/styles.css b/src/styles.css
+index 3ae34d9..9ac7226 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -2565,6 +2565,102 @@ canvas {
+   cursor: default;
+ }
+ 
++/*
++ * TitleScene (с v0.3.43) — отдельный стартовый экран. Минималистичный
++ * лейаут: hero-блок (заголовок + саб-тайтл) в верхней трети, столбец
++ * из 3 кнопок («Начать»/«Продолжить»/«Настройки») в нижней трети.
++ * Между ними оставлено пустое пространство — там будет коллаж-фон
++ * (когда подложат promo/title-collage.webp).
++ */
++.title-scene-root {
++  /* Полностью покрывает canvas — fill через canvasOverlay. */
++}
++
++.title-scene {
++  position: absolute;
++  inset: 0;
++  display: flex;
++  flex-direction: column;
++  justify-content: flex-end;
++  padding: 0 32px 96px;
++  pointer-events: none;
++}
++
++.title-scene__hero {
++  position: absolute;
++  top: 80px;
++  left: 0;
++  right: 0;
++  text-align: center;
++  pointer-events: none;
++  padding: 0 32px;
++}
++
++.title-scene__title {
++  margin: 0;
++  font-family: Georgia, "Times New Roman", serif;
++  font-size: 36px;
++  font-weight: 700;
++  line-height: 1.05;
++  letter-spacing: 0.02em;
++  color: #f6e8c7;
++  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
++}
++
++.title-scene__subtitle {
++  margin: 14px 0 0;
++  font-family: "Trebuchet MS", Verdana, sans-serif;
++  font-size: 14px;
++  line-height: 1.4;
++  color: #d9c38d;
++  opacity: 0.86;
++  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
++}
++
++.title-scene__buttons {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++  pointer-events: none;
++}
++
++.title-scene__button {
++  appearance: none;
++  display: block;
++  width: 100%;
++  padding: 14px 16px;
++  border-radius: 12px;
++  border: 1px solid rgba(206, 184, 142, 0.46);
++  background: rgba(15, 32, 30, 0.82);
++  color: #f6e8c7;
++  font-family: "Trebuchet MS", Verdana, sans-serif;
++  font-size: 17px;
++  font-weight: 700;
++  letter-spacing: 0.02em;
++  cursor: pointer;
++  pointer-events: auto;
++  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
++}
++
++.title-scene__button:active {
++  transform: translateY(1px);
++}
++
++.title-scene__button--primary {
++  /* Золотая основная — те же градиент/тень, что у settings-page__primary-button--primary,
++     чтобы visual language игры был единым. */
++  background: linear-gradient(180deg, #d4a962 0%, #b68844 100%);
++  border-color: #e4c187;
++  color: #1a2422;
++  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
++}
++
++.title-scene__button--disabled {
++  opacity: 0.4;
++  pointer-events: none;
++  cursor: default;
++}
++
+ /*
+  * Confirm-диалог — подтверждение «Новая игра» (сброс прогресса).
+  * Монтируется внутри canvas-overlay host, backdrop закрывает игровой
+diff --git a/src/ui/confirmDialog.ts b/src/ui/confirmDialog.ts
+index d606763..30996d5 100644
+--- a/src/ui/confirmDialog.ts
++++ b/src/ui/confirmDialog.ts
+@@ -1,14 +1,19 @@
+ import { lockClicksFor } from "@/ui/ghostClickGuard";
+ 
+-type ShowConfirmDialogParams = {
++type BaseDialogParams = {
+   /** Куда монтировать — обычно `overlay.getHostElement()` из canvasOverlay. */
+   parent: HTMLElement;
+   title: string;
+   message: string;
+   okLabel: string;
++};
++
++type ShowConfirmDialogParams = BaseDialogParams & {
+   cancelLabel: string;
+ };
+ 
++type ShowInfoDialogParams = BaseDialogParams;
++
+ /**
+  * Inline DOM-модалка подтверждения. Возвращает Promise<boolean>:
+  *   true  — игрок нажал OK
+@@ -23,13 +28,54 @@ type ShowConfirmDialogParams = {
+  * чтобы tap, открывший dialog, не проходил дальше и случайно не
+  * активировал кнопку под пальцем.
+  */
+-export function showConfirmDialog({
+-  parent,
+-  title,
+-  message,
+-  okLabel,
+-  cancelLabel,
+-}: ShowConfirmDialogParams): Promise<boolean> {
++export function showConfirmDialog(params: ShowConfirmDialogParams): Promise<boolean> {
++  return openDialog({
++    parent: params.parent,
++    title: params.title,
++    message: params.message,
++    okLabel: params.okLabel,
++    cancelLabel: params.cancelLabel,
++    closeOnBackdrop: true,
++    allowEscape: true,
++  });
++}
++
++/**
++ * Info-only модалка с одной кнопкой OK. Возвращает Promise<void>,
++ * который резолвится при закрытии (OK / backdrop / Escape).
++ *
++ * Используется для разовых уведомлений без выбора — например
++ * «Возможных ходов нет» при клике на hint, когда подсказок не
++ * осталось (см. GameScene.handleHintAction). Кнопка hint всегда
++ * активна (no-cheating-tell), но без модалки click был бы немой.
++ */
++export function showInfoDialog(params: ShowInfoDialogParams): Promise<void> {
++  return openDialog({
++    parent: params.parent,
++    title: params.title,
++    message: params.message,
++    okLabel: params.okLabel,
++    cancelLabel: undefined,
++    closeOnBackdrop: true,
++    allowEscape: true,
++  }).then(() => undefined);
++}
++
++type OpenDialogParams = {
++  parent: HTMLElement;
++  title: string;
++  message: string;
++  okLabel: string;
++  /** undefined → single-OK режим (info dialog). */
++  cancelLabel: string | undefined;
++  closeOnBackdrop: boolean;
++  allowEscape: boolean;
++};
++
++function openDialog(params: OpenDialogParams): Promise<boolean> {
++  const { parent, title, message, okLabel, cancelLabel, closeOnBackdrop, allowEscape } = params;
++  const hasCancel = cancelLabel !== undefined;
++
+   return new Promise<boolean>((resolve) => {
+     const backdrop = document.createElement("div");
+     backdrop.className = "confirm-dialog-backdrop";
+@@ -49,17 +95,19 @@ export function showConfirmDialog({
+     const actions = document.createElement("div");
+     actions.className = "confirm-dialog__actions";
+ 
+-    const cancelBtn = document.createElement("button");
+-    cancelBtn.type = "button";
+-    cancelBtn.className = "confirm-dialog__button confirm-dialog__button--cancel";
+-    cancelBtn.textContent = cancelLabel;
++    let cancelBtn: HTMLButtonElement | null = null;
++    if (hasCancel) {
++      cancelBtn = document.createElement("button");
++      cancelBtn.type = "button";
++      cancelBtn.className = "confirm-dialog__button confirm-dialog__button--cancel";
++      cancelBtn.textContent = cancelLabel as string;
++      actions.appendChild(cancelBtn);
++    }
+ 
+     const okBtn = document.createElement("button");
+     okBtn.type = "button";
+     okBtn.className = "confirm-dialog__button confirm-dialog__button--ok";
+     okBtn.textContent = okLabel;
+-
+-    actions.appendChild(cancelBtn);
+     actions.appendChild(okBtn);
+ 
+     dialog.appendChild(titleEl);
+@@ -82,19 +130,21 @@ export function showConfirmDialog({
+     };
+ 
+     const onKeyDown = (event: KeyboardEvent): void => {
+-      if (event.key === "Escape") {
++      if (allowEscape && event.key === "Escape") {
+         event.preventDefault();
++        // Для info-dialog Escape тоже закрывает (как OK для single-button —
++        // resolved-result игнорируется в showInfoDialog).
+         cleanup(false);
+       }
+     };
+ 
+     backdrop.addEventListener("click", (event) => {
+-      // Клик по самому backdrop (не по dialog) — отмена.
+-      if (event.target === backdrop) {
++      // Клик по самому backdrop (не по dialog) — закрытие.
++      if (event.target === backdrop && closeOnBackdrop) {
+         cleanup(false);
+       }
+     });
+-    cancelBtn.addEventListener("click", () => cleanup(false));
++    if (cancelBtn) cancelBtn.addEventListener("click", () => cleanup(false));
+     okBtn.addEventListener("click", () => cleanup(true));
+     document.addEventListener("keydown", onKeyDown);
+   });
