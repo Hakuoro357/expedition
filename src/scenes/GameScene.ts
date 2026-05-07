@@ -33,6 +33,7 @@ import { formatCard } from "@/features/board/formatCard";
 import { createCardFaceSvgMarkup } from "@/features/board/cardFaceMarkup";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 import { COIN_ICON_HTML, COIN_TOKEN } from "@/ui/coinIcon";
+import { showInfoDialog } from "@/ui/confirmDialog";
 import { escapeHtml } from "@/ui/escapeHtml";
 import { createGameSceneOverlayHtml, type GameOverlayCard, type GameOverlayFaceDownCard, type GameOverlayEmptySlot, fixCardBackSvgAspect } from "@/scenes/gameSceneOverlay";
 import {
@@ -326,10 +327,16 @@ export class GameScene extends Phaser.Scene {
       })),
       undoLabel: this.getUndoLabel(),
       hintLabel: this.getHintLabel(),
+      // hintDisabled всегда false (v0.3.43): кнопка раньше дизейблилась
+      // когда `getRemainingHints().length === 0`. Это «читерский тёлл» —
+      // игрок видит «нечего показывать» бесплатно, тапает раздачу заново
+      // без покупки подсказки. Теперь кнопка всегда активна, при клике
+      // без доступной подсказки показывается модалка «Возможных ходов нет»
+      // (handleHintAction), монеты не списываются.
       // Кнопка заблокирована, только когда все подсказки для текущего
       // состояния доски уже показаны. Любой ход меняет fingerprint и
       // очищает shownHintKeys, что возвращает кнопку в активное состояние.
-      hintDisabled: this.getRemainingHints().length === 0,
+      hintDisabled: false,
       rulesLabel: i18n.t("rules"),
       // Кнопка переименована «Настройки» → «Меню» по требованию ВК/ОК
       // тестировщиков: это теперь вход в полноценное меню, а не
@@ -553,18 +560,19 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
-    const cost = isFirstUndo ? 0 : ECONOMY.undoCost;
-    if (cost > 0) {
-      const coins = save.load().progress.coins;
-      if (coins < cost) {
-        this.history.push(previousState); // put it back
-        this.setStatus(i18n.t("notEnoughCoins"));
-        sound.badMove();
-        return;
-      }
-      save.addCoins(-cost);
+    // v0.3.43: free-первая-отмена убрана. Теперь каждый undo стоит
+    // ECONOMY.undoCost (30 монет на момент бампа). Это упростило
+    // экономику и убрало эксплойт «делать ход → undo бесплатно для
+    // разведки».
+    const cost = ECONOMY.undoCost;
+    const coins = save.load().progress.coins;
+    if (coins < cost) {
+      this.history.push(previousState); // put it back
+      this.setStatus(i18n.t("notEnoughCoins"));
+      sound.badMove();
+      return;
     }
+    save.addCoins(-cost);
     this.gameState = {
       ...previousState,
       undoCount: previousState.undoCount + 1,
@@ -580,14 +588,13 @@ export class GameScene extends Phaser.Scene {
 
   private getUndoLabel(): string {
     const { i18n } = getAppContext();
-    const isFirstUndo = (this.gameState?.undoCount ?? 0) === 0;
-    if (isFirstUndo) return i18n.t("undo");
+    // v0.3.43: free-первая-отмена убрана. Цена теперь всегда видна.
     return `${i18n.t("undo")} ${COIN_TOKEN}${ECONOMY.undoCost}`;
   }
 
   private getHintLabel(): string {
     const { i18n } = getAppContext();
-    if (this.hintsUsed === 0) return i18n.t("hint");
+    // v0.3.43: free-первая-подсказка убрана. Цена теперь всегда видна.
     return `${i18n.t("hint")} ${COIN_TOKEN}${ECONOMY.hintCost}`;
   }
 
@@ -611,30 +618,45 @@ export class GameScene extends Phaser.Scene {
   private handleHintAction(): void {
     if (!this.gameState || this.animating || this.autoCompleting) return;
 
-    const remaining = this.getRemainingHints();
-    if (remaining.length === 0) {
-      // Все варианты показаны в рамках текущего состояния доски — кнопка
-      // и так заблокирована, но на всякий случай guard.
-      this.setStatus(getAppContext().i18n.t("noMoves"));
-      getAppContext().sound.badMove();
+    const { save, sound, i18n, analytics } = getAppContext();
+    const cost = ECONOMY.hintCost;
+
+    // Порядок guard'ов важен:
+    //   1. Coin-guard ПЕРВЫМ: цена подсказки в UI отображается на самой
+    //      кнопке, поэтому игрок знает, что подсказка платная. Если у
+    //      него нет монет — он видит «Недостаточно монет», без раскрытия
+    //      доступности подсказок.
+    //   2. Hint-availability guard ВТОРЫМ: только после прохождения
+    //      coin-check. Если подсказок нет — модалка «Возможных ходов
+    //      нет» (i18n.t("noMoves")), монеты НЕ списываются.
+    // Без этого порядка игрок с пустым кошельком получал бы «нет
+    // подсказок» — это слил бы information о состоянии доски.
+    const coins = save.load().progress.coins;
+    if (coins < cost) {
+      this.setStatus(i18n.t("notEnoughCoins"));
+      sound.badMove();
       return;
     }
 
-    const { save, sound, i18n, analytics } = getAppContext();
-    const isFirstHint = this.hintsUsed === 0;
-    const cost = isFirstHint ? 0 : ECONOMY.hintCost;
-
-    if (cost > 0) {
-      const coins = save.load().progress.coins;
-      if (coins < cost) {
-        this.setStatus(i18n.t("notEnoughCoins"));
-        sound.badMove();
-        return;
-      }
-      save.addCoins(-cost);
-      // Явный sync в gp.player после списания монет.
-      void save.flush();
+    const remaining = this.getRemainingHints();
+    if (remaining.length === 0) {
+      // Подсказок нет — info-модалка вместо silent setStatus. Кнопка
+      // hint всегда активна (no-cheating-tell), без модалки click был
+      // бы немой, и игроки могли бы тапать кнопку, чтобы беспалатно
+      // проверять «остались ли ходы». Монеты НЕ списываем.
+      sound.badMove();
+      void showInfoDialog({
+        parent: this.gameOverlay!.getHostElement(),
+        title: i18n.t("hint"),
+        message: i18n.t("noMoves"),
+        okLabel: i18n.t("ok"),
+      });
+      return;
     }
+
+    save.addCoins(-cost);
+    // Явный sync в gp.player после списания монет.
+    void save.flush();
 
     const hint = remaining[0]!;
     this.shownHintKeys.add(this.hintKey(hint));

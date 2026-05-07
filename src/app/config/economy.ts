@@ -14,10 +14,12 @@ export const ECONOMY = {
 
   /** Cost to restart after losing */
   restartCost: 40,
-  /** Cost per undo */
-  undoCost: 10,
-  /** Cost per hint (after first free one) */
-  hintCost: 10,
+  /** Cost per undo. Раньше был 10 + первая отмена бесплатно — убрали
+   *  в v0.3.43, free-tier размывал экономику и игроки этим злоупотребляли. */
+  undoCost: 30,
+  /** Cost per hint. Раньше был 10 + первая подсказка бесплатно — убрали
+   *  в v0.3.43 по тем же причинам, что и undo. */
+  hintCost: 30,
 
   /** Starting coins for a brand new player */
   startingCoins: 30,
