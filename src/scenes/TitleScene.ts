@@ -60,7 +60,7 @@ export class TitleScene extends Phaser.Scene {
    * генерации картинки.
    *
    * Поверх коллажа всегда кладём лёгкий dark gradient на нижние
-   * 35%, чтобы кнопки и subtitle оставались читаемыми независимо
+   * 38%, чтобы кнопки и subtitle оставались читаемыми независимо
    * от плотности коллажа в этой зоне.
    */
   private renderBackground(): void {

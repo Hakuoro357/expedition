@@ -669,6 +669,21 @@ export class GameScene extends Phaser.Scene {
       // clear там точно есть хотя бы 1 hint, потому что allHintsCount > 0).
       this.shownHintKeys.clear();
       remaining = this.getRemainingHints();
+      // Defensive guard: если будущий рефакторинг добавит в
+      // getRemainingHints дополнительную фильтрацию помимо
+      // shownHintKeys, инвариант «после clear remaining не пуст»
+      // сломается. Без этой проверки игрок потеряет 30 монет, а
+      // remaining[0]! ниже бросит TypeError. xiaomi-review v0.3.45 r1.
+      if (remaining.length === 0) {
+        sound.badMove();
+        void showInfoDialog({
+          parent: this.gameOverlay!.getHostElement(),
+          title: i18n.t("hint"),
+          message: i18n.t("noMoves"),
+          okLabel: i18n.t("ok"),
+        });
+        return;
+      }
     }
 
     save.addCoins(-cost);
