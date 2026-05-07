@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ARTIFACTS, type Artifact } from "@/data/artifacts";
+import { resolveArtifactGridUrl } from "@/data/artifactAssetUrls";
 import { CHAPTERS, getNodeByArtifactId, getNodeByEntryId } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { getNarrativeEntry, getNarrativeEntryExcerpt } from "@/data/narrative/entries";
@@ -30,12 +31,21 @@ type ArchiveEntryItem = {
 
 type ArchiveNavTarget = "home" | "daily" | "settings";
 
+/** Локализованная карточка артефакта для HTML-списка во вкладке
+ *  «Артефакты». Структура зеркалит ArchiveEntryItem (см. archiveSceneOverlay). */
+type ArchiveArtifactItem = {
+  artifactId: string;
+  title: string;
+  description: string;
+  imageUrl: string | undefined;
+};
+
 export class DiaryScene extends Phaser.Scene {
   private archiveOverlay?: CanvasOverlayHandle;
   private archiveOverlayCleanup?: () => void;
   private activeTab: ArchiveTabId = "entries";
-  private artifactGridObjects: Phaser.GameObjects.GameObject[] = [];
   private archiveEntries: ArchiveEntryItem[] = [];
+  private archiveArtifacts: ArchiveArtifactItem[] = [];
 
   constructor() {
     super(SCENES.diary);
@@ -59,6 +69,7 @@ export class DiaryScene extends Phaser.Scene {
       : progress.artifacts;
 
     this.archiveEntries = this.buildArchiveEntries(narrativeLocale);
+    this.archiveArtifacts = this.buildArchiveArtifacts(visibleArtifactIds, narrativeLocale);
 
     if (this.textures.exists("diary-collage")) {
       // DiaryScene — архив, выкладка находок. Коллаж 3×4 предметов
@@ -87,8 +98,6 @@ export class DiaryScene extends Phaser.Scene {
       new Phaser.Geom.Line(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT),
     );
 
-    this.createArtifactGrid(visibleArtifactIds);
-    this.updateArtifactGridVisibility();
     this.renderArchiveOverlay();
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -137,66 +146,45 @@ export class DiaryScene extends Phaser.Scene {
     return CHAPTERS.flatMap((chapter) => chapter.nodes).find((node) => node.id === nodeId);
   }
 
-  private createArtifactGrid(visibleArtifactIds: string[]): void {
-    this.artifactGridObjects.forEach((object) => object.destroy());
-    this.artifactGridObjects = [];
-
-    const colCount = 3;
-    const cellW = 94;
-    const cellH = 96;
-    const gridStartY = 172;
-    const gridLeft = GAME_WIDTH / 2 - (colCount * cellW) / 2 + cellW / 2;
-
-    const openedArtifacts = ARTIFACTS.filter((artifact) =>
-      visibleArtifactIds.includes(artifact.id),
-    );
-
-    openedArtifacts.forEach((artifact, idx) => {
-      const col = idx % colCount;
-      const row = Math.floor(idx / colCount);
-      const cx = gridLeft + col * cellW;
-      const cy = gridStartY + row * cellH + cellH / 2;
-
-      const cell = this.add
-        .rectangle(cx, cy, cellW - 8, cellH - 8, 0x2c4943, 1)
-        .setStrokeStyle(1, 0xdac9a1, 0.65);
-
-      const image = this.add
-        .image(cx, cy, artifact.imageKey)
-        .setDisplaySize(70, 70)
-        .setOrigin(0.5)
-        .setAlpha(1);
-
-      this.artifactGridObjects.push(cell, image);
-
-      const open = () => {
-        this.openArtifactDetail(artifact);
-      };
-
-      cell.setInteractive({ useHandCursor: true }).on("pointerdown", open);
-      image.setInteractive({ useHandCursor: true }).on("pointerdown", open);
-    });
-  }
-
-  private updateArtifactGridVisibility(): void {
-    const visible = this.activeTab === "artifacts";
-    this.artifactGridObjects.forEach((object) => {
-      const visualCarrier = object as Phaser.GameObjects.GameObject & {
-        setVisible?: (visible: boolean) => Phaser.GameObjects.GameObject;
-      };
-      visualCarrier.setVisible?.(visible);
-      const inputCarrier = object as Phaser.GameObjects.GameObject & {
-        input?: { enabled: boolean };
-      };
-      if (inputCarrier.input) {
-        inputCarrier.input.enabled = visible;
-      }
-    });
+  /**
+   * Локализованный список артефактов для HTML-вкладки «Артефакты».
+   * До v0.3.48 был Phaser-grid 3×3 квадратных плиток без описаний.
+   * Сейчас — карточка-в-ряд под стиль entry-card: image + title +
+   * description, как у записей. Так пользователь сразу видит контекст
+   * каждого артефакта без необходимости открывать карточку.
+   */
+  private buildArchiveArtifacts(
+    visibleArtifactIds: string[],
+    locale: "ru" | "global" | "en" | "tr" | "es" | "pt" | "de" | "fr",
+  ): ArchiveArtifactItem[] {
+    return ARTIFACTS.filter((artifact) => visibleArtifactIds.includes(artifact.id))
+      .map((artifact) => {
+        // Локализация артефактов: ru/tr — нативные, остальные локали
+        // (en/es/pt/de/fr) — английский fallback. Совпадает со схемой
+        // в DetailScene и rewardRevealItems.
+        const title =
+          locale === "ru"
+            ? artifact.titleRu
+            : locale === "tr"
+              ? (artifact.titleTr ?? artifact.titleEn)
+              : artifact.titleEn;
+        const description =
+          locale === "ru"
+            ? artifact.descriptionRu
+            : locale === "tr"
+              ? (artifact.descriptionTr ?? artifact.descriptionEn)
+              : artifact.descriptionEn;
+        return {
+          artifactId: artifact.id,
+          title,
+          description,
+          imageUrl: resolveArtifactGridUrl(artifact.imageKey),
+        };
+      });
   }
 
   private renderArchiveOverlay(): void {
-    const { i18n, save } = getAppContext();
-    const progress = save.load().progress;
+    const { i18n } = getAppContext();
     const html = createArchiveOverlayHtml({
       title: i18n.t("archive"),
       activeTab: this.activeTab,
@@ -214,7 +202,7 @@ export class DiaryScene extends Phaser.Scene {
         portraitUrl: item.portraitUrl,
         excerpt: item.excerpt,
       })),
-      artifactCount: progress.artifacts.length,
+      artifactItems: this.archiveArtifacts,
       navItems: [
         { id: "home", label: i18n.t("backToMap"), active: false },
         { id: "daily", label: i18n.t("daily"), active: false },
@@ -251,7 +239,6 @@ export class DiaryScene extends Phaser.Scene {
         }
 
         this.activeTab = nextTab;
-        this.updateArtifactGridVisibility();
         this.renderArchiveOverlay();
       };
 
@@ -273,6 +260,25 @@ export class DiaryScene extends Phaser.Scene {
         }
 
         this.openEntryDetail(item);
+      };
+
+      element.style.pointerEvents = "auto";
+      element.addEventListener("click", onClick);
+      disposers.push(() => element.removeEventListener("click", onClick));
+    });
+
+    root.querySelectorAll<HTMLElement>("[data-archive-artifact]").forEach((element) => {
+      const artifactId = element.dataset.archiveArtifact;
+      if (!artifactId) {
+        return;
+      }
+
+      const onClick = (): void => {
+        const artifact = ARTIFACTS.find((item) => item.id === artifactId);
+        if (!artifact) {
+          return;
+        }
+        this.openArtifactDetail(artifact);
       };
 
       element.style.pointerEvents = "auto";
@@ -367,6 +373,11 @@ export class DiaryScene extends Phaser.Scene {
     this.scene.start(SCENES.detail, {
       dealId: node.id,
       initialTab: "artifact",
+      // Явно передаём artifactId — DetailScene по умолчанию
+      // резолвит через reward.collectibleArtifactId, который для
+      // некоторых узлов отличается от node.artifactId. Без override
+      // клик по артефакту в архиве открывал бы чужой артефакт.
+      artifactId: artifact.id,
     });
   }
 }

@@ -75,7 +75,7 @@ export const locales = {
     adLabel: "Ad",
   },
   ru: {
-    title: "Solitaire: Expedition",
+    title: "Косынка: Экспедиция",
     subtitle: "Спокойное путешествие по раскладам классической Косынки.",
     play: "Играть",
     daily: "Маршрут дня",
@@ -149,7 +149,7 @@ export const locales = {
     adLabel: "Реклама",
   },
   tr: {
-    title: "Solitaire: Expedition",
+    title: "Solitaire: Sefer",
     subtitle: "Klasik Klondike açılımları arasında sakin bir yolculuk.",
     play: "Oyna",
     daily: "Günün Rotası",
@@ -223,7 +223,7 @@ export const locales = {
     adLabel: "Reklam",
   },
   es: {
-    title: "Solitaire: Expedition",
+    title: "Solitario: Expedición",
     subtitle: "Un viaje tranquilo por las clásicas manos de Klondike.",
     play: "Jugar",
     daily: "Ruta del día",
@@ -297,7 +297,7 @@ export const locales = {
     adLabel: "Anuncio",
   },
   pt: {
-    title: "Solitaire: Expedition",
+    title: "Paciência: Expedição",
     subtitle: "Uma jornada tranquila pelas mãos clássicas do Paciência.",
     play: "Jogar",
     daily: "Rota do dia",
@@ -371,7 +371,7 @@ export const locales = {
     adLabel: "Anúncio",
   },
   de: {
-    title: "Solitaire: Expedition",
+    title: "Solitär: Expedition",
     subtitle: "Eine ruhige Reise durch klassische Klondike-Spiele.",
     play: "Spielen",
     daily: "Tagesroute",
@@ -445,7 +445,7 @@ export const locales = {
     adLabel: "Werbung",
   },
   fr: {
-    title: "Solitaire: Expedition",
+    title: "Klondike : Expédition",
     subtitle: "Un voyage paisible à travers les donnes classiques du Klondike.",
     play: "Jouer",
     daily: "Itinéraire du jour",

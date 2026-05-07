@@ -28,6 +28,16 @@ export type DetailSceneData = {
   dealId?: string;
   initialTab?: DetailSceneTabId;
   origin?: DetailOrigin;
+  /**
+   * Явный override артефакта. Когда DiaryScene открывает конкретный
+   * артефакт через клик, нужен именно ОН — не «тот, что reward
+   * для этого узла грантит». Без override DetailScene резолвит через
+   * `reward.collectibleArtifactId ?? node.artifactId`, что для
+   * RewardScene правильно (хотим показать только что найденный
+   * артефакт), но для DiaryScene даёт чужой артефакт когда reward
+   * на узле подменяет дефолтный node.artifactId. v0.3.48.
+   */
+  artifactId?: string;
 };
 
 type DetailNavTarget = "archive" | "daily" | "settings";
@@ -38,6 +48,7 @@ export class DetailScene extends Phaser.Scene {
   private dealId = "";
   private activeTab: DetailSceneTabId = "entry";
   private origin?: DetailOrigin;
+  private artifactIdOverride?: string;
   private statusText?: Phaser.GameObjects.Text;
 
   constructor() {
@@ -58,6 +69,7 @@ export class DetailScene extends Phaser.Scene {
     const initialTab = data.initialTab ?? "entry";
     this.activeTab = initialTab;
     this.origin = data.origin;
+    this.artifactIdOverride = data.artifactId;
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.overlayCleanup?.();
@@ -81,17 +93,23 @@ export class DetailScene extends Phaser.Scene {
     const sheet = getRouteSheetByDealId(node.id) ?? ROUTE_SHEETS[0];
     const entry = node.entryId ? getNarrativeEntry(node.entryId, locale) : undefined;
     const speaker = entry ? getNarrativeSpeakerProfile(entry.speakerEntityId, locale) : undefined;
-    // Резолвинг артефакта симметричен `rewardRevealItems.ts` (L60):
-    // когда reward задаёт собственный `collectibleArtifactId`, он
-    // приоритетнее, чем `node.artifactId`. До v0.3.43 здесь учитывался
-    // только `node.artifactId` — если reward подменяет артефакт, а у
-    // узла artifactId === null, артефакт «не находился» и activeTab
-    // молча перепрыгивал с "artifact" на "entry" (L87-88). Это
-    // воспринималось пользователем как «тап по плитке артефакта
-    // открывает запись». Теперь обе сцены используют один и тот же
-    // expectedArtifactId.
+    // Резолвинг артефакта (v0.3.48):
+    //   1. `data.artifactId` override — самый приоритетный. DiaryScene
+    //      открывает конкретный артефакт по клику, нужен ИМЕННО он.
+    //   2. `reward.collectibleArtifactId` — приоритет когда reward для
+    //      этого узла грантит свой артефакт (RewardScene flow).
+    //   3. `node.artifactId` — дефолтный артефакт узла.
+    // До v0.3.43 учитывался только (3) — если reward подменял
+    // артефакт, тап по плитке открывал «entry» вместо «artifact»
+    // (L87-88 fallback). v0.3.43 ввёл (2). v0.3.48 ввёл (1) — без
+    // него DiaryScene клик показывал не тот артефакт когда reward
+    // на узле грантил другой.
     const reward = node.rewardId ? getRewardById(node.rewardId) : undefined;
-    const expectedArtifactId = reward?.collectibleArtifactId ?? node.artifactId ?? null;
+    const expectedArtifactId =
+      this.artifactIdOverride ??
+      reward?.collectibleArtifactId ??
+      node.artifactId ??
+      null;
     const artifact = expectedArtifactId ? getArtifactById(expectedArtifactId) : undefined;
     const canShowEntry = Boolean(entry);
     const canShowArtifact = Boolean(artifact);

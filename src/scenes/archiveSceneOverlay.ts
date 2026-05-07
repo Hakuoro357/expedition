@@ -16,6 +16,19 @@ type ArchiveEntryItem = {
   excerpt: string;
 };
 
+/** Один артефакт в HTML-листе вкладки «Артефакты». Структура зеркалит
+ *  ArchiveEntryItem — на UI это карточка того же макета: квадратная
+ *  картинка слева, заголовок и короткое описание справа. До v0.3.48
+ *  артефакты рендерились Phaser-сеткой 3×3 без описаний; на коллаже
+ *  плитки выглядели «голо», а в записях рядом был полный контекст —
+ *  пользователь попросил привести к одному виду. */
+type ArchiveArtifactItem = {
+  artifactId: string;
+  title: string;
+  description: string;
+  imageUrl: string | undefined;
+};
+
 type ArchiveOverlayParams = {
   title: string;
   activeTab: ArchiveTabId;
@@ -24,7 +37,7 @@ type ArchiveOverlayParams = {
   emptyEntriesLabel: string;
   emptyArtifactsLabel: string;
   entryItems: ArchiveEntryItem[];
-  artifactCount: number;
+  artifactItems: ArchiveArtifactItem[];
   navItems: AppNavItem[];
 };
 
@@ -47,10 +60,10 @@ export function createArchiveOverlayHtml({
   emptyEntriesLabel,
   emptyArtifactsLabel,
   entryItems,
-  artifactCount,
+  artifactItems,
   navItems,
 }: ArchiveOverlayParams): string {
-  const entriesHtml =
+  const tabHtml =
     activeTab === "entries"
       ? [
           '<div class="archive-overlay__entries-list">',
@@ -69,9 +82,22 @@ export function createArchiveOverlayHtml({
             : [`<div class="archive-overlay__empty">${escapeHtml(emptyEntriesLabel)}</div>`]),
           "</div>",
         ].join("")
-      : artifactCount > 0
-        ? ""
-        : `<div class="archive-overlay__empty archive-overlay__empty--artifacts">${escapeHtml(emptyArtifactsLabel)}</div>`;
+      : [
+          '<div class="archive-overlay__entries-list">',
+          ...(artifactItems.length > 0
+            ? artifactItems.map(
+                (item) => `
+              <button class="archive-overlay__entry-card archive-overlay__artifact-card" data-archive-artifact="${escapeHtml(item.artifactId)}" type="button">
+                <span class="archive-overlay__artifact-image-wrap">${item.imageUrl ? `<img class="archive-overlay__artifact-image" src="${escapeHtml(safeImageUrl(item.imageUrl))}" alt="">` : ""}</span>
+                <span class="archive-overlay__entry-copy">
+                  <span class="archive-overlay__entry-point">${escapeHtml(item.title)}</span>
+                  <span class="archive-overlay__entry-excerpt">${escapeHtml(item.description)}</span>
+                </span>
+              </button>`,
+              )
+            : [`<div class="archive-overlay__empty">${escapeHtml(emptyArtifactsLabel)}</div>`]),
+          "</div>",
+        ].join("");
 
   return [
     '<div class="archive-overlay">',
@@ -80,7 +106,7 @@ export function createArchiveOverlayHtml({
     `    <button class="archive-overlay__tab${activeTab === "entries" ? " archive-overlay__tab--active" : ""}" data-archive-tab="entries" type="button">${escapeHtml(entriesLabel)}</button>`,
     `    <button class="archive-overlay__tab${activeTab === "artifacts" ? " archive-overlay__tab--active" : ""}" data-archive-tab="artifacts" type="button">${escapeHtml(artifactsLabel)}</button>`,
     "  </div>",
-    entriesHtml,
+    tabHtml,
     createAppNavHtml(navItems),
     "</div>",
   ].join("");
