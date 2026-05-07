@@ -60,19 +60,21 @@ const SFX_FILES: Record<SfxKey, string> = {
   hint: "audio/sfx/sfx_hint.mp3",
 };
 
-// URL-encoded для пробелов и скобок в именах файлов — fetch принимает
-// сырые пути, но encoding явный и надёжен в любой среде (dev / prod /
-// CDN). Имена файлов оставлены без переименования — авторские названия
-// из Suno.
+// Все BGM-файлы в `public/audio/music/` под единой snake_case схемой
+// `bgm_<scene>_<letter>.mp3`. v0.3.49 файлы изначально лежали в
+// `public/audio/bgm/` с пробелами и скобками (`Autumn Dusk Lutenist
+// (1).mp3`) — работало через URL-encoding, но имена с пробелами
+// рискованны при CDN-нормализации, поэтому в v0.3.50 переименованы и
+// перенесены вместе со старыми game_c..f.
 const BGM_FILES: Record<BgmTrack, string> = {
-  autumn_a: "audio/bgm/Autumn%20Dusk%20Lutenist.mp3",
-  autumn_b: "audio/bgm/Autumn%20Dusk%20Lutenist%20%281%29.mp3",
+  autumn_a: "audio/music/bgm_autumn_a.mp3",
+  autumn_b: "audio/music/bgm_autumn_b.mp3",
   game_c: "audio/music/bgm_game_c.mp3",
   game_d: "audio/music/bgm_game_d.mp3",
   game_e: "audio/music/bgm_game_e.mp3",
   game_f: "audio/music/bgm_game_f.mp3",
-  lantern_a: "audio/bgm/Lantern%20Journal.mp3",
-  lantern_b: "audio/bgm/Lantern%20Journal%20%281%29.mp3",
+  lantern_a: "audio/music/bgm_lantern_a.mp3",
+  lantern_b: "audio/music/bgm_lantern_b.mp3",
 };
 
 // На v0.3.49 переработана ротация — все треки идут с равным весом.
