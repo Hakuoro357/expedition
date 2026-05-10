@@ -12,16 +12,18 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23132220'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' text-anchor='middle' fill='%23d4a962'%3ES%3C/text%3E%3C/svg%3E" />
     <title>Solitaire: Expedition</title>
-    <!-- Open Graph meta-теги для GP-share. Используются gp.socials.share()
-         для рендера превью-карточки в VK/OK feed.
-         og:image НАМЕРЕННО опущен в v0.3.52: до того как реальный
-         cover 1200×630 загружен на CDN, placeholder-URL давал бы пустую
-         или неудачную карточку (некоторые crawler'ы кэшируют
-         "image not found" и потом показывают сломанный preview даже
-         после фикса). Без og:image VK/OK покажут карточку без
-         картинки, share-текст останется — это безопасный default. -->
+    <!-- Open Graph meta-теги для share-card в VK/OK ленте.
+         og:image — relative URL: GP CDN сервит relative-пути под
+         hostname, на котором рендерится игра. Большинство современных
+         crawler'ов (OK, VK, Telegram, Twitter) корректно резолвят
+         relative og:image против текущего URL страницы. Если OK
+         после деплоя не покажет картинку — заменить на absolute URL
+         в v0.3.53 после того как узнаем реальный deployed-URL. -->
     <meta property="og:title" content="Solitaire: Expedition" />
     <meta property="og:description" content="Тихая косынка с экспедиционным сюжетом. 30 точек маршрута, 7 локалей, полностью offline." />
+    <meta property="og:image" content="/promo-share-1200x630.webp" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:type" content="website" />
     <!-- Регистрируем callback ДО загрузки GamePush SDK — иначе SDK
          вызовет onGPInit синхронно при загрузке скрипта, а наш
