@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { socialsContext } from "@/app/socialsContext";
 import { getArtifactById } from "@/data/artifacts";
 import { resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
 import { getNodeById } from "@/data/chapters";
@@ -12,6 +13,7 @@ import { getRewardById } from "@/data/narrative/rewards";
 import { getNarrativeSpeakerProfile } from "@/data/narrative/speakers";
 import { resolvePortraitUrl } from "@/data/portraitAssetUrls";
 import { getRouteSheetByDealId, ROUTE_SHEETS } from "@/data/routeSheets";
+import { buildShareArtifactText, buildShareEntryText } from "@/scenes/buildShareText";
 import {
   createDetailSceneOverlayHtml,
   type DetailSceneTabId,
@@ -50,6 +52,11 @@ export class DetailScene extends Phaser.Scene {
   private origin?: DetailOrigin;
   private artifactIdOverride?: string;
   private statusText?: Phaser.GameObjects.Text;
+  /** v0.3.55: per-tab one-shot cooldown для share-кнопки. Сбрасываются
+   *  при каждом вход в сцену (см. create) — после возврата в архив и
+   *  обратно можно поделиться снова. */
+  private entryShareUsed = false;
+  private artifactShareUsed = false;
 
   constructor() {
     super(SCENES.detail);
@@ -59,6 +66,9 @@ export class DetailScene extends Phaser.Scene {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     getAppContext().sound.playBgm("map");
     this.dealId = data.dealId ?? "";
+    // Сброс one-shot share-флагов на каждом входе в сцену.
+    this.entryShareUsed = false;
+    this.artifactShareUsed = false;
     const node = this.dealId ? getNodeById(this.dealId) : undefined;
 
     if (!node) {
@@ -144,6 +154,16 @@ export class DetailScene extends Phaser.Scene {
           ? artifact.descriptionTr ?? artifact.descriptionEn
           : artifact.descriptionEn
       : "";
+    // v0.3.55: share-кнопка в DetailScene. Видна когда canShare и
+    // у активного таба есть содержимое для расшарки. one-shot per
+    // visit per tab (флаги ниже).
+    const sdk = getAppContext().sdk;
+    const canShareThis =
+      sdk.canShare() &&
+      ((this.activeTab === "entry" && !!entry) ||
+        (this.activeTab === "artifact" && !!artifact));
+    const shareUsedForActiveTab =
+      this.activeTab === "entry" ? this.entryShareUsed : this.artifactShareUsed;
     const html = createDetailSceneOverlayHtml({
       homeLabel: i18n.t("back"),
       navItems: [
@@ -154,6 +174,8 @@ export class DetailScene extends Phaser.Scene {
       activeTab: this.activeTab,
       entryTabLabel: i18n.t("tabEntry"),
       artifactTabLabel: i18n.t("tabArtifact"),
+      shareLabel: canShareThis ? i18n.t("share") : undefined,
+      shareDisabled: shareUsedForActiveTab,
       entry:
         entry && speaker
           ? {
@@ -271,6 +293,53 @@ export class DetailScene extends Phaser.Scene {
       element.addEventListener("click", onClick);
       disposers.push(() => element.removeEventListener("click", onClick));
     });
+
+    const shareButton = root.querySelector<HTMLElement>("[data-detail-share]");
+    if (shareButton) {
+      shareButton.style.pointerEvents = "auto";
+      const onClick = (): void => {
+        const usedFlag =
+          this.activeTab === "entry" ? this.entryShareUsed : this.artifactShareUsed;
+        if (usedFlag) return;
+        const ctx = getAppContext();
+        const narrativeLocale = ctx.i18n.getNarrativeLocale();
+        let text: string;
+        if (this.activeTab === "entry") {
+          text = buildShareEntryText(this.dealId, narrativeLocale, ctx.i18n);
+          this.entryShareUsed = true;
+        } else {
+          // Артефакт-локализация по схеме DetailScene (см. render).
+          const node = getNodeById(this.dealId);
+          const reward = node?.rewardId ? getRewardById(node.rewardId) : undefined;
+          const expectedArtifactId =
+            this.artifactIdOverride ??
+            reward?.collectibleArtifactId ??
+            node?.artifactId ??
+            null;
+          const artifact = expectedArtifactId
+            ? getArtifactById(expectedArtifactId)
+            : undefined;
+          const uiLocale = ctx.i18n.currentLocale();
+          const artifactTitle = artifact
+            ? uiLocale === "ru"
+              ? artifact.titleRu
+              : uiLocale === "tr"
+                ? (artifact.titleTr ?? artifact.titleEn)
+                : artifact.titleEn
+            : "";
+          text = buildShareArtifactText(artifactTitle, ctx.i18n);
+          this.artifactShareUsed = true;
+        }
+        socialsContext.pendingShare = {
+          dealId: this.dealId,
+          locale: narrativeLocale,
+        };
+        void ctx.sdk.share({ text });
+        this.render();
+      };
+      shareButton.addEventListener("click", onClick);
+      disposers.push(() => shareButton.removeEventListener("click", onClick));
+    }
 
     const homeButton = root.querySelector<HTMLElement>("[data-detail-home]");
     if (homeButton) {

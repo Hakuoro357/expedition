@@ -5,7 +5,7 @@ describe("I18nService.t() substitution", () => {
   it("returns raw string when no params provided", () => {
     const i18n = new I18nService();
     i18n.setLocale("ru");
-    expect(i18n.t("share")).toBe("Поделиться");
+    expect(i18n.t("share")).toBe("Похвастаться победой");
   });
 
   it("substitutes {pointTitle} placeholder in shareWinText (ru)", () => {

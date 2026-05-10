@@ -28,6 +28,13 @@ type DetailSceneOverlayParams = {
   artifactTabLabel: string;
   entry?: DetailEntryContent;
   artifact?: DetailArtifactContent;
+  /**
+   * v0.3.55: share-кнопка над home в DetailScene. undefined = не
+   * рендерим (canShare === false или нет dealId). disabled = уже
+   * нажата для текущего активного таба (one-shot per visit per tab).
+   */
+  shareLabel?: string;
+  shareDisabled?: boolean;
 };
 
 function createPortraitHtml(initials: string, accent: string, portraitUrl?: string): string {
@@ -44,6 +51,8 @@ export function createDetailSceneOverlayHtml({
   artifactTabLabel,
   entry,
   artifact,
+  shareLabel,
+  shareDisabled,
 }: DetailSceneOverlayParams): string {
   const hasTabs = Boolean(entry && artifact);
   const tabsHtml = hasTabs
@@ -97,6 +106,9 @@ export function createDetailSceneOverlayHtml({
     '  <div class="detail-page__panel">',
     tabsHtml,
     `    <div class="detail-page__scroll-body" data-detail-scroll>${bodyContentHtml}</div>`,
+    shareLabel
+      ? `    <button class="detail-page__share modal-btn${shareDisabled ? " modal-btn--disabled" : ""}" data-detail-share type="button">${escapeHtml(shareLabel)}</button>`
+      : "",
     `    <button class="detail-page__home modal-btn modal-btn--primary" data-detail-home="true" type="button">${escapeHtml(homeLabel)}</button>`,
     "  </div>",
     createAppNavHtml(navItems),
