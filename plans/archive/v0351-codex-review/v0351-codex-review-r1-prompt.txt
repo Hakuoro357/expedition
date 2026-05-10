@@ -1,0 +1,113 @@
+You are reviewing v0.3.50 → v0.3.51 of an HTML5 web game (Solitaire:
+Expedition, Phaser 3 + TypeScript + Vite, published on GamePush). The
+change introduces GamePush social actions integration:
+
+WHAT CHANGED:
+
+1. SDK layer
+   - env.d.ts: new GamePushSocials, GamePushSocialOptions interfaces;
+     `socials?: GamePushSocials` added to GamePushSDK as optional.
+   - SdkService: 6 new methods canShare/canJoinCommunity/share/
+     joinCommunity/onShareResult/onJoinCommunityResult.
+   - GamePushSdkService: real implementations gated by
+     this.gp?.socials?.* with try/catch.
+   - YandexSdkService: stubs (canShare/canJoinCommunity → false; rest
+     no-op).
+   - SaveService.test.ts stub fixture extended with the 6 methods.
+
+2. RewardScene share button
+   - rewardSceneOverlay: optional shareLabel/shareDisabled params,
+     renders a `<button data-reward-share>` between ad and continue.
+   - buildShareText.ts (new): produces contextual share text using
+     getPointTitleByDealId and i18n.t("shareWinText", {pointTitle}).
+   - I18nService.t() extended to support {placeholder} substitution
+     while remaining backward compatible (params optional).
+   - I18nService.setLocale() guarded by `typeof document !== "undefined"`
+     for vitest env without jsdom.
+   - RewardScene gates share on
+     `sdk.canShare() && !data.returnFromDetail && !data.preview &&
+     this.dealId.length > 0`. shareUsed flag = one-shot per visit.
+     onShareResult listener installed once via shareListenerInstalled
+     flag to avoid duplicate callbacks across re-renders.
+
+3. Community button — TitleScene + MapScene
+   - titleSceneOverlay: optional showCommunityButton/communityLabel,
+     renders 4-th button after Settings.
+   - TitleScene: gates on sdk.canJoinCommunity(); registers
+     onJoinCommunityResult once via communityListenerInstalled flag;
+     "community" action calls sdk.joinCommunity().
+   - routeSceneOverlay: optional showCommunityButton/communityAriaLabel,
+     renders SVG icon button at right: 64px (vs mute at right: 14px,
+     42px wide, 8px gap).
+   - MapScene: same gating + listener pattern.
+   - styles.css: new .route-overlay__community CSS mirroring
+     .route-overlay__mute (size, hover, position).
+
+4. i18n (4 keys × 7 locales = 28 entries)
+   - share, shareWinText (template with {pointTitle}), community,
+     communityAriaLabel.
+   - French shareWinText uses non-breaking spaces around colon.
+
+5. OG meta-tags in index.html
+   - og:title, og:description, og:image (placeholder URL pointing to
+     gd.gamepush.com), og:type=website.
+
+6. Tests
+   - 125 → 136 tests (+11): 3 reward-share, 4 community (2 title +
+     2 route), 4 i18n.t substitution.
+
+CONTEXT CONSTRAINTS:
+- 7 UI locales: ru/en/tr/es/pt/de/fr.
+- Phaser scenes plus DOM overlays via createCanvasAnchoredOverlay.
+- DI via getAppContext.
+- gp.player.sync quota minimisation rules in place since v0.3.39
+  (see ~/.claude/plan-mistakes/gamepush.md gp-001…008). Don't suggest
+  patterns that bypass debounce/flush.
+- Build size 36.42 MB at 50 MB GamePush limit.
+
+REVIEW FOCUS:
+1. Correctness of feature-detection: any path where canShare/
+   canJoinCommunity returns true but the actual SDK method throws or
+   misbehaves and we don't handle it?
+2. Listener leaks: shareListenerInstalled and communityListenerInstalled
+   are scene-instance flags. Are they reset properly when the scene
+   restarts? If user does map → reward → map → reward, are we
+   accumulating listeners?
+3. The {placeholder} substitution in i18n.t — XSS concerns? Currently
+   the substituted value (point title from data files) is later passed
+   through escapeHtml in overlay generators. Is there any code path
+   where t() result is inserted into HTML without escaping?
+4. RewardScene gate `this.dealId.length > 0` — correct? What about the
+   "quick-play" mode without a chapter dealId?
+5. Concurrency: if user clicks share twice quickly before shareUsed
+   flips to true, do we send two share events? The check is `if
+   (this.shareUsed) return;` then immediately `this.shareUsed = true;`
+   — synchronous, so no race. But the SDK call is fire-and-forget —
+   confirm.
+6. The SVG icon for community is hard-coded inline. Any accessibility
+   concern? aria-label is set but we don't have role="img".
+7. og:image points to a hard-coded URL `gd.gamepush.com/expedition/...`
+   that doesn't exist yet. Will VK/OK feed cards break or just show
+   no image?
+8. French shareWinText uses regular spaces in this commit vs the title
+   which uses U+00A0 in another file. Inconsistency?
+9. shareWinText template starts with a quote character that varies per
+   locale (« vs ' vs nothing). Edge case: pointTitle itself contains
+   the same quote character — "«" — does substitution result look
+   weird?
+10. YandexSdkService share/joinCommunity stubs — are they correctly
+    typed as void return without breaking the interface contract?
+11. Any missing tests that would catch a real regression?
+
+OUTPUT FORMAT:
+- For each concern: severity tag [CRITICAL] (will break / data-loss) /
+  [MAJOR] (significant gap, should fix) / [MINOR] (polish / nice-to-have).
+- For each: (1) what's wrong, (2) why it matters, (3) suggested fix
+  with file:line reference where possible.
+- List ALL concerns — no cap.
+- End with verdict line — MUST be the LAST non-empty line:
+  either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing
+  punctuation.
+
+=== UNIFIED DIFF ===

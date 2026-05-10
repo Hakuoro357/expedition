@@ -1,0 +1,962 @@
+diff --git a/index.html b/index.html
+index 3023f28..9c6ce40 100644
+--- a/index.html
++++ b/index.html
+@@ -12,6 +12,15 @@
+     <meta name="mobile-web-app-capable" content="yes" />
+     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23132220'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' text-anchor='middle' fill='%23d4a962'%3ES%3C/text%3E%3C/svg%3E" />
+     <title>Solitaire: Expedition</title>
++    <!-- Open Graph meta-теги для GP-share v0.3.51. Используются
++         gp.socials.share() для рендера превью-карточки в VK/OK feed.
++         og:image указывает на cover 1200×630 (промо-asset, делается
++         отдельно). Если URL картинки временно недоступен — share
++         будет работать без превью, текст из shareWinText останется. -->
++    <meta property="og:title" content="Solitaire: Expedition" />
++    <meta property="og:description" content="Тихая косынка с экспедиционным сюжетом. 30 точек маршрута, 7 локалей, полностью offline." />
++    <meta property="og:image" content="https://gd.gamepush.com/expedition/cover-1200x630.png" />
++    <meta property="og:type" content="website" />
+     <!-- Регистрируем callback ДО загрузки GamePush SDK — иначе SDK
+          вызовет onGPInit синхронно при загрузке скрипта, а наш
+          GamePushSdkService ещё не успеет подписаться на него. -->
+diff --git a/package.json b/package.json
+index 5fcfef4..92a02f5 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "solitaire-expedition",
+   "private": true,
+-  "version": "0.3.50",
++  "version": "0.3.51",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/src/env.d.ts b/src/env.d.ts
+index f1e9c81..a196c9b 100644
+--- a/src/env.d.ts
++++ b/src/env.d.ts
+@@ -108,12 +108,34 @@ interface GamePushSounds {
+   unmuteMusic(): void;
+ }
+ 
++interface GamePushSocialOptions {
++  text?: string;
++  url?: string;
++  image?: string;
++}
++
++interface GamePushSocials {
++  isSupportsShare: boolean;
++  isSupportsNativeShare?: boolean;
++  isSupportsNativePosts?: boolean;
++  isSupportsNativeInvite?: boolean;
++  canJoinCommunity: boolean;
++  isSupportsNativeCommunityJoin?: boolean;
++  share(options?: GamePushSocialOptions): void;
++  post?(options?: GamePushSocialOptions): void;
++  invite?(options?: GamePushSocialOptions): void;
++  joinCommunity(): void;
++  on(event: "share" | "post" | "invite" | "joinCommunity", callback: (success: boolean) => void): void;
++}
++
+ interface GamePushSDK {
+   ads: GamePushAds;
+   player: GamePushPlayer;
+   platform: GamePushPlatform;
+   /** Официальный namespace для звука/mute (GP docs). Опционален на случай старых SDK-сборок. */
+   sounds?: GamePushSounds;
++  /** Социальные действия (share / post / invite / joinCommunity). Опционален на случай старых SDK. */
++  socials?: GamePushSocials;
+   language: string;
+   isMobile: boolean;
+   isPortrait: boolean;
+diff --git a/src/scenes/MapScene.ts b/src/scenes/MapScene.ts
+index 0cf2ea2..c9e1bf2 100644
+--- a/src/scenes/MapScene.ts
++++ b/src/scenes/MapScene.ts
+@@ -38,6 +38,8 @@ export class MapScene extends Phaser.Scene {
+   private content?: Phaser.GameObjects.Container;
+   private currentPage = 1;
+   private dragStart?: { x: number; y: number };
++  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
++  private communityListenerInstalled = false;
+ 
+   constructor() {
+     super(SCENES.map);
+@@ -162,6 +164,8 @@ export class MapScene extends Phaser.Scene {
+     // Читаем из SoundService (а не sdk.isMuted()) — единственный источник
+     // истины для UI, обновляется через onMuteChange listener.
+     const platformMuted = sound.isPlatformMuted();
++    const sdk = getAppContext().sdk;
++    const showCommunityButton = sdk.canJoinCommunity();
+     this.renderOverlay({
+       pageLabel: this.getPageLabel(locale, this.currentPage),
+       activePointTitle: panelTitle,
+@@ -178,6 +182,8 @@ export class MapScene extends Phaser.Scene {
+       showDevTools: import.meta.env.DEV,
+       muted: platformMuted,
+       muteAriaLabel: platformMuted ? i18n.t("unmute") : i18n.t("mute"),
++      showCommunityButton,
++      communityAriaLabel: showCommunityButton ? i18n.t("communityAriaLabel") : undefined,
+     });
+   }
+ 
+@@ -408,6 +414,26 @@ export class MapScene extends Phaser.Scene {
+       disposers.push(() => muteBtn.removeEventListener("click", onClick));
+     }
+ 
++    // v0.3.51: иконка-кнопка community рядом с mute. Видна только
++    // когда canJoinCommunity=true (рендерится в overlay-HTML по
++    // showCommunityButton). Клик → gp.socials.joinCommunity().
++    const communityBtn = root.querySelector<HTMLElement>('[data-route-action="community"]');
++    if (communityBtn) {
++      if (!this.communityListenerInstalled) {
++        getAppContext().sdk.onJoinCommunityResult((success) => {
++          if (success) {
++            getAppContext().analytics.track("community_join_success", { from: "map" });
++          }
++        });
++        this.communityListenerInstalled = true;
++      }
++      const onClick = (): void => {
++        getAppContext().sdk.joinCommunity();
++      };
++      communityBtn.addEventListener("click", onClick);
++      disposers.push(() => communityBtn.removeEventListener("click", onClick));
++    }
++
+     this.overlayCleanup = () => {
+       disposers.forEach((d) => d());
+     };
+diff --git a/src/scenes/RewardScene.ts b/src/scenes/RewardScene.ts
+index 30f2fd2..61d9031 100644
+--- a/src/scenes/RewardScene.ts
++++ b/src/scenes/RewardScene.ts
+@@ -8,6 +8,7 @@ import { CHAPTERS, getNodeById } from "@/data/chapters";
+ import { getDailyDateKey } from "@/data/dailyDeals";
+ import { getChapterTitle } from "@/data/naming";
+ import { getRewardById } from "@/data/narrative/rewards";
++import { buildShareWinText } from "@/scenes/buildShareText";
+ import {
+   buildRewardRevealItems,
+ } from "@/scenes/rewardRevealItems";
+@@ -44,6 +45,16 @@ export class RewardScene extends Phaser.Scene {
+   private adStatusText = "";
+   private revealItems: RewardOverlayRevealItem[] = [];
+   private chapterProgressLabel: string | undefined;
++  /**
++   * v0.3.51: gp.socials.share. canShare === true только если SDK
++   * платформенно поддерживает share (`canShare()`), сцена не
++   * находится в replay-режиме (returnFromDetail) и не в dev-preview.
++   * shareUsed предотвращает повторный share на этой партии (one-shot
++   * cooldown). Кнопка скрывается при canShare=false.
++   */
++  private canShare = false;
++  private shareUsed = false;
++  private shareListenerInstalled = false;
+ 
+   constructor() {
+     super(SCENES.reward);
+@@ -58,6 +69,16 @@ export class RewardScene extends Phaser.Scene {
+     this.dealId = data.dealId ?? "";
+     this.preview = data.preview === true;
+     this.coinsAwarded = 0;
++    // Share-кнопка: видна только если platform-SDK поддерживает share,
++    // партия не replay (returnFromDetail) и не preview, и есть dealId.
++    // returnFromDetail=true означает что игрок уже видел этот reward —
++    // повторный share исказил бы статистику и был бы спамом в фиде.
++    this.canShare =
++      getAppContext().sdk.canShare() &&
++      !data.returnFromDetail &&
++      !data.preview &&
++      this.dealId.length > 0;
++    this.shareUsed = false;
+     this.adBonusShown = false;
+     this.adStatusText = "";
+     this.revealItems = [];
+@@ -191,6 +212,8 @@ export class RewardScene extends Phaser.Scene {
+       rewardLines: this.revealItems.length > 0 ? [] : [i18n.t("reward")],
+       adLabel: `${i18n.t("adLabel")} (+${adBonus} ${COIN_TOKEN})`,
+       adDisabled: this.adBonusShown,
++      shareLabel: this.canShare ? i18n.t("share") : undefined,
++      shareDisabled: this.shareUsed,
+       continueLabel: i18n.t("continue"),
+       adStatus: this.adStatusText,
+       navItems: [
+@@ -326,6 +349,38 @@ export class RewardScene extends Phaser.Scene {
+       disposers.push(() => adBtn.removeEventListener("click", onAdClick));
+     }
+ 
++    const shareBtn = root.querySelector<HTMLElement>("[data-reward-share]");
++    if (shareBtn && this.canShare) {
++      shareBtn.style.pointerEvents = "auto";
++      // Слушатель результата устанавливаем один раз — повторные
++      // вызовы on('share', cb) могли бы накопить дубль-callback'и при
++      // перерендерах overlay (renderOverlay вызывается после ad-watch).
++      if (!this.shareListenerInstalled) {
++        getAppContext().sdk.onShareResult((success) => {
++          if (success && !this.preview) {
++            analytics.track("share_win_success", { dealId: this.dealId });
++            sound.goodMove();
++          }
++        });
++        this.shareListenerInstalled = true;
++      }
++      const onShareClick = (): void => {
++        if (this.shareUsed || !this.dealId) return;
++        const narrativeLocale = getAppContext().i18n.getNarrativeLocale();
++        const text = buildShareWinText(
++          this.dealId,
++          narrativeLocale,
++          getAppContext().i18n,
++        );
++        getAppContext().sdk.share({ text });
++        this.shareUsed = true;
++        // Перерендер вернёт shareDisabled=true → класс modal-btn--disabled.
++        this.renderOverlay();
++      };
++      shareBtn.addEventListener("click", onShareClick);
++      disposers.push(() => shareBtn.removeEventListener("click", onShareClick));
++    }
++
+     const continueBtn = root.querySelector<HTMLElement>("[data-reward-continue]");
+     if (continueBtn) {
+       continueBtn.style.pointerEvents = "auto";
+diff --git a/src/scenes/TitleScene.ts b/src/scenes/TitleScene.ts
+index 0e32b9d..1d267a9 100644
+--- a/src/scenes/TitleScene.ts
++++ b/src/scenes/TitleScene.ts
+@@ -33,6 +33,8 @@ import { showConfirmDialog } from "@/ui/confirmDialog";
+ export class TitleScene extends Phaser.Scene {
+   private overlay?: CanvasOverlayHandle;
+   private overlayCleanup?: () => void;
++  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
++  private communityListenerInstalled = false;
+ 
+   constructor() {
+     super(SCENES.title);
+@@ -96,7 +98,7 @@ export class TitleScene extends Phaser.Scene {
+   }
+ 
+   private renderOverlay(): void {
+-    const { i18n, save } = getAppContext();
++    const { i18n, save, sdk } = getAppContext();
+     const state = save.load();
+     // «Продолжить» доступна только после первого прохождения пролога.
+     // Чистый старт (prologueShown=false/undefined) → кнопка disabled,
+@@ -104,6 +106,11 @@ export class TitleScene extends Phaser.Scene {
+     // нужно потому что prologueShown в типе ProgressState помечен как
+     // optional (boolean | undefined).
+     const continueEnabled = Boolean(state.progress.prologueShown);
++    // 4-я кнопка «Сообщество» — рендерим если SDK сообщает что
++    // community URL настроен (panel.gamepush.com → Settings → Social).
++    // Когда не настроен (или платформа не поддерживает) —
++    // canJoinCommunity → false, кнопки нет, hero-блок остаётся 3-x-кнопочным.
++    const showCommunityButton = sdk.canJoinCommunity();
+ 
+     const html = createTitleSceneOverlayHtml({
+       title: i18n.t("title"),
+@@ -112,6 +119,8 @@ export class TitleScene extends Phaser.Scene {
+       continueLabel: i18n.t("continue"),
+       continueEnabled,
+       settingsLabel: i18n.t("settings"),
++      showCommunityButton,
++      communityLabel: showCommunityButton ? i18n.t("community") : undefined,
+     });
+ 
+     this.overlay = createCanvasAnchoredOverlay({
+@@ -121,6 +130,16 @@ export class TitleScene extends Phaser.Scene {
+       logicalWidth: GAME_CANVAS_WIDTH,
+       logicalHeight: GAME_HEIGHT,
+     });
++    if (showCommunityButton && !this.communityListenerInstalled) {
++      // Подписку ставим один раз на сцену — overlay-rerender'ы
++      // не должны накапливать дубль-callback'и.
++      sdk.onJoinCommunityResult((success) => {
++        if (success) {
++          getAppContext().analytics.track("community_join_success", { from: "title" });
++        }
++      });
++      this.communityListenerInstalled = true;
++    }
+     this.bindOverlayEvents(continueEnabled);
+   }
+ 
+@@ -139,6 +158,8 @@ export class TitleScene extends Phaser.Scene {
+           this.handleContinue();
+         } else if (action === "settings") {
+           this.scene.start(SCENES.settings, { returnTo: "title" });
++        } else if (action === "community") {
++          getAppContext().sdk.joinCommunity();
+         }
+       };
+       el.style.pointerEvents = "auto";
+diff --git a/src/scenes/buildShareText.ts b/src/scenes/buildShareText.ts
+new file mode 100644
+index 0000000..0a88fa3
+--- /dev/null
++++ b/src/scenes/buildShareText.ts
+@@ -0,0 +1,24 @@
++import { getPointTitleByDealId } from "@/data/narrative/points";
++import type { I18nService, NarrativeLocale } from "@/services/i18n/I18nService";
++
++/**
++ * Контекстный текст для gp.socials.share после победы. Использует
++ * имя только что пройденной точки маршрута (уже локализовано в
++ * `points.ts`) внутри шаблона `shareWinText`. Если по какой-то причине
++ * имя точки не нашлось — возвращаем сам шаблон без подстановки
++ * (i18n.t оставит `{pointTitle}` как есть, что заметно в логах и
++ * подсказывает где починить).
++ *
++ * Используется только в RewardScene при клике на share-кнопку. Если в
++ * будущем добавим share с других экранов — этот же helper можно
++ * переиспользовать или ввести параллельные builders для других
++ * контекстов (напр. shareChapterCompleteText).
++ */
++export function buildShareWinText(
++  dealId: string,
++  narrativeLocale: NarrativeLocale,
++  i18n: I18nService,
++): string {
++  const pointTitle = getPointTitleByDealId(dealId, narrativeLocale) ?? "";
++  return i18n.t("shareWinText", { pointTitle });
++}
+diff --git a/src/scenes/rewardSceneOverlay.test.ts b/src/scenes/rewardSceneOverlay.test.ts
+index 72af2c2..a8ba414 100644
+--- a/src/scenes/rewardSceneOverlay.test.ts
++++ b/src/scenes/rewardSceneOverlay.test.ts
+@@ -39,4 +39,54 @@ describe("rewardSceneOverlay", () => {
+     expect(html).toContain("Победа!");
+     expect(html).toContain("+25 монет!");
+   });
++
++  it("renders share button when shareLabel is provided", () => {
++    const html = createRewardOverlayHtml({
++      title: "Победа!",
++      adLabel: "Смотреть ad (+25 монет)",
++      shareLabel: "Поделиться",
++      continueLabel: "Дальше",
++      navItems: [
++        { id: "archive", label: "Архив", active: false },
++        { id: "daily", label: "Маршрут дня", active: false },
++        { id: "settings", label: "Настройки", active: false },
++      ],
++    });
++
++    expect(html).toContain("data-reward-share");
++    expect(html).toContain("Поделиться");
++    // Кнопка не disabled по умолчанию.
++    expect(html).not.toMatch(/data-reward-share[^>]*modal-btn--disabled/);
++  });
++
++  it("applies modal-btn--disabled when shareDisabled is true", () => {
++    const html = createRewardOverlayHtml({
++      title: "Победа!",
++      shareLabel: "Поделиться",
++      shareDisabled: true,
++      continueLabel: "Дальше",
++      navItems: [
++        { id: "archive", label: "Архив", active: false },
++        { id: "daily", label: "Маршрут дня", active: false },
++        { id: "settings", label: "Настройки", active: false },
++      ],
++    });
++
++    // Класс modal-btn--disabled должен присутствовать на share-кнопке.
++    expect(html).toMatch(/class="modal-btn modal-btn--disabled"\s+data-reward-share/);
++  });
++
++  it("does NOT render share button when shareLabel is undefined", () => {
++    const html = createRewardOverlayHtml({
++      title: "Победа!",
++      continueLabel: "Дальше",
++      navItems: [
++        { id: "archive", label: "Архив", active: false },
++        { id: "daily", label: "Маршрут дня", active: false },
++        { id: "settings", label: "Настройки", active: false },
++      ],
++    });
++
++    expect(html).not.toContain("data-reward-share");
++  });
+ });
+diff --git a/src/scenes/rewardSceneOverlay.ts b/src/scenes/rewardSceneOverlay.ts
+index 9d28a8c..ef0720d 100644
+--- a/src/scenes/rewardSceneOverlay.ts
++++ b/src/scenes/rewardSceneOverlay.ts
+@@ -34,6 +34,13 @@ type RewardOverlayParams = {
+   rewardLines?: string[];
+   adLabel?: string;
+   adDisabled?: boolean;
++  /**
++   * Share-кнопка (gp.socials.share). undefined = не рендерим
++   * (canShare === false или сцена в replay-режиме). disabled = уже
++   * нажата на этой партии — анти-спам cooldown 1/партия.
++   */
++  shareLabel?: string;
++  shareDisabled?: boolean;
+   continueLabel?: string;
+   adStatus?: string;
+   navItems: AppNavItem[];
+@@ -48,6 +55,8 @@ export function createRewardOverlayHtml({
+   rewardLines,
+   adLabel,
+   adDisabled,
++  shareLabel,
++  shareDisabled,
+   continueLabel,
+   adStatus,
+   navItems,
+@@ -95,6 +104,9 @@ export function createRewardOverlayHtml({
+     adLabel
+       ? `    <button class="modal-btn${adDisabled ? " modal-btn--disabled" : ""}" data-reward-ad type="button">${escapeHtml(adLabel)}</button>`
+       : "",
++    shareLabel
++      ? `    <button class="modal-btn${shareDisabled ? " modal-btn--disabled" : ""}" data-reward-share type="button">${escapeHtml(shareLabel)}</button>`
++      : "",
+     continueLabel
+       ? `    <button class="modal-btn modal-btn--primary" data-reward-continue type="button">${escapeHtml(continueLabel)}</button>`
+       : "",
+diff --git a/src/scenes/routeSceneOverlay.test.ts b/src/scenes/routeSceneOverlay.test.ts
+index eea4019..3268166 100644
+--- a/src/scenes/routeSceneOverlay.test.ts
++++ b/src/scenes/routeSceneOverlay.test.ts
+@@ -42,6 +42,40 @@ describe("routeSceneOverlay", () => {
+     expect(html).toContain("route-overlay__route-point--current");
+   });
+ 
++  it("renders community icon button when showCommunityButton is true", () => {
++    const html = createRouteSceneOverlayHtml({
++      pageLabel: "Лист 1",
++      activePointTitle: "",
++      activePointDescription: "",
++      canGoPrev: false,
++      canGoNext: false,
++      routePoints: [],
++      routeSegments: [],
++      navItems: [{ id: "archive", label: "Архив", active: false }],
++      showCommunityButton: true,
++      communityAriaLabel: "Открыть сообщество",
++    });
++
++    expect(html).toContain('data-route-action="community"');
++    expect(html).toContain("route-overlay__community");
++    expect(html).toContain('aria-label="Открыть сообщество"');
++  });
++
++  it("does NOT render community icon when showCommunityButton is false", () => {
++    const html = createRouteSceneOverlayHtml({
++      pageLabel: "Лист 1",
++      activePointTitle: "",
++      activePointDescription: "",
++      canGoPrev: false,
++      canGoNext: false,
++      routePoints: [],
++      routeSegments: [],
++      navItems: [{ id: "archive", label: "Архив", active: false }],
++    });
++
++    expect(html).not.toContain('data-route-action="community"');
++  });
++
+   it("escapes raw html in overlay text", () => {
+     const html = createRouteSceneOverlayHtml({
+       pageLabel: "<b>unsafe</b>",
+diff --git a/src/scenes/routeSceneOverlay.ts b/src/scenes/routeSceneOverlay.ts
+index e3989eb..24b6851 100644
+--- a/src/scenes/routeSceneOverlay.ts
++++ b/src/scenes/routeSceneOverlay.ts
+@@ -37,6 +37,15 @@ type RouteSceneOverlayParams = {
+   /** GP docs: видимая кнопка управления звуком прямо на главной сцене. */
+   muted?: boolean;
+   muteAriaLabel?: string;
++  /**
++   * v0.3.51: иконка-кнопка community рядом с mute (правый верхний
++   * угол). Видима только если SDK подтверждает поддержку
++   * (gp.socials.canJoinCommunity) И community URL настроен в
++   * panel.gamepush.com. Если не настроен — кнопки нет, layout не
++   * меняется.
++   */
++  showCommunityButton?: boolean;
++  communityAriaLabel?: string;
+ };
+ 
+ /** Viewport width used for label placement clamping */
+@@ -173,6 +182,8 @@ export function createRouteSceneOverlayHtml({
+   showDevTools,
+   muted = false,
+   muteAriaLabel = "Toggle sound",
++  showCommunityButton = false,
++  communityAriaLabel = "Open community",
+ }: RouteSceneOverlayParams): string {
+   const soundIcon = muted
+     ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+@@ -181,6 +192,12 @@ export function createRouteSceneOverlayHtml({
+     ? "route-overlay__mute route-overlay__mute--muted"
+     : "route-overlay__mute";
+   const muteBtnHtml = `<button class="${muteBtnClass}" type="button" data-route-action="toggle-mute" aria-label="${escapeHtml(muteAriaLabel)}" aria-pressed="${muted ? "true" : "false"}">${soundIcon}</button>`;
++  // SVG иконка community (3 силуэта людей) — inline 22×22, такой же
++  // размер как у sound-иконки, чтобы кнопки визуально согласовывались.
++  const communityIcon = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
++  const communityBtnHtml = showCommunityButton
++    ? `<button class="route-overlay__community" type="button" data-route-action="community" aria-label="${escapeHtml(communityAriaLabel)}">${communityIcon}</button>`
++    : "";
+ 
+   const activePointHtml =
+     activePointTitle || activePointDescription
+@@ -210,6 +227,7 @@ export function createRouteSceneOverlayHtml({
+   return [
+     '<div class="route-overlay">',
+     `  ${muteBtnHtml}`,
++    `  ${communityBtnHtml}`,
+     devToolsHtml,
+     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
+     activePointHtml,
+diff --git a/src/scenes/titleSceneOverlay.test.ts b/src/scenes/titleSceneOverlay.test.ts
+index 3c01362..975e4b0 100644
+--- a/src/scenes/titleSceneOverlay.test.ts
++++ b/src/scenes/titleSceneOverlay.test.ts
+@@ -52,6 +52,37 @@ describe("titleSceneOverlay", () => {
+     expect(continueMatch![1]).not.toContain("title-scene__button--primary");
+   });
+ 
++  it("renders community button when showCommunityButton is true", () => {
++    const html = createTitleSceneOverlayHtml({
++      title: "Solitaire: Expedition",
++      subtitle: "Sub",
++      newGameLabel: "Начать",
++      continueLabel: "Продолжить",
++      continueEnabled: true,
++      settingsLabel: "Настройки",
++      showCommunityButton: true,
++      communityLabel: "Сообщество",
++    });
++
++    expect(html).toContain('data-title-action="community"');
++    expect(html).toContain("Сообщество");
++  });
++
++  it("does NOT render community button when showCommunityButton is false", () => {
++    const html = createTitleSceneOverlayHtml({
++      title: "Solitaire: Expedition",
++      subtitle: "Sub",
++      newGameLabel: "Начать",
++      continueLabel: "Продолжить",
++      continueEnabled: true,
++      settingsLabel: "Настройки",
++      showCommunityButton: false,
++      communityLabel: "Сообщество",
++    });
++
++    expect(html).not.toContain('data-title-action="community"');
++  });
++
+   it("escapes HTML in user-provided labels", () => {
+     const html = createTitleSceneOverlayHtml({
+       title: "<script>x</script>",
+diff --git a/src/scenes/titleSceneOverlay.ts b/src/scenes/titleSceneOverlay.ts
+index 0bbfd17..d3cab1b 100644
+--- a/src/scenes/titleSceneOverlay.ts
++++ b/src/scenes/titleSceneOverlay.ts
+@@ -8,6 +8,14 @@ export type TitleSceneOverlayParams = {
+   /** false → кнопка «Продолжить» дизейблена (первый запуск, prologueShown=false). */
+   continueEnabled: boolean;
+   settingsLabel: string;
++  /**
++   * v0.3.51: 4-я кнопка «Сообщество» — рендерим только если SDK
++   * платформенно поддерживает joinCommunity И community URL прописан в
++   * panel.gamepush.com. Когда условие false — кнопки нет вообще
++   * (hero-блок не разрастается).
++   */
++  showCommunityButton?: boolean;
++  communityLabel?: string;
+ };
+ 
+ /**
+@@ -25,8 +33,16 @@ export type TitleSceneOverlayParams = {
+  * запуске «Продолжить» dimmed → primary переключается на «Начать».
+  */
+ export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): string {
+-  const { title, subtitle, newGameLabel, continueLabel, continueEnabled, settingsLabel } =
+-    params;
++  const {
++    title,
++    subtitle,
++    newGameLabel,
++    continueLabel,
++    continueEnabled,
++    settingsLabel,
++    showCommunityButton,
++    communityLabel,
++  } = params;
+   const newGameIsPrimary = !continueEnabled;
+   const continueIsPrimary = continueEnabled;
+   const newGameClass = `title-scene__button${newGameIsPrimary ? " title-scene__button--primary" : ""}`;
+@@ -44,6 +60,9 @@ export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): st
+     `    <button class="${newGameClass}" data-title-action="new-game" type="button">${escapeHtml(newGameLabel)}</button>`,
+     `    <button class="${continueClass}" data-title-action="continue" type="button"${continueDisabledAttr}>${escapeHtml(continueLabel)}</button>`,
+     `    <button class="title-scene__button" data-title-action="settings" type="button">${escapeHtml(settingsLabel)}</button>`,
++    showCommunityButton && communityLabel
++      ? `    <button class="title-scene__button" data-title-action="community" type="button">${escapeHtml(communityLabel)}</button>`
++      : "",
+     "  </nav>",
+     "</div>",
+   ].join("");
+diff --git a/src/services/i18n/I18nService.test.ts b/src/services/i18n/I18nService.test.ts
+new file mode 100644
+index 0000000..dda0a8e
+--- /dev/null
++++ b/src/services/i18n/I18nService.test.ts
+@@ -0,0 +1,47 @@
++import { describe, expect, it } from "vitest";
++import { I18nService } from "@/services/i18n/I18nService";
++
++describe("I18nService.t() substitution", () => {
++  it("returns raw string when no params provided", () => {
++    const i18n = new I18nService();
++    i18n.setLocale("ru");
++    expect(i18n.t("share")).toBe("Поделиться");
++  });
++
++  it("substitutes {pointTitle} placeholder in shareWinText (ru)", () => {
++    const i18n = new I18nService();
++    i18n.setLocale("ru");
++    const result = i18n.t("shareWinText", { pointTitle: "Карта пока не врёт" });
++    expect(result).toBe(
++      "«Карта пока не врёт» — пройдено в Косынка: Экспедиция",
++    );
++  });
++
++  it("substitutes across all 7 locales", () => {
++    const cases: Array<{ locale: "ru" | "en" | "tr" | "es" | "pt" | "de" | "fr"; needle: string }> = [
++      { locale: "ru", needle: "пройдено" },
++      { locale: "en", needle: "cleared" },
++      { locale: "tr", needle: "tamamlandı" },
++      { locale: "es", needle: "completado" },
++      { locale: "pt", needle: "concluído" },
++      { locale: "de", needle: "geschafft" },
++      { locale: "fr", needle: "terminé" },
++    ];
++    for (const { locale, needle } of cases) {
++      const i18n = new I18nService();
++      i18n.setLocale(locale);
++      const result = i18n.t("shareWinText", { pointTitle: "X" });
++      expect(result).toContain(needle);
++      expect(result).toContain("X"); // подстановка сработала
++    }
++  });
++
++  it("leaves unknown placeholders intact for visibility", () => {
++    const i18n = new I18nService();
++    i18n.setLocale("en");
++    // Если params не содержит ключа — placeholder оставляется в строке как
++    // есть; помогает в dev заметить, что ожидался param.
++    const result = i18n.t("shareWinText", { unrelated: "Y" });
++    expect(result).toContain("{pointTitle}");
++  });
++});
+diff --git a/src/services/i18n/I18nService.ts b/src/services/i18n/I18nService.ts
+index ea16fb7..003e9bb 100644
+--- a/src/services/i18n/I18nService.ts
++++ b/src/services/i18n/I18nService.ts
+@@ -16,7 +16,11 @@ export class I18nService {
+ 
+   setLocale(locale: Locale): void {
+     this.locale = locale;
+-    document.documentElement.lang = locale;
++    // Guard для test-env (vitest без jsdom): document может не существовать.
++    // В браузере и в playwright всегда есть.
++    if (typeof document !== "undefined") {
++      document.documentElement.lang = locale;
++    }
+   }
+ 
+   getLocale(): Locale {
+@@ -38,7 +42,23 @@ export class I18nService {
+     return this.locale;
+   }
+ 
+-  t(key: TranslationKey): string {
+-    return locales[this.locale][key];
++  /**
++   * Возвращает локализованную строку. С v0.3.51 поддерживает простой
++   * substitution: значения для placeholder'ов вида `{name}` берутся из
++   * params. Если key не найден или params не задан — поведение
++   * идентично старой версии (просто строка из locales).
++   *
++   * Пример:
++   *   t("shareWinText", { pointTitle: "Карта пока не врёт" })
++   *   → "«Карта пока не врёт» — пройдено в Косынка: Экспедиция"
++   *
++   * Безопасность XSS: подставляются сырые значения, а вызывающий код
++   * (overlay-генераторы) обязан пропускать результат через escapeHtml
++   * перед вставкой в HTML — это уже делается во всех overlay'ах.
++   */
++  t(key: TranslationKey, params?: Record<string, string>): string {
++    const raw = locales[this.locale][key];
++    if (!params) return raw;
++    return raw.replace(/\{(\w+)\}/g, (match, k) => params[k] ?? match);
+   }
+ }
+diff --git a/src/services/i18n/locales.ts b/src/services/i18n/locales.ts
+index 807a45b..1f17c74 100644
+--- a/src/services/i18n/locales.ts
++++ b/src/services/i18n/locales.ts
+@@ -66,6 +66,10 @@ export const locales = {
+     prologueButton: "I study the first page",
+     rotatePrompt: "Please rotate your device to portrait mode",
+     newGame: "New Game",
++    share: "Share",
++    shareWinText: "'{pointTitle}' — cleared in Solitaire: Expedition",
++    community: "Community",
++    communityAriaLabel: "Open community",
+     confirmResetProgress: "Start a new game? All progress will be lost.",
+     // New keys replacing former hardcoded isRu ternaries — v0.3.30
+     tabEntry: "Entry",
+@@ -141,6 +145,10 @@ export const locales = {
+     prologueButton: "Изучаю первый листок",
+     rotatePrompt: "Поверни устройство в портретный режим",
+     newGame: "Новая игра",
++    share: "Поделиться",
++    shareWinText: "«{pointTitle}» — пройдено в Косынка: Экспедиция",
++    community: "Сообщество",
++    communityAriaLabel: "Открыть сообщество",
+     confirmResetProgress: "Начать новую игру? Весь прогресс будет удалён.",
+     tabEntry: "Запись",
+     tabArtifact: "Артефакт",
+@@ -215,6 +223,10 @@ export const locales = {
+     prologueButton: "İlk sayfayı incelemeye başlıyorum",
+     rotatePrompt: "Lütfen cihazını dikey moda çevir",
+     newGame: "Yeni Oyun",
++    share: "Paylaş",
++    shareWinText: "«{pointTitle}» — Solitaire: Sefer'de tamamlandı",
++    community: "Topluluk",
++    communityAriaLabel: "Topluluğu aç",
+     confirmResetProgress: "Yeni oyuna başlamak ister misiniz? Tüm ilerleme silinecek.",
+     tabEntry: "Kayıt",
+     tabArtifact: "Eser",
+@@ -289,6 +301,10 @@ export const locales = {
+     prologueButton: "Estudio la primera página",
+     rotatePrompt: "Por favor, gira el dispositivo a modo vertical",
+     newGame: "Nueva partida",
++    share: "Compartir",
++    shareWinText: "«{pointTitle}» — completado en Solitario: Expedición",
++    community: "Comunidad",
++    communityAriaLabel: "Abrir comunidad",
+     confirmResetProgress: "¿Empezar una nueva partida? Se perderá todo el progreso.",
+     tabEntry: "Entrada",
+     tabArtifact: "Artefacto",
+@@ -363,6 +379,10 @@ export const locales = {
+     prologueButton: "Estudo a primeira página",
+     rotatePrompt: "Por favor, gire o dispositivo para o modo retrato",
+     newGame: "Novo jogo",
++    share: "Compartilhar",
++    shareWinText: "«{pointTitle}» — concluído em Paciência: Expedição",
++    community: "Comunidade",
++    communityAriaLabel: "Abrir comunidade",
+     confirmResetProgress: "Iniciar um novo jogo? Todo o progresso será perdido.",
+     tabEntry: "Entrada",
+     tabArtifact: "Artefato",
+@@ -437,6 +457,10 @@ export const locales = {
+     prologueButton: "Ich studiere die erste Seite",
+     rotatePrompt: "Bitte drehe dein Gerät ins Hochformat",
+     newGame: "Neues Spiel",
++    share: "Teilen",
++    shareWinText: "«{pointTitle}» — geschafft in Solitär: Expedition",
++    community: "Community",
++    communityAriaLabel: "Community öffnen",
+     confirmResetProgress: "Ein neues Spiel starten? Der gesamte Fortschritt geht verloren.",
+     tabEntry: "Eintrag",
+     tabArtifact: "Artefakt",
+@@ -511,6 +535,10 @@ export const locales = {
+     prologueButton: "J'étudie la première page",
+     rotatePrompt: "Merci de tourner ton appareil en mode portrait",
+     newGame: "Nouvelle partie",
++    share: "Partager",
++    shareWinText: "« {pointTitle} » — terminé dans Klondike : Expédition",
++    community: "Communauté",
++    communityAriaLabel: "Ouvrir la communauté",
+     confirmResetProgress: "Commencer une nouvelle partie ? Toute la progression sera perdue.",
+     tabEntry: "Entrée",
+     tabArtifact: "Artéfact",
+diff --git a/src/services/save/SaveService.test.ts b/src/services/save/SaveService.test.ts
+index d745ac4..b66044a 100644
+--- a/src/services/save/SaveService.test.ts
++++ b/src/services/save/SaveService.test.ts
+@@ -45,6 +45,12 @@ function createSdkStub(initialCloud: string | null = null): SdkService & {
+     async showPreloader() {
+       return false;
+     },
++    canShare: () => false,
++    canJoinCommunity: () => false,
++    share() {},
++    joinCommunity() {},
++    onShareResult() {},
++    onJoinCommunityResult() {},
+   };
+   return stub as unknown as SdkService & { cloud: string | null };
+ }
+diff --git a/src/services/sdk/GamePushSdkService.ts b/src/services/sdk/GamePushSdkService.ts
+index aad1a32..d7b5690 100644
+--- a/src/services/sdk/GamePushSdkService.ts
++++ b/src/services/sdk/GamePushSdkService.ts
+@@ -266,6 +266,53 @@ export class GamePushSdkService implements SdkService {
+     }
+   }
+ 
++  // ============================================================
++  // Social actions (gp.socials.*) — share / community.
++  // Платформенные действия VK/OK/Telegram через GP SDK. Все методы
++  // защищены feature-detection: если SDK не загрузился или платформа
++  // не поддерживает — UI скрывает кнопки через canShare/canJoinCommunity.
++  // ============================================================
++
++  canShare(): boolean {
++    return this.gp?.socials?.isSupportsShare === true;
++  }
++
++  canJoinCommunity(): boolean {
++    return this.gp?.socials?.canJoinCommunity === true;
++  }
++
++  share(options: { text?: string; url?: string; image?: string }): void {
++    try {
++      this.gp?.socials?.share(options);
++    } catch (error) {
++      console.warn("[gp] socials.share failed", error);
++    }
++  }
++
++  joinCommunity(): void {
++    try {
++      this.gp?.socials?.joinCommunity();
++    } catch (error) {
++      console.warn("[gp] socials.joinCommunity failed", error);
++    }
++  }
++
++  onShareResult(callback: (success: boolean) => void): void {
++    try {
++      this.gp?.socials?.on("share", callback);
++    } catch (error) {
++      console.warn("[gp] socials.on(share) failed", error);
++    }
++  }
++
++  onJoinCommunityResult(callback: (success: boolean) => void): void {
++    try {
++      this.gp?.socials?.on("joinCommunity", callback);
++    } catch (error) {
++      console.warn("[gp] socials.on(joinCommunity) failed", error);
++    }
++  }
++
+   async showPreloader(): Promise<boolean> {
+     if (!this.gp?.ads) return false;
+     // GP sandbox / draft-проекты без сконфигурированного preloader-слота
+diff --git a/src/services/sdk/SdkService.ts b/src/services/sdk/SdkService.ts
+index d6a115e..cc1e65f 100644
+--- a/src/services/sdk/SdkService.ts
++++ b/src/services/sdk/SdkService.ts
+@@ -99,4 +99,25 @@ export interface SdkService {
+    * Resolves true if ad was shown, false on unavailable / error.
+    */
+   showPreloader(): Promise<boolean>;
++
++  /**
++   * GamePush social actions
++   * (https://docs.gamepush.com/ru/docs/social-actions/). Поверх
++   * платформенных API VK/OK/Telegram. Все вызовы синхронные;
++   * результат приходит событием через `onShareResult`. Если SDK
++   * платформенно не поддерживает share/community — `canShare()` /
++   * `canJoinCommunity()` вернут false и кнопки скрываются в UI.
++   *
++   * Квота: на момент v0.3.51 GP-доки не упоминают лимит для socials
++   * (это платформенные действия, не GP analytics-events). Тем не
++   * менее cooldown в UI-слое (1 share / партию) защищает от спам-
++   * кликов и от потенциального ужесточения квоты в будущем.
++   */
++  canShare(): boolean;
++  canJoinCommunity(): boolean;
++  share(options: { text?: string; url?: string; image?: string }): void;
++  joinCommunity(): void;
++  /** Subscribe to outcome events. callback(true) = действие выполнено. */
++  onShareResult(callback: (success: boolean) => void): void;
++  onJoinCommunityResult(callback: (success: boolean) => void): void;
+ }
+diff --git a/src/services/sdk/YandexSdkService.ts b/src/services/sdk/YandexSdkService.ts
+index 6f4a266..3e95e3f 100644
+--- a/src/services/sdk/YandexSdkService.ts
++++ b/src/services/sdk/YandexSdkService.ts
+@@ -234,5 +234,33 @@ export class YandexSdkService implements SdkService {
+     // GP-specific placement; Yandex has no direct equivalent.
+     return false;
+   }
++
++  // Social actions — Yandex SDK не поддерживает share/joinCommunity
++  // через единый API (свой набор метрик и фичи через _ya). Для нашей
++  // публикации Yandex-через-этот-сервис не требует socials, и UI
++  // скрывает кнопки через canShare/canJoinCommunity → false.
++  canShare(): boolean {
++    return false;
++  }
++
++  canJoinCommunity(): boolean {
++    return false;
++  }
++
++  share(_options: { text?: string; url?: string; image?: string }): void {
++    // noop
++  }
++
++  joinCommunity(): void {
++    // noop
++  }
++
++  onShareResult(_callback: (success: boolean) => void): void {
++    // noop
++  }
++
++  onJoinCommunityResult(_callback: (success: boolean) => void): void {
++    // noop
++  }
+ }
+ 
+diff --git a/src/styles.css b/src/styles.css
+index 2ffe3db..a719f48 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -195,6 +195,33 @@ canvas {
+   background: rgba(40, 24, 18, 0.78);
+ }
+ 
++/* v0.3.51: иконка-кнопка community рядом с mute. Размер 42×42
++   идентичен mute, размещается слева от него с 8px-зазором
++   (mute: right=14px, ширина 42, → community: right=14+42+8=64px). */
++.route-overlay__community {
++  position: absolute;
++  top: 18px;
++  right: 64px;
++  width: 42px;
++  height: 42px;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  padding: 0;
++  border-radius: 50%;
++  border: 1px solid rgba(218, 201, 161, 0.28);
++  background: rgba(15, 32, 30, 0.72);
++  color: #f6e8c7;
++  cursor: pointer;
++  pointer-events: auto;
++  z-index: 5;
++  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
++}
++
++.route-overlay__community:hover {
++  background: rgba(22, 46, 44, 0.85);
++}
++
+ .route-overlay__route-svg {
+   position: absolute;
+   inset: 0;

@@ -1,0 +1,80 @@
+You are re-reviewing v0.3.51 → v0.3.52 of an HTML5 web game (Solitaire:
+Expedition). Round 1 raised 3 MAJOR + 4 MINOR concerns. This round
+checks whether they are addressed AND surfaces any new issues.
+
+ROUND: 2 of max 7.
+
+DOMAIN CONTEXT (same as round 1, summarised):
+- Phaser 3 + TypeScript + Vite + GamePush SDK.
+- gp.player.sync quota minimisation rules apply.
+- 7 UI locales.
+- 125 → 139 tests.
+
+WHAT WAS DONE TO ADDRESS R1 CONCERNS:
+
+[MAJOR 1] Async share/joinCommunity — typed as Promise now:
+- env.d.ts: GamePushSocials.share / joinCommunity return Promise<unknown>
+  / Promise<boolean>.
+- SdkService.share → Promise<void>; joinCommunity → Promise<boolean>.
+- GamePushSdkService: async + await + try/catch (synchronous catch
+  cannot catch async-rejection, async/await can).
+- YandexSdkService: async stubs.
+- SaveService.test.ts stub: async share/joinCommunity.
+
+[MAJOR 2 + 3] Listener leaks + stale dealId:
+- New singleton src/app/socialsContext.ts holds pendingShare /
+  pendingCommunityOrigin.
+- BootScene installs ONE global onShareResult / onJoinCommunityResult
+  listener that reads socialsContext, fires analytics, then clears.
+- TitleScene, MapScene, RewardScene no longer install per-scene
+  listeners. They set the pending context just before calling
+  sdk.share / sdk.joinCommunity.
+- Result: clicking joinCommunity from TitleScene attributes correctly
+  to "title", from MapScene to "map" — single result event fires once.
+- Stale dealId issue gone: dealId captured into pendingShare at click
+  time; listener reads from socialsContext, not from this.dealId.
+
+[MINOR 4] Quick-play share gate:
+- RewardScene canShare now requires `this.mode === "adventure"` AND
+  `this.dealId.length > 0` AND not preview AND not returnFromDetail
+  AND sdk.canShare(). Comment explicitly notes quick-play / daily are
+  excluded because shareWinText needs a route point title.
+
+[MINOR 5] og:image placeholder:
+- Removed from index.html. Comment explains: until real cover
+  uploaded to CDN, omitting og:image is safer than placeholder URL
+  (crawler caching of broken preview).
+
+[MINOR 6] SVG aria:
+- routeSceneOverlay community + mute SVG icons got aria-hidden="true"
+  focusable="false" added. Buttons keep aria-label, screen reader
+  reads only that.
+
+[MINOR 7] Tests for real risk points:
+- New file src/app/socialsContext.test.ts: 3 cases covering pendingShare
+  capture-at-click, pendingCommunityOrigin per-source, null-pending
+  no-op semantics.
+
+CHANGES NOT MADE (and reasons):
+- The codex review suggested adding an `off` method to SdkService;
+  instead we used the singleton-context pattern which avoids the
+  off-needed problem. GP SDK does not document a clean off-token,
+  so a single global listener is a stronger guarantee than per-scene
+  on/off.
+- Tests for the actual SDK Promise rejection path are not added at
+  the gate level — try/catch + async/await pattern in
+  GamePushSdkService is well-known-safe and would require mocking
+  GP SDK in unit tests, which we don't have infra for. The
+  socialsContext tests cover the riskier listener-attribution path.
+
+YOUR TASK:
+1. For each of the R1 concerns, mark Closed / Open / Partially-closed
+   based on the diff below.
+2. Surface any NEW issues introduced by the r2 fix (listener pattern,
+   async types).
+3. End with verdict line — MUST be the LAST non-empty line:
+   either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing
+  punctuation.
+
+=== ROUND 1 REVIEW ===

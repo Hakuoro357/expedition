@@ -1,0 +1,926 @@
+diff --git a/.omc/project-memory.json b/.omc/project-memory.json
+index beb9882..0063e4f 100644
+--- a/.omc/project-memory.json
++++ b/.omc/project-memory.json
+@@ -1,6 +1,6 @@
+ {
+   "version": "1.0.0",
+-  "lastScanned": 1778154346900,
++  "lastScanned": 1778328705894,
+   "projectRoot": "C:\\Users\\RobotComp.ru\\games\\Yandex\\01-solitaire-expedition",
+   "techStack": {
+     "languages": [
+@@ -76,21 +76,21 @@
+       "path": "assets-source",
+       "purpose": null,
+       "fileCount": 0,
+-      "lastAccessed": 1778154346858,
++      "lastAccessed": 1778328705841,
+       "keyFiles": []
+     },
+     "builds": {
+       "path": "builds",
+       "purpose": null,
+       "fileCount": 0,
+-      "lastAccessed": 1778154346859,
++      "lastAccessed": 1778328705856,
+       "keyFiles": []
+     },
+     "dist": {
+       "path": "dist",
+       "purpose": "Distribution/build output",
+       "fileCount": 1,
+-      "lastAccessed": 1778154346870,
++      "lastAccessed": 1778328705857,
+       "keyFiles": [
+         "index.html"
+       ]
+@@ -99,7 +99,7 @@
+       "path": "docs",
+       "purpose": "Documentation",
+       "fileCount": 1,
+-      "lastAccessed": 1778154346871,
++      "lastAccessed": 1778328705858,
+       "keyFiles": [
+         "tomorrow-plan.md"
+       ]
+@@ -108,7 +108,7 @@
+       "path": "graphify-out",
+       "purpose": null,
+       "fileCount": 5,
+-      "lastAccessed": 1778154346871,
++      "lastAccessed": 1778328705859,
+       "keyFiles": [
+         "cost.json",
+         "graph.html",
+@@ -120,18 +120,21 @@
+     "plans": {
+       "path": "plans",
+       "purpose": null,
+-      "fileCount": 2,
+-      "lastAccessed": 1778154346872,
++      "fileCount": 10,
++      "lastAccessed": 1778328705860,
+       "keyFiles": [
+         "gamescene-decomposition-decision-log-r3.md",
+-        "gamescene-decomposition-final.md"
++        "gamescene-decomposition-final.md",
++        "v0343-code-review-diff.patch",
++        "v0343-code-review-r1-prompt.txt",
++        "v0343-code-review-r1.md"
+       ]
+     },
+     "promo": {
+       "path": "promo",
+       "purpose": null,
+       "fileCount": 55,
+-      "lastAccessed": 1778154346873,
++      "lastAccessed": 1778328705860,
+       "keyFiles": [
+         "16x9_screenshot-1-prologue-en.png",
+         "16x9_screenshot-1-prologue-tr.png",
+@@ -144,14 +147,14 @@
+       "path": "public",
+       "purpose": "Public files",
+       "fileCount": 0,
+-      "lastAccessed": 1778154346873,
++      "lastAccessed": 1778328705861,
+       "keyFiles": []
+     },
+     "scripts": {
+       "path": "scripts",
+       "purpose": "Build/utility scripts",
+       "fileCount": 9,
+-      "lastAccessed": 1778154346874,
++      "lastAccessed": 1778328705861,
+       "keyFiles": [
+         "captureScreenshots.mjs",
+         "captureVideo.mjs",
+@@ -164,7 +167,7 @@
+       "path": "src",
+       "purpose": "Source code",
+       "fileCount": 3,
+-      "lastAccessed": 1778154346874,
++      "lastAccessed": 1778328705862,
+       "keyFiles": [
+         "env.d.ts",
+         "main.ts",
+@@ -175,14 +178,14 @@
+       "path": "test-results",
+       "purpose": null,
+       "fileCount": 1,
+-      "lastAccessed": 1778154346875,
++      "lastAccessed": 1778328705863,
+       "keyFiles": []
+     },
+     "dist\\assets": {
+       "path": "dist\\assets",
+       "purpose": "Static assets",
+       "fileCount": 35,
+-      "lastAccessed": 1778154346876,
++      "lastAccessed": 1778328705865,
+       "keyFiles": [
+         "artifact_archive_seal_grid-DSXZrvDk.png",
+         "artifact_archive_seal_grid_blur-rnJZLdgv.png",
+@@ -193,7 +196,7 @@
+       "path": "public\\assets",
+       "purpose": "Static assets",
+       "fileCount": 1,
+-      "lastAccessed": 1778154346878,
++      "lastAccessed": 1778328705867,
+       "keyFiles": [
+         "icon-loading.png"
+       ]
+@@ -202,7 +205,7 @@
+       "path": "src\\app",
+       "purpose": "Application code",
+       "fileCount": 2,
+-      "lastAccessed": 1778154346879,
++      "lastAccessed": 1778328705868,
+       "keyFiles": [
+         "rendering.test.ts",
+         "rendering.ts"
+@@ -212,14 +215,14 @@
+       "path": "src\\assets",
+       "purpose": "Static assets",
+       "fileCount": 0,
+-      "lastAccessed": 1778154346879,
++      "lastAccessed": 1778328705869,
+       "keyFiles": []
+     },
+     "src\\data": {
+       "path": "src\\data",
+       "purpose": "Data files",
+       "fileCount": 9,
+-      "lastAccessed": 1778154346880,
++      "lastAccessed": 1778328705869,
+       "keyFiles": [
+         "artifactAssetUrls.ts",
+         "artifacts.ts",
+@@ -230,244 +233,178 @@
+       "path": "src\\services",
+       "purpose": "Business logic services",
+       "fileCount": 0,
+-      "lastAccessed": 1778154346880,
++      "lastAccessed": 1778328705869,
+       "keyFiles": []
+     }
+   },
+   "hotPaths": [
+     {
+-      "path": "src\\styles.css",
+-      "accessCount": 33,
+-      "lastAccessed": 1778166384229,
+-      "type": "directory"
+-    },
+-    {
+-      "path": "src\\scenes\\GameScene.ts",
+-      "accessCount": 30,
+-      "lastAccessed": 1778160807873,
+-      "type": "file"
+-    },
+-    {
+-      "path": "src\\services\\i18n\\locales.ts",
+-      "accessCount": 27,
+-      "lastAccessed": 1778166993807,
++      "path": "src\\scenes\\RewardScene.ts",
++      "accessCount": 13,
++      "lastAccessed": 1778409928008,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\DiaryScene.ts",
+-      "accessCount": 23,
+-      "lastAccessed": 1778164959314,
++      "path": "src\\scenes\\MapScene.ts",
++      "accessCount": 12,
++      "lastAccessed": 1778410048330,
+       "type": "directory"
+     },
+     {
+-      "path": "src\\scenes\\SettingsScene.ts",
+-      "accessCount": 15,
+-      "lastAccessed": 1778157836367,
+-      "type": "file"
+-    },
+-    {
+-      "path": "src\\scenes\\DetailScene.ts",
+-      "accessCount": 15,
+-      "lastAccessed": 1778164942071,
+-      "type": "file"
++      "path": "src\\services\\i18n\\locales.ts",
++      "accessCount": 10,
++      "lastAccessed": 1778408102047,
++      "type": "directory"
+     },
+     {
+-      "path": "src\\scenes\\BootScene.ts",
+-      "accessCount": 14,
+-      "lastAccessed": 1778163110430,
++      "path": "src\\scenes\\TitleScene.ts",
++      "accessCount": 10,
++      "lastAccessed": 1778409995211,
+       "type": "file"
+     },
+     {
+-      "path": "src\\services\\sound\\SoundService.ts",
+-      "accessCount": 11,
+-      "lastAccessed": 1778168188854,
++      "path": "src\\scenes\\routeSceneOverlay.ts",
++      "accessCount": 10,
++      "lastAccessed": 1778410104061,
+       "type": "directory"
+     },
+     {
+-      "path": "src\\scenes\\settingsSceneOverlay.ts",
+-      "accessCount": 8,
+-      "lastAccessed": 1778157853512,
+-      "type": "file"
+-    },
+-    {
+-      "path": "package.json",
+-      "accessCount": 7,
+-      "lastAccessed": 1778168480371,
++      "path": "src\\scenes\\rewardSceneOverlay.ts",
++      "accessCount": 5,
++      "lastAccessed": 1778407961400,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\MapScene.ts",
+-      "accessCount": 6,
+-      "lastAccessed": 1778159497300,
++      "path": "src\\services\\sdk\\YandexSdkService.ts",
++      "accessCount": 5,
++      "lastAccessed": 1778409772062,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\TitleScene.ts",
+-      "accessCount": 5,
+-      "lastAccessed": 1778158721569,
++      "path": "src\\env.d.ts",
++      "accessCount": 4,
++      "lastAccessed": 1778409735436,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\archiveSceneOverlay.ts",
++      "path": "src\\scenes\\BootScene.ts",
+       "accessCount": 4,
+-      "lastAccessed": 1778164368245,
++      "lastAccessed": 1778409860646,
+       "type": "file"
+     },
+     {
+-      "path": "src\\app\\config\\economy.ts",
++      "path": "src",
+       "accessCount": 3,
+-      "lastAccessed": 1778155724155,
+-      "type": "file"
++      "lastAccessed": 1778406230094,
++      "type": "directory"
+     },
+     {
+-      "path": "src\\ui\\confirmDialog.ts",
++      "path": "src\\scenes\\titleSceneOverlay.ts",
+       "accessCount": 3,
+-      "lastAccessed": 1778155812187,
++      "lastAccessed": 1778408238441,
+       "type": "file"
+     },
+     {
+-      "path": "src\\app\\config\\gameConfig.ts",
++      "path": "src\\styles.css",
+       "accessCount": 3,
+-      "lastAccessed": 1778155958625,
+-      "type": "file"
++      "lastAccessed": 1778408408378,
++      "type": "directory"
+     },
+     {
+-      "path": "src\\app\\bootstrap\\createGame.ts",
++      "path": "src\\services\\i18n\\I18nService.ts",
+       "accessCount": 3,
+-      "lastAccessed": 1778156037212,
++      "lastAccessed": 1778408747511,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\RewardScene.ts",
++      "path": "src\\services\\sdk\\SdkService.ts",
+       "accessCount": 3,
+-      "lastAccessed": 1778163139649,
++      "lastAccessed": 1778409749213,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\PrologueScene.ts",
++      "path": "src\\services\\sdk\\GamePushSdkService.ts",
+       "accessCount": 3,
+-      "lastAccessed": 1778163232319,
+-      "type": "directory"
++      "lastAccessed": 1778409760668,
++      "type": "file"
+     },
+     {
+-      "path": "src\\scenes",
++      "path": "src\\services\\save\\SaveService.test.ts",
+       "accessCount": 3,
+-      "lastAccessed": 1778164256089,
+-      "type": "directory"
+-    },
+-    {
+-      "path": "src\\scenes\\gameSceneOverlay.ts",
+-      "accessCount": 2,
+-      "lastAccessed": 1778154892500,
++      "lastAccessed": 1778409784032,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\rewardRevealItems.ts",
+-      "accessCount": 2,
+-      "lastAccessed": 1778154989981,
++      "path": "index.html",
++      "accessCount": 3,
++      "lastAccessed": 1778410068779,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\settingsSceneOverlay.test.ts",
++      "path": "src\\scenes\\rewardSceneOverlay.test.ts",
+       "accessCount": 2,
+-      "lastAccessed": 1778158750908,
++      "lastAccessed": 1778408577847,
+       "type": "file"
+     },
+     {
+-      "path": "src\\data\\routeSheets.ts",
+-      "accessCount": 2,
+-      "lastAccessed": 1778160290235,
+-      "type": "directory"
+-    },
+-    {
+-      "path": "src",
+-      "accessCount": 2,
+-      "lastAccessed": 1778163349265,
+-      "type": "directory"
+-    },
+-    {
+-      "path": "src\\scenes\\archiveSceneOverlay.test.ts",
++      "path": "src\\scenes\\titleSceneOverlay.test.ts",
+       "accessCount": 2,
+-      "lastAccessed": 1778164611888,
++      "lastAccessed": 1778408601774,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\rewardSceneOverlay.ts",
+-      "accessCount": 1,
+-      "lastAccessed": 1778154882933,
++      "path": "src\\scenes\\routeSceneOverlay.test.ts",
++      "accessCount": 2,
++      "lastAccessed": 1778408663598,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\gameSceneUndo.test.ts",
+-      "accessCount": 1,
+-      "lastAccessed": 1778154902448,
++      "path": "package.json",
++      "accessCount": 2,
++      "lastAccessed": 1778410164207,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\gameSceneOverlay.test.ts",
++      "path": "docs\\specs\\2026-05-04-gamepush-socials.md",
+       "accessCount": 1,
+-      "lastAccessed": 1778154902797,
++      "lastAccessed": 1778406035788,
+       "type": "file"
+     },
+     {
+-      "path": "src\\main.ts",
++      "path": "src\\scenes",
+       "accessCount": 1,
+-      "lastAccessed": 1778155632084,
++      "lastAccessed": 1778408612292,
+       "type": "directory"
+     },
+     {
+-      "path": "src\\scenes\\titleSceneOverlay.ts",
++      "path": "src\\services\\i18n\\I18nService.test.ts",
+       "accessCount": 1,
+-      "lastAccessed": 1778155978236,
++      "lastAccessed": 1778408687360,
+       "type": "file"
+     },
+     {
+-      "path": "src\\scenes\\titleSceneOverlay.test.ts",
++      "path": "plans\\v0351-codex-review-r1-prompt.txt",
+       "accessCount": 1,
+-      "lastAccessed": 1778156275641,
++      "lastAccessed": 1778409401796,
+       "type": "file"
+     },
+     {
+-      "path": "docs\\specs\\2026-05-04-gamepush-socials.md",
++      "path": "plans\\v0351-codex-review-r1.md",
+       "accessCount": 1,
+-      "lastAccessed": 1778156329943,
++      "lastAccessed": 1778409668569,
+       "type": "file"
+     },
+     {
+-      "path": "plans\\v0343-code-review-r1-prompt.txt",
++      "path": "src\\app\\socialsContext.ts",
+       "accessCount": 1,
+-      "lastAccessed": 1778156799353,
++      "lastAccessed": 1778409810545,
+       "type": "file"
+     },
+     {
+-      "path": "plans\\v0345-xiaomi-review-r1-prompt.txt",
++      "path": "src\\app\\socialsContext.test.ts",
+       "accessCount": 1,
+-      "lastAccessed": 1778158539563,
++      "lastAccessed": 1778410126146,
+       "type": "file"
+-    },
+-    {
+-      "path": "plans\\v0345-xiaomi-review-r1.md",
+-      "accessCount": 1,
+-      "lastAccessed": 1778158688671,
+-      "type": "file"
+-    },
+-    {
+-      "path": "src\\data\\artifacts.ts",
+-      "accessCount": 1,
+-      "lastAccessed": 1778164314110,
+-      "type": "directory"
+-    },
+-    {
+-      "path": "src\\data\\artifactAssetUrls.ts",
+-      "accessCount": 1,
+-      "lastAccessed": 1778164396425,
+-      "type": "directory"
+-    },
+-    {
+-      "path": "src\\data\\chapters.ts",
+-      "accessCount": 1,
+-      "lastAccessed": 1778164861303,
+-      "type": "directory"
+     }
+   ],
+   "userDirectives": []
+diff --git a/.omc/state/last-tool-error.json b/.omc/state/last-tool-error.json
+index e05d0e8..47f69a3 100644
+--- a/.omc/state/last-tool-error.json
++++ b/.omc/state/last-tool-error.json
+@@ -1,7 +1,7 @@
+ {
+-  "tool_name": "WebFetch",
+-  "tool_input_preview": "{\"url\":\"https://docs.gamepush.com/ru/docs/\",\"prompt\":\"Where is the SDK reference documentation? What sections cover SDK methods for social actions, sharing, community features, and platform integratio...",
+-  "error": "Request failed with status code 404",
+-  "timestamp": "2026-05-07T11:54:59.799Z",
+-  "retry_count": 2
++  "tool_name": "Bash",
++  "tool_input_preview": "{\"command\":\"ls \\\"C:\\\\Users\\\\RobotComp.ru\\\\games\\\\Yandex\\\\01-solitaire-expedition\\\\src\\\\scenes\\\\\\\" | grep -i \\\"route\\\"\",\"description\":\"Find route-related test files\"}",
++  "error": "Exit code 2\n/usr/bin/bash: eval: line 1: unexpected EOF while looking for matching `\"'",
++  "timestamp": "2026-05-10T10:23:49.494Z",
++  "retry_count": 1
+ }
+\ No newline at end of file
+diff --git a/index.html b/index.html
+index 9c6ce40..2d22801 100644
+--- a/index.html
++++ b/index.html
+@@ -12,14 +12,16 @@
+     <meta name="mobile-web-app-capable" content="yes" />
+     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23132220'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' text-anchor='middle' fill='%23d4a962'%3ES%3C/text%3E%3C/svg%3E" />
+     <title>Solitaire: Expedition</title>
+-    <!-- Open Graph meta-теги для GP-share v0.3.51. Используются
+-         gp.socials.share() для рендера превью-карточки в VK/OK feed.
+-         og:image указывает на cover 1200×630 (промо-asset, делается
+-         отдельно). Если URL картинки временно недоступен — share
+-         будет работать без превью, текст из shareWinText останется. -->
++    <!-- Open Graph meta-теги для GP-share. Используются gp.socials.share()
++         для рендера превью-карточки в VK/OK feed.
++         og:image НАМЕРЕННО опущен в v0.3.52: до того как реальный
++         cover 1200×630 загружен на CDN, placeholder-URL давал бы пустую
++         или неудачную карточку (некоторые crawler'ы кэшируют
++         "image not found" и потом показывают сломанный preview даже
++         после фикса). Без og:image VK/OK покажут карточку без
++         картинки, share-текст останется — это безопасный default. -->
+     <meta property="og:title" content="Solitaire: Expedition" />
+     <meta property="og:description" content="Тихая косынка с экспедиционным сюжетом. 30 точек маршрута, 7 локалей, полностью offline." />
+-    <meta property="og:image" content="https://gd.gamepush.com/expedition/cover-1200x630.png" />
+     <meta property="og:type" content="website" />
+     <!-- Регистрируем callback ДО загрузки GamePush SDK — иначе SDK
+          вызовет onGPInit синхронно при загрузке скрипта, а наш
+diff --git a/package.json b/package.json
+index 92a02f5..b33fd6f 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "solitaire-expedition",
+   "private": true,
+-  "version": "0.3.51",
++  "version": "0.3.52",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/src/env.d.ts b/src/env.d.ts
+index a196c9b..030508d 100644
+--- a/src/env.d.ts
++++ b/src/env.d.ts
+@@ -121,10 +121,16 @@ interface GamePushSocials {
+   isSupportsNativeInvite?: boolean;
+   canJoinCommunity: boolean;
+   isSupportsNativeCommunityJoin?: boolean;
+-  share(options?: GamePushSocialOptions): void;
+-  post?(options?: GamePushSocialOptions): void;
+-  invite?(options?: GamePushSocialOptions): void;
+-  joinCommunity(): void;
++  /**
++   * GP типизирует share/joinCommunity как async (Promise) — см.
++   * https://gamepush.com/sdk/docs/classes/Socials.html
++   * Если указать `void`, то async-rejected дойдёт до global error
++   * handler в обход нашего try/catch.
++   */
++  share(options?: GamePushSocialOptions): Promise<unknown>;
++  post?(options?: GamePushSocialOptions): Promise<unknown>;
++  invite?(options?: GamePushSocialOptions): Promise<unknown>;
++  joinCommunity(): Promise<boolean>;
+   on(event: "share" | "post" | "invite" | "joinCommunity", callback: (success: boolean) => void): void;
+ }
+ 
+diff --git a/src/scenes/BootScene.ts b/src/scenes/BootScene.ts
+index de9cdfe..60055b3 100644
+--- a/src/scenes/BootScene.ts
++++ b/src/scenes/BootScene.ts
+@@ -1,6 +1,7 @@
+ import Phaser from "phaser";
+ import { getAppContext, setAppContext } from "@/app/config/appContext";
+ import { SCENES } from "@/app/config/gameConfig";
++import { socialsContext } from "@/app/socialsContext";
+ import { ARTIFACTS } from "@/data/artifacts";
+ import { CHAPTERS } from "@/data/chapters";
+ import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
+@@ -142,6 +143,27 @@ export class BootScene extends Phaser.Scene {
+       void save.flush();
+     });
+     sdk.onResume(() => sound.resumeAudio());
++
++    // Социальные слушатели — единственная установка на весь lifecycle
++    // приложения. Сцены НЕ подписываются сами; вместо этого ставят
++    // socialsContext.pendingShare / pendingCommunityOrigin перед
++    // вызовом sdk.share/joinCommunity, и здесь listener читает
++    // pending-контекст и тут же его сбрасывает. Подробнее — JSDoc
++    // в src/app/socialsContext.ts (объясняет проблему listener-leak'ов
++    // которые исправил v0.3.52 после code-review).
++    sdk.onShareResult((success) => {
++      const ctx = socialsContext.pendingShare;
++      socialsContext.pendingShare = null;
++      if (!success || !ctx) return;
++      analytics.track("share_win_success", { dealId: ctx.dealId });
++      sound.goodMove();
++    });
++    sdk.onJoinCommunityResult((success) => {
++      const origin = socialsContext.pendingCommunityOrigin;
++      socialsContext.pendingCommunityOrigin = null;
++      if (!success || !origin) return;
++      analytics.track("community_join_success", { from: origin });
++    });
+     // Глобальный safety net: pagehide / visibilitychange:hidden срабатывают
+     // при закрытии вкладки или сворачивании браузера. Без этого мы теряли
+     // currentGame (он копится в памяти и не дёргает scheduleSync — экономия
+diff --git a/src/scenes/MapScene.ts b/src/scenes/MapScene.ts
+index c9e1bf2..4cf19b4 100644
+--- a/src/scenes/MapScene.ts
++++ b/src/scenes/MapScene.ts
+@@ -2,6 +2,7 @@ import Phaser from "phaser";
+ 
+ import { getAppContext } from "@/app/config/appContext";
+ import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
++import { socialsContext } from "@/app/socialsContext";
+ import { applyTextRenderQuality } from "@/app/rendering";
+ import type { ProgressState } from "@/core/game-state/types";
+ import { getNodeById, type ChapterNode } from "@/data/chapters";
+@@ -38,8 +39,6 @@ export class MapScene extends Phaser.Scene {
+   private content?: Phaser.GameObjects.Container;
+   private currentPage = 1;
+   private dragStart?: { x: number; y: number };
+-  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
+-  private communityListenerInstalled = false;
+ 
+   constructor() {
+     super(SCENES.map);
+@@ -414,21 +413,16 @@ export class MapScene extends Phaser.Scene {
+       disposers.push(() => muteBtn.removeEventListener("click", onClick));
+     }
+ 
+-    // v0.3.51: иконка-кнопка community рядом с mute. Видна только
+-    // когда canJoinCommunity=true (рендерится в overlay-HTML по
+-    // showCommunityButton). Клик → gp.socials.joinCommunity().
++    // v0.3.51 → v0.3.52: иконка-кнопка community рядом с mute. Видна
++    // только когда canJoinCommunity=true (рендерится по showCommunityButton).
++    // Result-listener устанавливает BootScene глобально, читает
++    // socialsContext. Этот клик-handler только ставит pending-origin
++    // и зовёт sdk.joinCommunity().
+     const communityBtn = root.querySelector<HTMLElement>('[data-route-action="community"]');
+     if (communityBtn) {
+-      if (!this.communityListenerInstalled) {
+-        getAppContext().sdk.onJoinCommunityResult((success) => {
+-          if (success) {
+-            getAppContext().analytics.track("community_join_success", { from: "map" });
+-          }
+-        });
+-        this.communityListenerInstalled = true;
+-      }
+       const onClick = (): void => {
+-        getAppContext().sdk.joinCommunity();
++        socialsContext.pendingCommunityOrigin = "map";
++        void getAppContext().sdk.joinCommunity();
+       };
+       communityBtn.addEventListener("click", onClick);
+       disposers.push(() => communityBtn.removeEventListener("click", onClick));
+diff --git a/src/scenes/RewardScene.ts b/src/scenes/RewardScene.ts
+index 61d9031..d058f72 100644
+--- a/src/scenes/RewardScene.ts
++++ b/src/scenes/RewardScene.ts
+@@ -3,6 +3,7 @@ import Phaser from "phaser";
+ import { getAppContext } from "@/app/config/appContext";
+ import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+ import { ECONOMY } from "@/app/config/economy";
++import { socialsContext } from "@/app/socialsContext";
+ import type { GameMode } from "@/core/game-state/types";
+ import { CHAPTERS, getNodeById } from "@/data/chapters";
+ import { getDailyDateKey } from "@/data/dailyDeals";
+@@ -47,14 +48,20 @@ export class RewardScene extends Phaser.Scene {
+   private chapterProgressLabel: string | undefined;
+   /**
+    * v0.3.51: gp.socials.share. canShare === true только если SDK
+-   * платформенно поддерживает share (`canShare()`), сцена не
+-   * находится в replay-режиме (returnFromDetail) и не в dev-preview.
++   * платформенно поддерживает share (`canShare()`), партия НЕ replay
++   * (returnFromDetail), не в dev-preview, и mode === "adventure"
++   * (для quick-play/daily ограничиваем — нет осмысленного pointTitle).
+    * shareUsed предотвращает повторный share на этой партии (one-shot
+    * cooldown). Кнопка скрывается при canShare=false.
++   *
++   * v0.3.52: listener для onShareResult НЕ устанавливается per-scene —
++   * глобальный listener в BootScene читает socialsContext.pendingShare
++   * и обнуляет его. Так избегаем накопления listener'ов после
++   * RewardScene → RewardScene и stale dealId если результат пришёл
++   * после смены сцены.
+    */
+   private canShare = false;
+   private shareUsed = false;
+-  private shareListenerInstalled = false;
+ 
+   constructor() {
+     super(SCENES.reward);
+@@ -69,11 +76,14 @@ export class RewardScene extends Phaser.Scene {
+     this.dealId = data.dealId ?? "";
+     this.preview = data.preview === true;
+     this.coinsAwarded = 0;
+-    // Share-кнопка: видна только если platform-SDK поддерживает share,
+-    // партия не replay (returnFromDetail) и не preview, и есть dealId.
+-    // returnFromDetail=true означает что игрок уже видел этот reward —
+-    // повторный share исказил бы статистику и был бы спамом в фиде.
++    // Share-кнопка: видна только в adventure-режиме (где есть
++    // осмысленный pointTitle для контекстной share-карточки),
++    // SDK платформенно поддерживает share, партия НЕ replay
++    // (returnFromDetail) и НЕ preview, и dealId непустой.
++    // Quick-play / daily специально исключены — для них шаблон
++    // shareWinText давал бы пустое имя точки.
+     this.canShare =
++      this.mode === "adventure" &&
+       getAppContext().sdk.canShare() &&
+       !data.returnFromDetail &&
+       !data.preview &&
+@@ -352,29 +362,26 @@ export class RewardScene extends Phaser.Scene {
+     const shareBtn = root.querySelector<HTMLElement>("[data-reward-share]");
+     if (shareBtn && this.canShare) {
+       shareBtn.style.pointerEvents = "auto";
+-      // Слушатель результата устанавливаем один раз — повторные
+-      // вызовы on('share', cb) могли бы накопить дубль-callback'и при
+-      // перерендерах overlay (renderOverlay вызывается после ad-watch).
+-      if (!this.shareListenerInstalled) {
+-        getAppContext().sdk.onShareResult((success) => {
+-          if (success && !this.preview) {
+-            analytics.track("share_win_success", { dealId: this.dealId });
+-            sound.goodMove();
+-          }
+-        });
+-        this.shareListenerInstalled = true;
+-      }
+       const onShareClick = (): void => {
+         if (this.shareUsed || !this.dealId) return;
+-        const narrativeLocale = getAppContext().i18n.getNarrativeLocale();
++        const ctx = getAppContext();
++        const narrativeLocale = ctx.i18n.getNarrativeLocale();
+         const text = buildShareWinText(
+           this.dealId,
+           narrativeLocale,
+-          getAppContext().i18n,
++          ctx.i18n,
+         );
+-        getAppContext().sdk.share({ text });
++        // Контекст для глобального onShareResult listener'а в BootScene.
++        // Захватываем dealId на момент клика — если share-result придёт
++        // поздно (после смены сцены), listener увидит наш контекст,
++        // отработает analytics и обнулит. См. socialsContext.ts.
++        socialsContext.pendingShare = {
++          dealId: this.dealId,
++          locale: narrativeLocale,
++        };
++        // Promise sdk.share() самосдерживает rejections (см. SdkService).
++        void ctx.sdk.share({ text });
+         this.shareUsed = true;
+-        // Перерендер вернёт shareDisabled=true → класс modal-btn--disabled.
+         this.renderOverlay();
+       };
+       shareBtn.addEventListener("click", onShareClick);
+diff --git a/src/scenes/TitleScene.ts b/src/scenes/TitleScene.ts
+index 1d267a9..4e291d3 100644
+--- a/src/scenes/TitleScene.ts
++++ b/src/scenes/TitleScene.ts
+@@ -8,6 +8,7 @@ import {
+   GAME_WIDTH,
+   SCENES,
+ } from "@/app/config/gameConfig";
++import { socialsContext } from "@/app/socialsContext";
+ import { createInitialProgressState } from "@/core/game-state/progress";
+ import { createTitleSceneOverlayHtml } from "@/scenes/titleSceneOverlay";
+ import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+@@ -33,8 +34,6 @@ import { showConfirmDialog } from "@/ui/confirmDialog";
+ export class TitleScene extends Phaser.Scene {
+   private overlay?: CanvasOverlayHandle;
+   private overlayCleanup?: () => void;
+-  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
+-  private communityListenerInstalled = false;
+ 
+   constructor() {
+     super(SCENES.title);
+@@ -130,16 +129,10 @@ export class TitleScene extends Phaser.Scene {
+       logicalWidth: GAME_CANVAS_WIDTH,
+       logicalHeight: GAME_HEIGHT,
+     });
+-    if (showCommunityButton && !this.communityListenerInstalled) {
+-      // Подписку ставим один раз на сцену — overlay-rerender'ы
+-      // не должны накапливать дубль-callback'и.
+-      sdk.onJoinCommunityResult((success) => {
+-        if (success) {
+-          getAppContext().analytics.track("community_join_success", { from: "title" });
+-        }
+-      });
+-      this.communityListenerInstalled = true;
+-    }
++    // Subscribe-логика для onJoinCommunityResult вынесена в BootScene
++    // (один глобальный listener, читает socialsContext). См. v0.3.52
++    // code-review fix: per-scene listener'ы накапливались и
++    // misattribute'или join одного клика на несколько origin'ов.
+     this.bindOverlayEvents(continueEnabled);
+   }
+ 
+@@ -159,7 +152,10 @@ export class TitleScene extends Phaser.Scene {
+         } else if (action === "settings") {
+           this.scene.start(SCENES.settings, { returnTo: "title" });
+         } else if (action === "community") {
+-          getAppContext().sdk.joinCommunity();
++          // pendingCommunityOrigin читает глобальный listener в BootScene
++          // и attribut'ит analytics на правильный origin (title vs map).
++          socialsContext.pendingCommunityOrigin = "title";
++          void getAppContext().sdk.joinCommunity();
+         }
+       };
+       el.style.pointerEvents = "auto";
+diff --git a/src/scenes/routeSceneOverlay.ts b/src/scenes/routeSceneOverlay.ts
+index 24b6851..be2768f 100644
+--- a/src/scenes/routeSceneOverlay.ts
++++ b/src/scenes/routeSceneOverlay.ts
+@@ -186,15 +186,18 @@ export function createRouteSceneOverlayHtml({
+   communityAriaLabel = "Open community",
+ }: RouteSceneOverlayParams): string {
+   const soundIcon = muted
+-    ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+-    : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
++    ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
++    : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+   const muteBtnClass = muted
+     ? "route-overlay__mute route-overlay__mute--muted"
+     : "route-overlay__mute";
+   const muteBtnHtml = `<button class="${muteBtnClass}" type="button" data-route-action="toggle-mute" aria-label="${escapeHtml(muteAriaLabel)}" aria-pressed="${muted ? "true" : "false"}">${soundIcon}</button>`;
+   // SVG иконка community (3 силуэта людей) — inline 22×22, такой же
+   // размер как у sound-иконки, чтобы кнопки визуально согласовывались.
+-  const communityIcon = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
++  // aria-hidden="true" + focusable="false" — стандарт для декоративной
++  // SVG внутри кнопки с aria-label: screen reader не дублирует
++  // содержимое svg, focus идёт только на саму button.
++  const communityIcon = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+   const communityBtnHtml = showCommunityButton
+     ? `<button class="route-overlay__community" type="button" data-route-action="community" aria-label="${escapeHtml(communityAriaLabel)}">${communityIcon}</button>`
+     : "";
+diff --git a/src/services/save/SaveService.test.ts b/src/services/save/SaveService.test.ts
+index b66044a..d66aa5f 100644
+--- a/src/services/save/SaveService.test.ts
++++ b/src/services/save/SaveService.test.ts
+@@ -47,8 +47,10 @@ function createSdkStub(initialCloud: string | null = null): SdkService & {
+     },
+     canShare: () => false,
+     canJoinCommunity: () => false,
+-    share() {},
+-    joinCommunity() {},
++    async share() {},
++    async joinCommunity() {
++      return false;
++    },
+     onShareResult() {},
+     onJoinCommunityResult() {},
+   };
+diff --git a/src/services/sdk/GamePushSdkService.ts b/src/services/sdk/GamePushSdkService.ts
+index d7b5690..7442be5 100644
+--- a/src/services/sdk/GamePushSdkService.ts
++++ b/src/services/sdk/GamePushSdkService.ts
+@@ -281,19 +281,25 @@ export class GamePushSdkService implements SdkService {
+     return this.gp?.socials?.canJoinCommunity === true;
+   }
+ 
+-  share(options: { text?: string; url?: string; image?: string }): void {
++  async share(options: { text?: string; url?: string; image?: string }): Promise<void> {
++    if (!this.gp?.socials) return;
+     try {
+-      this.gp?.socials?.share(options);
++      // gp.socials.share возвращает Promise. Sync try/catch не ловит
++      // async-rejection — дожидаемся await + ловим в общем catch.
++      await this.gp.socials.share(options);
+     } catch (error) {
+       console.warn("[gp] socials.share failed", error);
+     }
+   }
+ 
+-  joinCommunity(): void {
++  async joinCommunity(): Promise<boolean> {
++    if (!this.gp?.socials) return false;
+     try {
+-      this.gp?.socials?.joinCommunity();
++      const result = await this.gp.socials.joinCommunity();
++      return Boolean(result);
+     } catch (error) {
+       console.warn("[gp] socials.joinCommunity failed", error);
++      return false;
+     }
+   }
+ 
+diff --git a/src/services/sdk/SdkService.ts b/src/services/sdk/SdkService.ts
+index cc1e65f..e9ff472 100644
+--- a/src/services/sdk/SdkService.ts
++++ b/src/services/sdk/SdkService.ts
+@@ -115,8 +115,20 @@ export interface SdkService {
+    */
+   canShare(): boolean;
+   canJoinCommunity(): boolean;
+-  share(options: { text?: string; url?: string; image?: string }): void;
+-  joinCommunity(): void;
++  /**
++   * Открыть платформенный share-dialog. Promise resolves когда диалог
++   * закрылся / share завершился. Errors (network, отмена, etc.)
++   * проглатываются в имплементации — Promise всегда resolves, и не
++   * выбрасывает unhandled rejection в global handler. Для аналитики
++   * результата подписываться на onShareResult.
++   */
++  share(options: { text?: string; url?: string; image?: string }): Promise<void>;
++  /**
++   * Открыть платформенный join-community диалог. Resolves true если
++   * пользователь присоединился, иначе false. Errors проглатываются
++   * (resolve false).
++   */
++  joinCommunity(): Promise<boolean>;
+   /** Subscribe to outcome events. callback(true) = действие выполнено. */
+   onShareResult(callback: (success: boolean) => void): void;
+   onJoinCommunityResult(callback: (success: boolean) => void): void;
+diff --git a/src/services/sdk/YandexSdkService.ts b/src/services/sdk/YandexSdkService.ts
+index 3e95e3f..d815109 100644
+--- a/src/services/sdk/YandexSdkService.ts
++++ b/src/services/sdk/YandexSdkService.ts
+@@ -247,12 +247,12 @@ export class YandexSdkService implements SdkService {
+     return false;
+   }
+ 
+-  share(_options: { text?: string; url?: string; image?: string }): void {
+-    // noop
++  async share(_options: { text?: string; url?: string; image?: string }): Promise<void> {
++    // noop on Yandex (canShare возвращает false → UI не вызывает)
+   }
+ 
+-  joinCommunity(): void {
+-    // noop
++  async joinCommunity(): Promise<boolean> {
++    return false;
+   }
+ 
+   onShareResult(_callback: (success: boolean) => void): void {
