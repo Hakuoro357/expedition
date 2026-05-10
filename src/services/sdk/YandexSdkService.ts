@@ -247,12 +247,12 @@ export class YandexSdkService implements SdkService {
     return false;
   }
 
-  share(_options: { text?: string; url?: string; image?: string }): void {
-    // noop
+  async share(_options: { text?: string; url?: string; image?: string }): Promise<void> {
+    // noop on Yandex (canShare возвращает false → UI не вызывает)
   }
 
-  joinCommunity(): void {
-    // noop
+  async joinCommunity(): Promise<boolean> {
+    return false;
   }
 
   onShareResult(_callback: (success: boolean) => void): void {

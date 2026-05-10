@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { getAppContext, setAppContext } from "@/app/config/appContext";
 import { SCENES } from "@/app/config/gameConfig";
+import { socialsContext } from "@/app/socialsContext";
 import { ARTIFACTS } from "@/data/artifacts";
 import { CHAPTERS } from "@/data/chapters";
 import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
@@ -142,6 +143,27 @@ export class BootScene extends Phaser.Scene {
       void save.flush();
     });
     sdk.onResume(() => sound.resumeAudio());
+
+    // Социальные слушатели — единственная установка на весь lifecycle
+    // приложения. Сцены НЕ подписываются сами; вместо этого ставят
+    // socialsContext.pendingShare / pendingCommunityOrigin перед
+    // вызовом sdk.share/joinCommunity, и здесь listener читает
+    // pending-контекст и тут же его сбрасывает. Подробнее — JSDoc
+    // в src/app/socialsContext.ts (объясняет проблему listener-leak'ов
+    // которые исправил v0.3.52 после code-review).
+    sdk.onShareResult((success) => {
+      const ctx = socialsContext.pendingShare;
+      socialsContext.pendingShare = null;
+      if (!success || !ctx) return;
+      analytics.track("share_win_success", { dealId: ctx.dealId });
+      sound.goodMove();
+    });
+    sdk.onJoinCommunityResult((success) => {
+      const origin = socialsContext.pendingCommunityOrigin;
+      socialsContext.pendingCommunityOrigin = null;
+      if (!success || !origin) return;
+      analytics.track("community_join_success", { from: origin });
+    });
     // Глобальный safety net: pagehide / visibilitychange:hidden срабатывают
     // при закрытии вкладки или сворачивании браузера. Без этого мы теряли
     // currentGame (он копится в памяти и не дёргает scheduleSync — экономия

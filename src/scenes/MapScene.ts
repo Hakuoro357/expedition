@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
+import { socialsContext } from "@/app/socialsContext";
 import { applyTextRenderQuality } from "@/app/rendering";
 import type { ProgressState } from "@/core/game-state/types";
 import { getNodeById, type ChapterNode } from "@/data/chapters";
@@ -38,8 +39,6 @@ export class MapScene extends Phaser.Scene {
   private content?: Phaser.GameObjects.Container;
   private currentPage = 1;
   private dragStart?: { x: number; y: number };
-  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
-  private communityListenerInstalled = false;
 
   constructor() {
     super(SCENES.map);
@@ -414,21 +413,16 @@ export class MapScene extends Phaser.Scene {
       disposers.push(() => muteBtn.removeEventListener("click", onClick));
     }
 
-    // v0.3.51: иконка-кнопка community рядом с mute. Видна только
-    // когда canJoinCommunity=true (рендерится в overlay-HTML по
-    // showCommunityButton). Клик → gp.socials.joinCommunity().
+    // v0.3.51 → v0.3.52: иконка-кнопка community рядом с mute. Видна
+    // только когда canJoinCommunity=true (рендерится по showCommunityButton).
+    // Result-listener устанавливает BootScene глобально, читает
+    // socialsContext. Этот клик-handler только ставит pending-origin
+    // и зовёт sdk.joinCommunity().
     const communityBtn = root.querySelector<HTMLElement>('[data-route-action="community"]');
     if (communityBtn) {
-      if (!this.communityListenerInstalled) {
-        getAppContext().sdk.onJoinCommunityResult((success) => {
-          if (success) {
-            getAppContext().analytics.track("community_join_success", { from: "map" });
-          }
-        });
-        this.communityListenerInstalled = true;
-      }
       const onClick = (): void => {
-        getAppContext().sdk.joinCommunity();
+        socialsContext.pendingCommunityOrigin = "map";
+        void getAppContext().sdk.joinCommunity();
       };
       communityBtn.addEventListener("click", onClick);
       disposers.push(() => communityBtn.removeEventListener("click", onClick));

@@ -115,8 +115,20 @@ export interface SdkService {
    */
   canShare(): boolean;
   canJoinCommunity(): boolean;
-  share(options: { text?: string; url?: string; image?: string }): void;
-  joinCommunity(): void;
+  /**
+   * Открыть платформенный share-dialog. Promise resolves когда диалог
+   * закрылся / share завершился. Errors (network, отмена, etc.)
+   * проглатываются в имплементации — Promise всегда resolves, и не
+   * выбрасывает unhandled rejection в global handler. Для аналитики
+   * результата подписываться на onShareResult.
+   */
+  share(options: { text?: string; url?: string; image?: string }): Promise<void>;
+  /**
+   * Открыть платформенный join-community диалог. Resolves true если
+   * пользователь присоединился, иначе false. Errors проглатываются
+   * (resolve false).
+   */
+  joinCommunity(): Promise<boolean>;
   /** Subscribe to outcome events. callback(true) = действие выполнено. */
   onShareResult(callback: (success: boolean) => void): void;
   onJoinCommunityResult(callback: (success: boolean) => void): void;

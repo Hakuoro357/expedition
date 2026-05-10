@@ -8,6 +8,7 @@ import {
   GAME_WIDTH,
   SCENES,
 } from "@/app/config/gameConfig";
+import { socialsContext } from "@/app/socialsContext";
 import { createInitialProgressState } from "@/core/game-state/progress";
 import { createTitleSceneOverlayHtml } from "@/scenes/titleSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
@@ -33,8 +34,6 @@ import { showConfirmDialog } from "@/ui/confirmDialog";
 export class TitleScene extends Phaser.Scene {
   private overlay?: CanvasOverlayHandle;
   private overlayCleanup?: () => void;
-  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
-  private communityListenerInstalled = false;
 
   constructor() {
     super(SCENES.title);
@@ -130,16 +129,10 @@ export class TitleScene extends Phaser.Scene {
       logicalWidth: GAME_CANVAS_WIDTH,
       logicalHeight: GAME_HEIGHT,
     });
-    if (showCommunityButton && !this.communityListenerInstalled) {
-      // Подписку ставим один раз на сцену — overlay-rerender'ы
-      // не должны накапливать дубль-callback'и.
-      sdk.onJoinCommunityResult((success) => {
-        if (success) {
-          getAppContext().analytics.track("community_join_success", { from: "title" });
-        }
-      });
-      this.communityListenerInstalled = true;
-    }
+    // Subscribe-логика для onJoinCommunityResult вынесена в BootScene
+    // (один глобальный listener, читает socialsContext). См. v0.3.52
+    // code-review fix: per-scene listener'ы накапливались и
+    // misattribute'или join одного клика на несколько origin'ов.
     this.bindOverlayEvents(continueEnabled);
   }
 
@@ -159,7 +152,10 @@ export class TitleScene extends Phaser.Scene {
         } else if (action === "settings") {
           this.scene.start(SCENES.settings, { returnTo: "title" });
         } else if (action === "community") {
-          getAppContext().sdk.joinCommunity();
+          // pendingCommunityOrigin читает глобальный listener в BootScene
+          // и attribut'ит analytics на правильный origin (title vs map).
+          socialsContext.pendingCommunityOrigin = "title";
+          void getAppContext().sdk.joinCommunity();
         }
       };
       el.style.pointerEvents = "auto";

@@ -281,19 +281,25 @@ export class GamePushSdkService implements SdkService {
     return this.gp?.socials?.canJoinCommunity === true;
   }
 
-  share(options: { text?: string; url?: string; image?: string }): void {
+  async share(options: { text?: string; url?: string; image?: string }): Promise<void> {
+    if (!this.gp?.socials) return;
     try {
-      this.gp?.socials?.share(options);
+      // gp.socials.share возвращает Promise. Sync try/catch не ловит
+      // async-rejection — дожидаемся await + ловим в общем catch.
+      await this.gp.socials.share(options);
     } catch (error) {
       console.warn("[gp] socials.share failed", error);
     }
   }
 
-  joinCommunity(): void {
+  async joinCommunity(): Promise<boolean> {
+    if (!this.gp?.socials) return false;
     try {
-      this.gp?.socials?.joinCommunity();
+      const result = await this.gp.socials.joinCommunity();
+      return Boolean(result);
     } catch (error) {
       console.warn("[gp] socials.joinCommunity failed", error);
+      return false;
     }
   }
 

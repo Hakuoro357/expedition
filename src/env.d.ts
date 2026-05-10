@@ -121,10 +121,16 @@ interface GamePushSocials {
   isSupportsNativeInvite?: boolean;
   canJoinCommunity: boolean;
   isSupportsNativeCommunityJoin?: boolean;
-  share(options?: GamePushSocialOptions): void;
-  post?(options?: GamePushSocialOptions): void;
-  invite?(options?: GamePushSocialOptions): void;
-  joinCommunity(): void;
+  /**
+   * GP типизирует share/joinCommunity как async (Promise) — см.
+   * https://gamepush.com/sdk/docs/classes/Socials.html
+   * Если указать `void`, то async-rejected дойдёт до global error
+   * handler в обход нашего try/catch.
+   */
+  share(options?: GamePushSocialOptions): Promise<unknown>;
+  post?(options?: GamePushSocialOptions): Promise<unknown>;
+  invite?(options?: GamePushSocialOptions): Promise<unknown>;
+  joinCommunity(): Promise<boolean>;
   on(event: "share" | "post" | "invite" | "joinCommunity", callback: (success: boolean) => void): void;
 }
 

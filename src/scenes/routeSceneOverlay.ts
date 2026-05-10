@@ -186,15 +186,18 @@ export function createRouteSceneOverlayHtml({
   communityAriaLabel = "Open community",
 }: RouteSceneOverlayParams): string {
   const soundIcon = muted
-    ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
-    : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+    ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
   const muteBtnClass = muted
     ? "route-overlay__mute route-overlay__mute--muted"
     : "route-overlay__mute";
   const muteBtnHtml = `<button class="${muteBtnClass}" type="button" data-route-action="toggle-mute" aria-label="${escapeHtml(muteAriaLabel)}" aria-pressed="${muted ? "true" : "false"}">${soundIcon}</button>`;
   // SVG иконка community (3 силуэта людей) — inline 22×22, такой же
   // размер как у sound-иконки, чтобы кнопки визуально согласовывались.
-  const communityIcon = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  // aria-hidden="true" + focusable="false" — стандарт для декоративной
+  // SVG внутри кнопки с aria-label: screen reader не дублирует
+  // содержимое svg, focus идёт только на саму button.
+  const communityIcon = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
   const communityBtnHtml = showCommunityButton
     ? `<button class="route-overlay__community" type="button" data-route-action="community" aria-label="${escapeHtml(communityAriaLabel)}">${communityIcon}</button>`
     : "";

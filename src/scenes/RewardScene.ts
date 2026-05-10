@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { ECONOMY } from "@/app/config/economy";
+import { socialsContext } from "@/app/socialsContext";
 import type { GameMode } from "@/core/game-state/types";
 import { CHAPTERS, getNodeById } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
@@ -47,14 +48,20 @@ export class RewardScene extends Phaser.Scene {
   private chapterProgressLabel: string | undefined;
   /**
    * v0.3.51: gp.socials.share. canShare === true только если SDK
-   * платформенно поддерживает share (`canShare()`), сцена не
-   * находится в replay-режиме (returnFromDetail) и не в dev-preview.
+   * платформенно поддерживает share (`canShare()`), партия НЕ replay
+   * (returnFromDetail), не в dev-preview, и mode === "adventure"
+   * (для quick-play/daily ограничиваем — нет осмысленного pointTitle).
    * shareUsed предотвращает повторный share на этой партии (one-shot
    * cooldown). Кнопка скрывается при canShare=false.
+   *
+   * v0.3.52: listener для onShareResult НЕ устанавливается per-scene —
+   * глобальный listener в BootScene читает socialsContext.pendingShare
+   * и обнуляет его. Так избегаем накопления listener'ов после
+   * RewardScene → RewardScene и stale dealId если результат пришёл
+   * после смены сцены.
    */
   private canShare = false;
   private shareUsed = false;
-  private shareListenerInstalled = false;
 
   constructor() {
     super(SCENES.reward);
@@ -69,11 +76,14 @@ export class RewardScene extends Phaser.Scene {
     this.dealId = data.dealId ?? "";
     this.preview = data.preview === true;
     this.coinsAwarded = 0;
-    // Share-кнопка: видна только если platform-SDK поддерживает share,
-    // партия не replay (returnFromDetail) и не preview, и есть dealId.
-    // returnFromDetail=true означает что игрок уже видел этот reward —
-    // повторный share исказил бы статистику и был бы спамом в фиде.
+    // Share-кнопка: видна только в adventure-режиме (где есть
+    // осмысленный pointTitle для контекстной share-карточки),
+    // SDK платформенно поддерживает share, партия НЕ replay
+    // (returnFromDetail) и НЕ preview, и dealId непустой.
+    // Quick-play / daily специально исключены — для них шаблон
+    // shareWinText давал бы пустое имя точки.
     this.canShare =
+      this.mode === "adventure" &&
       getAppContext().sdk.canShare() &&
       !data.returnFromDetail &&
       !data.preview &&
@@ -352,29 +362,26 @@ export class RewardScene extends Phaser.Scene {
     const shareBtn = root.querySelector<HTMLElement>("[data-reward-share]");
     if (shareBtn && this.canShare) {
       shareBtn.style.pointerEvents = "auto";
-      // Слушатель результата устанавливаем один раз — повторные
-      // вызовы on('share', cb) могли бы накопить дубль-callback'и при
-      // перерендерах overlay (renderOverlay вызывается после ad-watch).
-      if (!this.shareListenerInstalled) {
-        getAppContext().sdk.onShareResult((success) => {
-          if (success && !this.preview) {
-            analytics.track("share_win_success", { dealId: this.dealId });
-            sound.goodMove();
-          }
-        });
-        this.shareListenerInstalled = true;
-      }
       const onShareClick = (): void => {
         if (this.shareUsed || !this.dealId) return;
-        const narrativeLocale = getAppContext().i18n.getNarrativeLocale();
+        const ctx = getAppContext();
+        const narrativeLocale = ctx.i18n.getNarrativeLocale();
         const text = buildShareWinText(
           this.dealId,
           narrativeLocale,
-          getAppContext().i18n,
+          ctx.i18n,
         );
-        getAppContext().sdk.share({ text });
+        // Контекст для глобального onShareResult listener'а в BootScene.
+        // Захватываем dealId на момент клика — если share-result придёт
+        // поздно (после смены сцены), listener увидит наш контекст,
+        // отработает analytics и обнулит. См. socialsContext.ts.
+        socialsContext.pendingShare = {
+          dealId: this.dealId,
+          locale: narrativeLocale,
+        };
+        // Promise sdk.share() самосдерживает rejections (см. SdkService).
+        void ctx.sdk.share({ text });
         this.shareUsed = true;
-        // Перерендер вернёт shareDisabled=true → класс modal-btn--disabled.
         this.renderOverlay();
       };
       shareBtn.addEventListener("click", onShareClick);

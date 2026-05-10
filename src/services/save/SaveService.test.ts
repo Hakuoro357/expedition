@@ -47,8 +47,10 @@ function createSdkStub(initialCloud: string | null = null): SdkService & {
     },
     canShare: () => false,
     canJoinCommunity: () => false,
-    share() {},
-    joinCommunity() {},
+    async share() {},
+    async joinCommunity() {
+      return false;
+    },
     onShareResult() {},
     onJoinCommunityResult() {},
   };
