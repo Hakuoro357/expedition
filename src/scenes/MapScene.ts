@@ -38,6 +38,8 @@ export class MapScene extends Phaser.Scene {
   private content?: Phaser.GameObjects.Container;
   private currentPage = 1;
   private dragStart?: { x: number; y: number };
+  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
+  private communityListenerInstalled = false;
 
   constructor() {
     super(SCENES.map);
@@ -162,6 +164,8 @@ export class MapScene extends Phaser.Scene {
     // Читаем из SoundService (а не sdk.isMuted()) — единственный источник
     // истины для UI, обновляется через onMuteChange listener.
     const platformMuted = sound.isPlatformMuted();
+    const sdk = getAppContext().sdk;
+    const showCommunityButton = sdk.canJoinCommunity();
     this.renderOverlay({
       pageLabel: this.getPageLabel(locale, this.currentPage),
       activePointTitle: panelTitle,
@@ -178,6 +182,8 @@ export class MapScene extends Phaser.Scene {
       showDevTools: import.meta.env.DEV,
       muted: platformMuted,
       muteAriaLabel: platformMuted ? i18n.t("unmute") : i18n.t("mute"),
+      showCommunityButton,
+      communityAriaLabel: showCommunityButton ? i18n.t("communityAriaLabel") : undefined,
     });
   }
 
@@ -406,6 +412,26 @@ export class MapScene extends Phaser.Scene {
       };
       muteBtn.addEventListener("click", onClick);
       disposers.push(() => muteBtn.removeEventListener("click", onClick));
+    }
+
+    // v0.3.51: иконка-кнопка community рядом с mute. Видна только
+    // когда canJoinCommunity=true (рендерится в overlay-HTML по
+    // showCommunityButton). Клик → gp.socials.joinCommunity().
+    const communityBtn = root.querySelector<HTMLElement>('[data-route-action="community"]');
+    if (communityBtn) {
+      if (!this.communityListenerInstalled) {
+        getAppContext().sdk.onJoinCommunityResult((success) => {
+          if (success) {
+            getAppContext().analytics.track("community_join_success", { from: "map" });
+          }
+        });
+        this.communityListenerInstalled = true;
+      }
+      const onClick = (): void => {
+        getAppContext().sdk.joinCommunity();
+      };
+      communityBtn.addEventListener("click", onClick);
+      disposers.push(() => communityBtn.removeEventListener("click", onClick));
     }
 
     this.overlayCleanup = () => {

@@ -33,6 +33,8 @@ import { showConfirmDialog } from "@/ui/confirmDialog";
 export class TitleScene extends Phaser.Scene {
   private overlay?: CanvasOverlayHandle;
   private overlayCleanup?: () => void;
+  /** v0.3.51: однократная подписка на gp.socials.on('joinCommunity'). */
+  private communityListenerInstalled = false;
 
   constructor() {
     super(SCENES.title);
@@ -96,7 +98,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private renderOverlay(): void {
-    const { i18n, save } = getAppContext();
+    const { i18n, save, sdk } = getAppContext();
     const state = save.load();
     // «Продолжить» доступна только после первого прохождения пролога.
     // Чистый старт (prologueShown=false/undefined) → кнопка disabled,
@@ -104,6 +106,11 @@ export class TitleScene extends Phaser.Scene {
     // нужно потому что prologueShown в типе ProgressState помечен как
     // optional (boolean | undefined).
     const continueEnabled = Boolean(state.progress.prologueShown);
+    // 4-я кнопка «Сообщество» — рендерим если SDK сообщает что
+    // community URL настроен (panel.gamepush.com → Settings → Social).
+    // Когда не настроен (или платформа не поддерживает) —
+    // canJoinCommunity → false, кнопки нет, hero-блок остаётся 3-x-кнопочным.
+    const showCommunityButton = sdk.canJoinCommunity();
 
     const html = createTitleSceneOverlayHtml({
       title: i18n.t("title"),
@@ -112,6 +119,8 @@ export class TitleScene extends Phaser.Scene {
       continueLabel: i18n.t("continue"),
       continueEnabled,
       settingsLabel: i18n.t("settings"),
+      showCommunityButton,
+      communityLabel: showCommunityButton ? i18n.t("community") : undefined,
     });
 
     this.overlay = createCanvasAnchoredOverlay({
@@ -121,6 +130,16 @@ export class TitleScene extends Phaser.Scene {
       logicalWidth: GAME_CANVAS_WIDTH,
       logicalHeight: GAME_HEIGHT,
     });
+    if (showCommunityButton && !this.communityListenerInstalled) {
+      // Подписку ставим один раз на сцену — overlay-rerender'ы
+      // не должны накапливать дубль-callback'и.
+      sdk.onJoinCommunityResult((success) => {
+        if (success) {
+          getAppContext().analytics.track("community_join_success", { from: "title" });
+        }
+      });
+      this.communityListenerInstalled = true;
+    }
     this.bindOverlayEvents(continueEnabled);
   }
 
@@ -139,6 +158,8 @@ export class TitleScene extends Phaser.Scene {
           this.handleContinue();
         } else if (action === "settings") {
           this.scene.start(SCENES.settings, { returnTo: "title" });
+        } else if (action === "community") {
+          getAppContext().sdk.joinCommunity();
         }
       };
       el.style.pointerEvents = "auto";

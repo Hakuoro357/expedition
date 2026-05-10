@@ -37,6 +37,15 @@ type RouteSceneOverlayParams = {
   /** GP docs: видимая кнопка управления звуком прямо на главной сцене. */
   muted?: boolean;
   muteAriaLabel?: string;
+  /**
+   * v0.3.51: иконка-кнопка community рядом с mute (правый верхний
+   * угол). Видима только если SDK подтверждает поддержку
+   * (gp.socials.canJoinCommunity) И community URL настроен в
+   * panel.gamepush.com. Если не настроен — кнопки нет, layout не
+   * меняется.
+   */
+  showCommunityButton?: boolean;
+  communityAriaLabel?: string;
 };
 
 /** Viewport width used for label placement clamping */
@@ -173,6 +182,8 @@ export function createRouteSceneOverlayHtml({
   showDevTools,
   muted = false,
   muteAriaLabel = "Toggle sound",
+  showCommunityButton = false,
+  communityAriaLabel = "Open community",
 }: RouteSceneOverlayParams): string {
   const soundIcon = muted
     ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
@@ -181,6 +192,12 @@ export function createRouteSceneOverlayHtml({
     ? "route-overlay__mute route-overlay__mute--muted"
     : "route-overlay__mute";
   const muteBtnHtml = `<button class="${muteBtnClass}" type="button" data-route-action="toggle-mute" aria-label="${escapeHtml(muteAriaLabel)}" aria-pressed="${muted ? "true" : "false"}">${soundIcon}</button>`;
+  // SVG иконка community (3 силуэта людей) — inline 22×22, такой же
+  // размер как у sound-иконки, чтобы кнопки визуально согласовывались.
+  const communityIcon = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  const communityBtnHtml = showCommunityButton
+    ? `<button class="route-overlay__community" type="button" data-route-action="community" aria-label="${escapeHtml(communityAriaLabel)}">${communityIcon}</button>`
+    : "";
 
   const activePointHtml =
     activePointTitle || activePointDescription
@@ -210,6 +227,7 @@ export function createRouteSceneOverlayHtml({
   return [
     '<div class="route-overlay">',
     `  ${muteBtnHtml}`,
+    `  ${communityBtnHtml}`,
     devToolsHtml,
     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
     activePointHtml,

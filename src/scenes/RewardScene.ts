@@ -8,6 +8,7 @@ import { CHAPTERS, getNodeById } from "@/data/chapters";
 import { getDailyDateKey } from "@/data/dailyDeals";
 import { getChapterTitle } from "@/data/naming";
 import { getRewardById } from "@/data/narrative/rewards";
+import { buildShareWinText } from "@/scenes/buildShareText";
 import {
   buildRewardRevealItems,
 } from "@/scenes/rewardRevealItems";
@@ -44,6 +45,16 @@ export class RewardScene extends Phaser.Scene {
   private adStatusText = "";
   private revealItems: RewardOverlayRevealItem[] = [];
   private chapterProgressLabel: string | undefined;
+  /**
+   * v0.3.51: gp.socials.share. canShare === true только если SDK
+   * платформенно поддерживает share (`canShare()`), сцена не
+   * находится в replay-режиме (returnFromDetail) и не в dev-preview.
+   * shareUsed предотвращает повторный share на этой партии (one-shot
+   * cooldown). Кнопка скрывается при canShare=false.
+   */
+  private canShare = false;
+  private shareUsed = false;
+  private shareListenerInstalled = false;
 
   constructor() {
     super(SCENES.reward);
@@ -58,6 +69,16 @@ export class RewardScene extends Phaser.Scene {
     this.dealId = data.dealId ?? "";
     this.preview = data.preview === true;
     this.coinsAwarded = 0;
+    // Share-кнопка: видна только если platform-SDK поддерживает share,
+    // партия не replay (returnFromDetail) и не preview, и есть dealId.
+    // returnFromDetail=true означает что игрок уже видел этот reward —
+    // повторный share исказил бы статистику и был бы спамом в фиде.
+    this.canShare =
+      getAppContext().sdk.canShare() &&
+      !data.returnFromDetail &&
+      !data.preview &&
+      this.dealId.length > 0;
+    this.shareUsed = false;
     this.adBonusShown = false;
     this.adStatusText = "";
     this.revealItems = [];
@@ -191,6 +212,8 @@ export class RewardScene extends Phaser.Scene {
       rewardLines: this.revealItems.length > 0 ? [] : [i18n.t("reward")],
       adLabel: `${i18n.t("adLabel")} (+${adBonus} ${COIN_TOKEN})`,
       adDisabled: this.adBonusShown,
+      shareLabel: this.canShare ? i18n.t("share") : undefined,
+      shareDisabled: this.shareUsed,
       continueLabel: i18n.t("continue"),
       adStatus: this.adStatusText,
       navItems: [
@@ -324,6 +347,38 @@ export class RewardScene extends Phaser.Scene {
       };
       adBtn.addEventListener("click", onAdClick);
       disposers.push(() => adBtn.removeEventListener("click", onAdClick));
+    }
+
+    const shareBtn = root.querySelector<HTMLElement>("[data-reward-share]");
+    if (shareBtn && this.canShare) {
+      shareBtn.style.pointerEvents = "auto";
+      // Слушатель результата устанавливаем один раз — повторные
+      // вызовы on('share', cb) могли бы накопить дубль-callback'и при
+      // перерендерах overlay (renderOverlay вызывается после ad-watch).
+      if (!this.shareListenerInstalled) {
+        getAppContext().sdk.onShareResult((success) => {
+          if (success && !this.preview) {
+            analytics.track("share_win_success", { dealId: this.dealId });
+            sound.goodMove();
+          }
+        });
+        this.shareListenerInstalled = true;
+      }
+      const onShareClick = (): void => {
+        if (this.shareUsed || !this.dealId) return;
+        const narrativeLocale = getAppContext().i18n.getNarrativeLocale();
+        const text = buildShareWinText(
+          this.dealId,
+          narrativeLocale,
+          getAppContext().i18n,
+        );
+        getAppContext().sdk.share({ text });
+        this.shareUsed = true;
+        // Перерендер вернёт shareDisabled=true → класс modal-btn--disabled.
+        this.renderOverlay();
+      };
+      shareBtn.addEventListener("click", onShareClick);
+      disposers.push(() => shareBtn.removeEventListener("click", onShareClick));
     }
 
     const continueBtn = root.querySelector<HTMLElement>("[data-reward-continue]");

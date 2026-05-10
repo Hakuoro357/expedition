@@ -108,12 +108,34 @@ interface GamePushSounds {
   unmuteMusic(): void;
 }
 
+interface GamePushSocialOptions {
+  text?: string;
+  url?: string;
+  image?: string;
+}
+
+interface GamePushSocials {
+  isSupportsShare: boolean;
+  isSupportsNativeShare?: boolean;
+  isSupportsNativePosts?: boolean;
+  isSupportsNativeInvite?: boolean;
+  canJoinCommunity: boolean;
+  isSupportsNativeCommunityJoin?: boolean;
+  share(options?: GamePushSocialOptions): void;
+  post?(options?: GamePushSocialOptions): void;
+  invite?(options?: GamePushSocialOptions): void;
+  joinCommunity(): void;
+  on(event: "share" | "post" | "invite" | "joinCommunity", callback: (success: boolean) => void): void;
+}
+
 interface GamePushSDK {
   ads: GamePushAds;
   player: GamePushPlayer;
   platform: GamePushPlatform;
   /** Официальный namespace для звука/mute (GP docs). Опционален на случай старых SDK-сборок. */
   sounds?: GamePushSounds;
+  /** Социальные действия (share / post / invite / joinCommunity). Опционален на случай старых SDK. */
+  socials?: GamePushSocials;
   language: string;
   isMobile: boolean;
   isPortrait: boolean;

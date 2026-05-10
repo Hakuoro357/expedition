@@ -34,6 +34,13 @@ type RewardOverlayParams = {
   rewardLines?: string[];
   adLabel?: string;
   adDisabled?: boolean;
+  /**
+   * Share-кнопка (gp.socials.share). undefined = не рендерим
+   * (canShare === false или сцена в replay-режиме). disabled = уже
+   * нажата на этой партии — анти-спам cooldown 1/партия.
+   */
+  shareLabel?: string;
+  shareDisabled?: boolean;
   continueLabel?: string;
   adStatus?: string;
   navItems: AppNavItem[];
@@ -48,6 +55,8 @@ export function createRewardOverlayHtml({
   rewardLines,
   adLabel,
   adDisabled,
+  shareLabel,
+  shareDisabled,
   continueLabel,
   adStatus,
   navItems,
@@ -94,6 +103,9 @@ export function createRewardOverlayHtml({
     '  <div class="reward-overlay__buttons">',
     adLabel
       ? `    <button class="modal-btn${adDisabled ? " modal-btn--disabled" : ""}" data-reward-ad type="button">${escapeHtml(adLabel)}</button>`
+      : "",
+    shareLabel
+      ? `    <button class="modal-btn${shareDisabled ? " modal-btn--disabled" : ""}" data-reward-share type="button">${escapeHtml(shareLabel)}</button>`
       : "",
     continueLabel
       ? `    <button class="modal-btn modal-btn--primary" data-reward-continue type="button">${escapeHtml(continueLabel)}</button>`

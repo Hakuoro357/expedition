@@ -45,6 +45,12 @@ function createSdkStub(initialCloud: string | null = null): SdkService & {
     async showPreloader() {
       return false;
     },
+    canShare: () => false,
+    canJoinCommunity: () => false,
+    share() {},
+    joinCommunity() {},
+    onShareResult() {},
+    onJoinCommunityResult() {},
   };
   return stub as unknown as SdkService & { cloud: string | null };
 }

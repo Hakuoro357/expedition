@@ -266,6 +266,53 @@ export class GamePushSdkService implements SdkService {
     }
   }
 
+  // ============================================================
+  // Social actions (gp.socials.*) — share / community.
+  // Платформенные действия VK/OK/Telegram через GP SDK. Все методы
+  // защищены feature-detection: если SDK не загрузился или платформа
+  // не поддерживает — UI скрывает кнопки через canShare/canJoinCommunity.
+  // ============================================================
+
+  canShare(): boolean {
+    return this.gp?.socials?.isSupportsShare === true;
+  }
+
+  canJoinCommunity(): boolean {
+    return this.gp?.socials?.canJoinCommunity === true;
+  }
+
+  share(options: { text?: string; url?: string; image?: string }): void {
+    try {
+      this.gp?.socials?.share(options);
+    } catch (error) {
+      console.warn("[gp] socials.share failed", error);
+    }
+  }
+
+  joinCommunity(): void {
+    try {
+      this.gp?.socials?.joinCommunity();
+    } catch (error) {
+      console.warn("[gp] socials.joinCommunity failed", error);
+    }
+  }
+
+  onShareResult(callback: (success: boolean) => void): void {
+    try {
+      this.gp?.socials?.on("share", callback);
+    } catch (error) {
+      console.warn("[gp] socials.on(share) failed", error);
+    }
+  }
+
+  onJoinCommunityResult(callback: (success: boolean) => void): void {
+    try {
+      this.gp?.socials?.on("joinCommunity", callback);
+    } catch (error) {
+      console.warn("[gp] socials.on(joinCommunity) failed", error);
+    }
+  }
+
   async showPreloader(): Promise<boolean> {
     if (!this.gp?.ads) return false;
     // GP sandbox / draft-проекты без сконфигурированного preloader-слота

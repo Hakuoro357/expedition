@@ -8,6 +8,14 @@ export type TitleSceneOverlayParams = {
   /** false → кнопка «Продолжить» дизейблена (первый запуск, prologueShown=false). */
   continueEnabled: boolean;
   settingsLabel: string;
+  /**
+   * v0.3.51: 4-я кнопка «Сообщество» — рендерим только если SDK
+   * платформенно поддерживает joinCommunity И community URL прописан в
+   * panel.gamepush.com. Когда условие false — кнопки нет вообще
+   * (hero-блок не разрастается).
+   */
+  showCommunityButton?: boolean;
+  communityLabel?: string;
 };
 
 /**
@@ -25,8 +33,16 @@ export type TitleSceneOverlayParams = {
  * запуске «Продолжить» dimmed → primary переключается на «Начать».
  */
 export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): string {
-  const { title, subtitle, newGameLabel, continueLabel, continueEnabled, settingsLabel } =
-    params;
+  const {
+    title,
+    subtitle,
+    newGameLabel,
+    continueLabel,
+    continueEnabled,
+    settingsLabel,
+    showCommunityButton,
+    communityLabel,
+  } = params;
   const newGameIsPrimary = !continueEnabled;
   const continueIsPrimary = continueEnabled;
   const newGameClass = `title-scene__button${newGameIsPrimary ? " title-scene__button--primary" : ""}`;
@@ -44,6 +60,9 @@ export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): st
     `    <button class="${newGameClass}" data-title-action="new-game" type="button">${escapeHtml(newGameLabel)}</button>`,
     `    <button class="${continueClass}" data-title-action="continue" type="button"${continueDisabledAttr}>${escapeHtml(continueLabel)}</button>`,
     `    <button class="title-scene__button" data-title-action="settings" type="button">${escapeHtml(settingsLabel)}</button>`,
+    showCommunityButton && communityLabel
+      ? `    <button class="title-scene__button" data-title-action="community" type="button">${escapeHtml(communityLabel)}</button>`
+      : "",
     "  </nav>",
     "</div>",
   ].join("");

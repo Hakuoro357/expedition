@@ -52,6 +52,37 @@ describe("titleSceneOverlay", () => {
     expect(continueMatch![1]).not.toContain("title-scene__button--primary");
   });
 
+  it("renders community button when showCommunityButton is true", () => {
+    const html = createTitleSceneOverlayHtml({
+      title: "Solitaire: Expedition",
+      subtitle: "Sub",
+      newGameLabel: "Начать",
+      continueLabel: "Продолжить",
+      continueEnabled: true,
+      settingsLabel: "Настройки",
+      showCommunityButton: true,
+      communityLabel: "Сообщество",
+    });
+
+    expect(html).toContain('data-title-action="community"');
+    expect(html).toContain("Сообщество");
+  });
+
+  it("does NOT render community button when showCommunityButton is false", () => {
+    const html = createTitleSceneOverlayHtml({
+      title: "Solitaire: Expedition",
+      subtitle: "Sub",
+      newGameLabel: "Начать",
+      continueLabel: "Продолжить",
+      continueEnabled: true,
+      settingsLabel: "Настройки",
+      showCommunityButton: false,
+      communityLabel: "Сообщество",
+    });
+
+    expect(html).not.toContain('data-title-action="community"');
+  });
+
   it("escapes HTML in user-provided labels", () => {
     const html = createTitleSceneOverlayHtml({
       title: "<script>x</script>",

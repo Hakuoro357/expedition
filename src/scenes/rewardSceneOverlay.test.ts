@@ -39,4 +39,54 @@ describe("rewardSceneOverlay", () => {
     expect(html).toContain("Победа!");
     expect(html).toContain("+25 монет!");
   });
+
+  it("renders share button when shareLabel is provided", () => {
+    const html = createRewardOverlayHtml({
+      title: "Победа!",
+      adLabel: "Смотреть ad (+25 монет)",
+      shareLabel: "Поделиться",
+      continueLabel: "Дальше",
+      navItems: [
+        { id: "archive", label: "Архив", active: false },
+        { id: "daily", label: "Маршрут дня", active: false },
+        { id: "settings", label: "Настройки", active: false },
+      ],
+    });
+
+    expect(html).toContain("data-reward-share");
+    expect(html).toContain("Поделиться");
+    // Кнопка не disabled по умолчанию.
+    expect(html).not.toMatch(/data-reward-share[^>]*modal-btn--disabled/);
+  });
+
+  it("applies modal-btn--disabled when shareDisabled is true", () => {
+    const html = createRewardOverlayHtml({
+      title: "Победа!",
+      shareLabel: "Поделиться",
+      shareDisabled: true,
+      continueLabel: "Дальше",
+      navItems: [
+        { id: "archive", label: "Архив", active: false },
+        { id: "daily", label: "Маршрут дня", active: false },
+        { id: "settings", label: "Настройки", active: false },
+      ],
+    });
+
+    // Класс modal-btn--disabled должен присутствовать на share-кнопке.
+    expect(html).toMatch(/class="modal-btn modal-btn--disabled"\s+data-reward-share/);
+  });
+
+  it("does NOT render share button when shareLabel is undefined", () => {
+    const html = createRewardOverlayHtml({
+      title: "Победа!",
+      continueLabel: "Дальше",
+      navItems: [
+        { id: "archive", label: "Архив", active: false },
+        { id: "daily", label: "Маршрут дня", active: false },
+        { id: "settings", label: "Настройки", active: false },
+      ],
+    });
+
+    expect(html).not.toContain("data-reward-share");
+  });
 });

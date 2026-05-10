@@ -16,7 +16,11 @@ export class I18nService {
 
   setLocale(locale: Locale): void {
     this.locale = locale;
-    document.documentElement.lang = locale;
+    // Guard для test-env (vitest без jsdom): document может не существовать.
+    // В браузере и в playwright всегда есть.
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
   }
 
   getLocale(): Locale {
@@ -38,7 +42,23 @@ export class I18nService {
     return this.locale;
   }
 
-  t(key: TranslationKey): string {
-    return locales[this.locale][key];
+  /**
+   * Возвращает локализованную строку. С v0.3.51 поддерживает простой
+   * substitution: значения для placeholder'ов вида `{name}` берутся из
+   * params. Если key не найден или params не задан — поведение
+   * идентично старой версии (просто строка из locales).
+   *
+   * Пример:
+   *   t("shareWinText", { pointTitle: "Карта пока не врёт" })
+   *   → "«Карта пока не врёт» — пройдено в Косынка: Экспедиция"
+   *
+   * Безопасность XSS: подставляются сырые значения, а вызывающий код
+   * (overlay-генераторы) обязан пропускать результат через escapeHtml
+   * перед вставкой в HTML — это уже делается во всех overlay'ах.
+   */
+  t(key: TranslationKey, params?: Record<string, string>): string {
+    const raw = locales[this.locale][key];
+    if (!params) return raw;
+    return raw.replace(/\{(\w+)\}/g, (match, k) => params[k] ?? match);
   }
 }

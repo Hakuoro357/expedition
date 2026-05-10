@@ -42,6 +42,40 @@ describe("routeSceneOverlay", () => {
     expect(html).toContain("route-overlay__route-point--current");
   });
 
+  it("renders community icon button when showCommunityButton is true", () => {
+    const html = createRouteSceneOverlayHtml({
+      pageLabel: "Лист 1",
+      activePointTitle: "",
+      activePointDescription: "",
+      canGoPrev: false,
+      canGoNext: false,
+      routePoints: [],
+      routeSegments: [],
+      navItems: [{ id: "archive", label: "Архив", active: false }],
+      showCommunityButton: true,
+      communityAriaLabel: "Открыть сообщество",
+    });
+
+    expect(html).toContain('data-route-action="community"');
+    expect(html).toContain("route-overlay__community");
+    expect(html).toContain('aria-label="Открыть сообщество"');
+  });
+
+  it("does NOT render community icon when showCommunityButton is false", () => {
+    const html = createRouteSceneOverlayHtml({
+      pageLabel: "Лист 1",
+      activePointTitle: "",
+      activePointDescription: "",
+      canGoPrev: false,
+      canGoNext: false,
+      routePoints: [],
+      routeSegments: [],
+      navItems: [{ id: "archive", label: "Архив", active: false }],
+    });
+
+    expect(html).not.toContain('data-route-action="community"');
+  });
+
   it("escapes raw html in overlay text", () => {
     const html = createRouteSceneOverlayHtml({
       pageLabel: "<b>unsafe</b>",

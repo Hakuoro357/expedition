@@ -99,4 +99,25 @@ export interface SdkService {
    * Resolves true if ad was shown, false on unavailable / error.
    */
   showPreloader(): Promise<boolean>;
+
+  /**
+   * GamePush social actions
+   * (https://docs.gamepush.com/ru/docs/social-actions/). Поверх
+   * платформенных API VK/OK/Telegram. Все вызовы синхронные;
+   * результат приходит событием через `onShareResult`. Если SDK
+   * платформенно не поддерживает share/community — `canShare()` /
+   * `canJoinCommunity()` вернут false и кнопки скрываются в UI.
+   *
+   * Квота: на момент v0.3.51 GP-доки не упоминают лимит для socials
+   * (это платформенные действия, не GP analytics-events). Тем не
+   * менее cooldown в UI-слое (1 share / партию) защищает от спам-
+   * кликов и от потенциального ужесточения квоты в будущем.
+   */
+  canShare(): boolean;
+  canJoinCommunity(): boolean;
+  share(options: { text?: string; url?: string; image?: string }): void;
+  joinCommunity(): void;
+  /** Subscribe to outcome events. callback(true) = действие выполнено. */
+  onShareResult(callback: (success: boolean) => void): void;
+  onJoinCommunityResult(callback: (success: boolean) => void): void;
 }

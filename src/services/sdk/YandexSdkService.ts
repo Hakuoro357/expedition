@@ -234,5 +234,33 @@ export class YandexSdkService implements SdkService {
     // GP-specific placement; Yandex has no direct equivalent.
     return false;
   }
+
+  // Social actions — Yandex SDK не поддерживает share/joinCommunity
+  // через единый API (свой набор метрик и фичи через _ya). Для нашей
+  // публикации Yandex-через-этот-сервис не требует socials, и UI
+  // скрывает кнопки через canShare/canJoinCommunity → false.
+  canShare(): boolean {
+    return false;
+  }
+
+  canJoinCommunity(): boolean {
+    return false;
+  }
+
+  share(_options: { text?: string; url?: string; image?: string }): void {
+    // noop
+  }
+
+  joinCommunity(): void {
+    // noop
+  }
+
+  onShareResult(_callback: (success: boolean) => void): void {
+    // noop
+  }
+
+  onJoinCommunityResult(_callback: (success: boolean) => void): void {
+    // noop
+  }
 }
 
