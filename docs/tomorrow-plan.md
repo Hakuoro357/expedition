@@ -1,70 +1,97 @@
 # План на следующий рабочий день
 
-После v0.3.49 (2026-05-07). За день закатили 7 версий — финальный
-визуально-аудио-пасс (8 коллажей на всех сценах + 4 новых BGM-трека
-Dion-стиля), плюс UX-фиксы из codex и xiaomi ревью.
+После v0.3.58→v0.3.59 (2026-05-15). Сегодня закатили **достижения UI**:
+20 ачивок в 6 группах, toast при анлоке, trophy в bottom-nav на карте.
+Plan через codex+xiaomi review-loop (R1-R6, double consensus, 51 concerns
+accepted).
 
-## Приоритет 1 — наблюдение v0.3.49
+## Что сделано сегодня
 
-1. **Sandbox-проверка после заливки на GamePush.** Acceptance: 5-минутный
-   playthrough покрывает все 8 сцен с коллажами, BGM crossfade-ит без
-   щелчков, новые треки Autumn Dusk Lutenist и Lantern Journal реально
-   звучат на map и game соответственно.
-2. **Дашборд квоты gp.player.sync.** Сейчас работаем в рамках v0.3.39
-   архитектуры (debounce 5s + flush на lifecycle hooks + idempotent
-   skip). Если за сутки счётчик пробивает 30k — есть утечка
-   sync-вызовов где-то ещё.
-3. **Фидбек по визуалу.** Чек-лист от пользователей:
-   - Текст читается на коллажах? (правили reward labels, archive cards,
-     detail panel, prologue panel — сегодня)
-   - Коллажи не «давят» на гейме? (tint 0.6 в GameScene, проверить на
-     всех 4 главах в реальной партии)
-   - BGM crossfade плавный?
+- ✅ AchievementsScene + overlay + view-model (pure VM, monotonic progress)
+- ✅ AchievementsReconciler.onNewUnlock callback → toast (singleton stack,
+  vertical stacking, slide-in/slide-out)
+- ✅ Hidden masking: `locked-generic.png` + «???» title для скрытых ачивок
+- ✅ Non-hidden locked: real icon @ opacity 0.5 + inline-SVG brass lock-badge
+- ✅ Trophy переехал из top-right overlay в bottom-nav между «Маршрут дня»
+  и «Меню» (4 hit-area равномерно через `cellWidth × (i + 0.5)`)
+- ✅ Иконка trophy.svg перерисована (outline-стиль в тон остальным nav-иконкам)
+- ✅ «Тот же расклад» — restart preserves seed (раньше для adventure-mode
+  генерировал новый seed)
+- ✅ **CRIT-fix safeImageUrl**: portrait-icons в Архиве/Reward/Detail были
+  невидимы в production. Root cause — Vite резолвит `import.meta.glob` через
+  `new URL(...).href` → абсолютный `http://origin/...`, а whitelist принимал
+  только `https://`. Фикс: same-origin allowlist
+- ✅ `safeAchievementIconUrl` — strict basename regex для icon URLs (защита
+  от path-traversal)
+- ✅ 21 PNG (20 ачивок + locked-generic) в `public/assets/achievements/`
+  через palette compression — 796 KB вместо 2.3 MB
+- ✅ Билды: `builds/{gamepush,yandex}/solitaire-expedition-v0.3.59.zip` (37.37 MB)
+  и **v0.3.60** идентичный (на всякий слот в драфте)
+- ✅ Reference в skill GP: `~/.claude/skills/gamepush-publishing/reference/achievements.md`
+  — полный pipeline (GP admin GraphQL, MCP, Reconciler, view-model, toast,
+  icon-strategy, safeImageUrl gotcha)
+- ✅ Commit: `3341a51 feat(achievements): UI page + entry points + toast v0.3.59`
+  → pushed `feature/gamepush-migration`
 
-## Приоритет 2 — потенциальные оптимизации
+## Приоритет 1 — наблюдение v0.3.59
 
-4. **Сжать MP3 до 128 kbps** (если останется время или появится
-   feedback). Сейчас все 4 новых трека ~320 kbps, ~18 MB суммарно.
-   Перекодировка через ffmpeg в 128 kbps даст ~9 MB margin. Для
-   ambient-музыки разница на слух минимальна.
-   Команда: `ffmpeg -i in.mp3 -b:a 128k -map_metadata -1 out.mp3`.
-5. **Дополнительный quality-pass на коллажах**, если конкретный экран
-   режет глаза. Tint для GameScene (0.6) и DiaryScene (0.55) — два
-   первых кандидата если читаемость где-то страдает.
+1. **Залить v0.3.59 в GP-sandbox.** Acceptance: trophy виден в bottom-nav
+   между «Маршрут дня» и «Меню», клик открывает AchievementsScene с 6
+   группами + 20 карточками, hidden ачивки в `locked-generic`-силуэте.
+2. **Проверить toast на реальном анлоке.** Acceptance: завершить мини-игру
+   (first_win), toast slide-in справа сверху на 4 секунды.
+3. **Sandbox-проверка ачивок в GP-dashboard.** В админке GP должны
+   обновиться счётчики анлоков. Если игрок анлокает в sandbox — должно
+   появиться в analytics GP.
+4. **Yandex-build behavior.** На Yandex `canUseAchievements()=false` →
+   trophy в nav должен быть скрыт, остаётся 3 кнопки (Archive/Daily/Settings).
+5. **Перепроверить портреты на Reward/Detail/Archive.** safeImageUrl-фикс
+   был критическим — silent-bug в production. Подтвердить что иконки
+   авторов реально рисуются.
 
-## Приоритет 3 — техдолг (не горит)
+## Приоритет 2 — потенциальные доработки
 
-6. **GP-socials интеграция** — parked в `docs/specs/2026-05-04-gamepush-
-   socials.md`. Триггер для активации: первый намёк от пользователей
-   «как поделиться победой / где сообщество».
-7. **GameScene decomposition** — parked в `docs/specs/2026-05-02-
+6. **Качественные переводы titles/descriptions для ачивок** — сейчас в
+   `locales.ts` ru+en заполнены, tr/es/pt/de/fr через EN fallback.
+   Триггер: если получим feedback от tr/es пользователей про «не на их языке».
+7. **Achievement detail overlay** — клик по карточке ачивки в overlay'е
+   сейчас no-op. План v0.3.60+ — детальная панель с rarity, group context,
+   реальной датой анлока.
+8. **Анимация unlock в overlay** — золотой shimmer на свежеоткрытой ачивке
+   при следующем заходе в AchievementsScene.
+
+## Приоритет 3 — техдолг
+
+9. **GameScene decomposition** — parked в `docs/specs/2026-05-02-
    gamescene-decomposition.md`. Триггер: GameScene > 2000 строк ИЛИ
-   следующая фича требует трогать ≥3 кластера в одной PR. Сейчас 1850
-   строк, пока не пробил.
+   следующая фича требует трогать ≥3 кластера. Сейчас ~1900 строк.
+10. **Top-right trophy в routeSceneOverlay — мёртвый код**. После переезда
+    в bottom-nav `showAchievementsButton: false` всегда. Можно убрать
+    plumbing (`route-overlay__achievements` CSS + handler в MapScene
+    rendererInteractive + `trophyIconHtml` import в routeSceneOverlay).
+    Не горит, работает корректно как есть.
 
 ## НЕ делать
 
-- Не добавлять новые сцены / фичи. Релизный режим: стабилизация и
-  аудит.
-- Не реструктурировать BGM-плейлист пока не получим feedback —
-  пользователь явно просил равные веса всех 8 game-треков.
+- Не добавлять новые ачивки до feedback по UI — все 20 уже залиты в GP.
+- Не трогать `safeImageUrl` без regression-теста — пятница в production
+  показала что любая правка whitelist'а может молча сломать ВСЕ портреты.
+- Не пушить v0.3.59/60 в Yandex без re-валидации — на Yandex кнопка
+  «Достижения» скрыта (canUseAchievements=false), но это новый код-path.
 
-## Известные открытые риски
+## Открытые вопросы
 
-- **Build size 36.42 MB** ↔ GamePush limit 50 MB. Margin 14 MB.
-  Достаточно, но добавление ещё одной партии BGM (или артов) может
-  пробить лимит. Mp3 compression — план Б.
-- **MP3 имена с пробелами и скобками** (`Autumn Dusk Lutenist (1).mp3`).
-  Сейчас работают через URL-encoding в SoundService. Если в будущем
-  движок CDN GP будет агрессивно нормализовать имена — может сломаться,
-  тогда переименовать в snake_case.
+- **MCP GP интеграция** — `https://docs.gamepush.com/mcp/` (HTTP, не npm).
+  Сегодня использовали прямой GraphQL для batch-операций (быстрее писать).
+  MCP полезен для интерактивных запросов «покажи статус ачивок».
+  Подключить через `claude mcp add gamepush <url>` когда понадобится.
 
-## Артефакты v0.3.49
+## Артефакты
 
-- 11 коммитов на `feature/gamepush-migration` за сегодня.
-- builds/gamepush/solitaire-expedition-v0.3.49.zip (36.42 MB).
-- 125 тестов проходят.
-- 8 коллажей в `public/assets/backgrounds/` + 8 BGM-треков в
-  `public/audio/`.
-- 2 ревью прогнали (codex v0.3.43, xiaomi v0.3.45) — все concerns
-  отработаны или обоснованно отклонены.
+- `plans/achievements-ui-final.md` — финальный R6-плана (consensus codex+xiaomi)
+- `plans/achievements-ui-decision-log-r6.md` — accept/reject по R6 concerns
+- `plans/archive/achievements-ui/` — R1-R5 архив (draft + review + prompts)
+- `builds/gamepush/solitaire-expedition-v0.3.59.zip` (37.37 MB)
+- `builds/gamepush/solitaire-expedition-v0.3.60.zip` (37.37 MB, идентичен 0.3.59)
+- `builds/yandex/solitaire-expedition-v0.3.59.zip` (37.37 MB)
+- `builds/yandex/solitaire-expedition-v0.3.60.zip` (37.37 MB)
