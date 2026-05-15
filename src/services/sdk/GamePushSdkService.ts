@@ -273,27 +273,29 @@ export class GamePushSdkService implements SdkService {
   // не поддерживает — UI скрывает кнопки через canShare/canJoinCommunity.
   // ============================================================
 
-  /**
-   * DEV-only override: `?dev=socials` форсит canShare/canJoinCommunity
-   * = true в локальном dev-сервере, чтобы можно было увидеть кнопки
-   * без реального GP SDK + настроенной community. В production-билде
-   * (`import.meta.env.DEV === false`) этот метод всегда возвращает
-   * false и удаляется tree-shaking'ом — никаких security-рисков.
-   * Сами sdk.share/joinCommunity при отсутствии gp.socials остаются
-   * no-op (visual-only test).
-   */
-  private devSocialsOn(): boolean {
-    if (!import.meta.env.DEV) return false;
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("dev") === "socials";
-  }
-
   canShare(): boolean {
-    return this.devSocialsOn() || this.gp?.socials?.isSupportsShare === true;
+    // DEV-only override (`?dev=socials`) — позволяет включить share-кнопки
+    // в локальном dev-сервере без реального GP SDK. Весь блок завёрнут в
+    // `import.meta.env.DEV`, Vite вырезает его в production-bundle.
+    if (
+      import.meta.env.DEV &&
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("dev") === "socials"
+    ) {
+      return true;
+    }
+    return this.gp?.socials?.isSupportsShare === true;
   }
 
   canJoinCommunity(): boolean {
-    return this.devSocialsOn() || this.gp?.socials?.canJoinCommunity === true;
+    if (
+      import.meta.env.DEV &&
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("dev") === "socials"
+    ) {
+      return true;
+    }
+    return this.gp?.socials?.canJoinCommunity === true;
   }
 
   async share(options: { text?: string; url?: string; image?: string }): Promise<void> {

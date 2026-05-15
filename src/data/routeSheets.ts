@@ -165,7 +165,10 @@ export function getNextPlayableDealId(progress: ProgressState): string | null {
 }
 
 export function isRouteSheetUnlocked(page: number, progress: ProgressState): boolean {
-  if (progress.devAllPlayable) {
+  // Dev-only override (`?preview=unlock-playable`) — обёрнут в
+  // `import.meta.env.DEV`, Vite вырезает строку "devAllPlayable" и
+  // вызов getRouteSheetByPage в production-bundle.
+  if (import.meta.env.DEV && progress.devAllPlayable) {
     return getRouteSheetByPage(page) != null;
   }
 
@@ -195,7 +198,8 @@ export function getCurrentRoutePointState(
     return "passed";
   }
 
-  if (progress.devAllPlayable) {
+  // Dev-only — см. isRouteSheetUnlocked.
+  if (import.meta.env.DEV && progress.devAllPlayable) {
     return "current";
   }
 

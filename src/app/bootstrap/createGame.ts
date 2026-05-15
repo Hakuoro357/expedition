@@ -4,7 +4,6 @@ import { getGameResolution } from "@/app/rendering";
 import { greedySolveSteps } from "@/core/klondike/dealSolver";
 import type { GameState } from "@/core/game-state/types";
 import { BootScene } from "@/scenes/BootScene";
-import { DevPreviewScene } from "@/scenes/DevPreviewScene";
 import { DetailScene } from "@/scenes/DetailScene";
 import { DiaryScene } from "@/scenes/DiaryScene";
 import { GameScene } from "@/scenes/GameScene";
@@ -18,11 +17,10 @@ export function createGame(parent: HTMLElement): Phaser.Game {
   const resolution = typeof window === "undefined" ? 1 : getGameResolution(window.devicePixelRatio || 1);
 
   // DevPreviewScene нужна только для локальной разработки (кнопки «Preview
-  // reward c1n3» и т.д.) — в production-билд её не включаем. Её файл
-  // содержит хардкод `http://127.0.0.1:4175` для SSR-фолбека, который
-  // валидатор Яндекс Игр воспринимает как «ссылку на сервисное хранилище»
-  // и отклоняет черновик. Vite DCE по `import.meta.env.DEV = false`
-  // в production выкинет dead-branch и неиспользуемый импорт.
+  // reward c1n3» и т.д.) — в production не подгружается вообще. Используем
+  // ДИНАМИЧЕСКИЙ импорт ниже после создания Phaser.Game: Vite в прод-билде
+  // не включает модуль и связанные с ним dev-helpers (devPreview.ts) —
+  // никаких строк `unlock-all` / «Разблокировать всё» в bundle.
   const scenes: Phaser.Types.Scenes.SceneType[] = [
     BootScene,
     TitleScene,
@@ -34,9 +32,6 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     DiaryScene,
     SettingsScene,
   ];
-  if (import.meta.env.DEV) {
-    scenes.splice(1, 0, DevPreviewScene);
-  }
 
   const config: Phaser.Types.Core.GameConfig & { resolution?: number } = {
     type: Phaser.AUTO,
@@ -65,6 +60,22 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     scene: scenes
   };
   const game = new Phaser.Game(config as Phaser.Types.Core.GameConfig);
+
+  // Dev-only: динамически подгружаем DevPreviewScene и регистрируем в
+  // Phaser через `scene.add`. Vite в прод-сборке полностью исключает
+  // и DevPreviewScene.ts, и связанный devPreview.ts (со строками
+  // `unlock-all`, «Разблокировать всё» и т.д.) — никаких dev-артефактов
+  // в production bundle.
+  if (import.meta.env.DEV) {
+    void import("@/scenes/DevPreviewScene").then(({ DevPreviewScene }) => {
+      // ВАЖНО: ключ сцены берём из SCENES.devPreview (тот же, что используется
+      // в this.scene.start(SCENES.devPreview, ...) в BootScene).
+      // Импортируем константу здесь же, чтобы не таскать в прод gameConfig.
+      void import("@/app/config/gameConfig").then(({ SCENES }) => {
+        game.scene.add(SCENES.devPreview, DevPreviewScene);
+      });
+    });
+  }
 
   // На некоторых мобильных браузерах после поворота Phaser не сразу
   // пересчитывает parent rect (window.innerWidth ещё старый в первый

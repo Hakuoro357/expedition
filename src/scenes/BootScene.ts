@@ -5,7 +5,6 @@ import { socialsContext } from "@/app/socialsContext";
 import { ARTIFACTS } from "@/data/artifacts";
 import { CHAPTERS } from "@/data/chapters";
 import { resolveArtifactGridUrl, resolveArtifactLargeUrl } from "@/data/artifactAssetUrls";
-import { getDevScenePreview } from "@/scenes/devPreview";
 import { AnalyticsService } from "@/services/analytics/AnalyticsService";
 import { AdsService } from "@/services/ads/AdsService";
 import { I18nService } from "@/services/i18n/I18nService";
@@ -275,55 +274,64 @@ export class BootScene extends Phaser.Scene {
     // Sticky-баннер — постоянный нижний баннер, включается после gameStart.
     ads.showStickyBanner("boot");
 
-    const preview =
-      typeof window !== "undefined"
-        ? getDevScenePreview(window.location.search, import.meta.env.DEV)
-        : null;
+    // Dev-only preview routing. ВЕСЬ блок завёрнут в `import.meta.env.DEV`,
+    // и devPreview.ts грузится ДИНАМИЧЕСКИ — это гарантия что Vite в
+    // production-bundle полностью исключит модуль вместе со строками
+    // `unlock-all`, `Разблокировать всё` и т.д.
+    if (import.meta.env.DEV) {
+      const preview =
+        typeof window !== "undefined"
+          ? (await import("@/scenes/devPreview")).getDevScenePreview(
+              window.location.search,
+              true,
+            )
+          : null;
 
-    if (preview?.scene === "reward") {
-      this.scene.start(SCENES.reward, preview);
-      return;
-    }
+      if (preview?.scene === "reward") {
+        this.scene.start(SCENES.reward, preview);
+        return;
+      }
 
-    if (preview?.scene === "reward-list") {
-      this.scene.start(SCENES.devPreview, preview);
-      return;
-    }
+      if (preview?.scene === "reward-list") {
+        this.scene.start(SCENES.devPreview, preview);
+        return;
+      }
 
-    if (preview?.scene === "game-end") {
-      this.scene.start(SCENES.game, { devPreviewScreen: preview.screen });
-      return;
-    }
+      if (preview?.scene === "game-end") {
+        this.scene.start(SCENES.game, { devPreviewScreen: preview.screen });
+        return;
+      }
 
-    if (preview?.scene === "unlock-all") {
-      const { save } = getAppContext();
-      const allNodes = CHAPTERS.flatMap((ch) => ch.nodes);
-      const allNodeIds = allNodes.map((n) => n.id);
-      const allArtifactIds = allNodes.map((n) => n.artifactId).filter((id): id is string => id != null);
-      save.updateProgress((p) => ({
-        ...p,
-        completedNodes: allNodeIds,
-        unlockedNodes: allNodeIds,
-        currentChapter: CHAPTERS.length,
-        artifacts: allArtifactIds,
-        coins: Math.max(p.coins, 500),
-      }));
-      console.log(`[dev] Unlocked all: ${allNodeIds.length} nodes, ${allArtifactIds.length} artifacts`);
-      this.scene.start(SCENES.map);
-      return;
-    }
+      if (preview?.scene === "unlock-all") {
+        const { save } = getAppContext();
+        const allNodes = CHAPTERS.flatMap((ch) => ch.nodes);
+        const allNodeIds = allNodes.map((n) => n.id);
+        const allArtifactIds = allNodes.map((n) => n.artifactId).filter((id): id is string => id != null);
+        save.updateProgress((p) => ({
+          ...p,
+          completedNodes: allNodeIds,
+          unlockedNodes: allNodeIds,
+          currentChapter: CHAPTERS.length,
+          artifacts: allArtifactIds,
+          coins: Math.max(p.coins, 500),
+        }));
+        console.log(`[dev] Unlocked all: ${allNodeIds.length} nodes, ${allArtifactIds.length} artifacts`);
+        this.scene.start(SCENES.map);
+        return;
+      }
 
-    if (preview?.scene === "unlock-playable") {
-      const { save } = getAppContext();
-      save.updateProgress((p) => ({
-        ...p,
-        completedNodes: [],
-        coins: Math.max(p.coins, 500),
-        devAllPlayable: true,
-      }));
-      console.log("[dev] All points playable: pages unlocked, no nodes completed");
-      this.scene.start(SCENES.map);
-      return;
+      if (preview?.scene === "unlock-playable") {
+        const { save } = getAppContext();
+        save.updateProgress((p) => ({
+          ...p,
+          completedNodes: [],
+          coins: Math.max(p.coins, 500),
+          devAllPlayable: true,
+        }));
+        console.log("[dev] All points playable: pages unlocked, no nodes completed");
+        this.scene.start(SCENES.map);
+        return;
+      }
     }
 
     // С v0.3.43 — отдельная TitleScene как первая интерактивная сцена.
