@@ -894,10 +894,12 @@ export class GameScene extends Phaser.Scene {
     restartBtn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       if (!this.gameState || !canAfford) return;
-      const { mode, dealId } = this.gameState;
+      const { mode, dealId, seed } = this.gameState;
       save.addCoins(-cost);
       save.clearCurrentGame();
-      this.scene.start(SCENES.game, { mode, dealId });
+      // v0.3.58: passing seed preserves the same deal layout. Без seed
+      // adventure-mode шёл бы в findRandomSolvableSeed → новая раздача.
+      this.scene.start(SCENES.game, { mode, dealId, seed });
     });
 
     // Leave to map

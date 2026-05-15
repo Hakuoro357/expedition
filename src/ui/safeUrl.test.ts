@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { safeImageUrl } from "@/ui/safeUrl";
+import { safeImageUrl, safeAchievementIconUrl } from "@/ui/safeUrl";
 
 const TRANSPARENT_PIXEL =
   "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
@@ -14,6 +14,22 @@ const TRANSPARENT_PIXEL =
 describe("safeImageUrl", () => {
   it("allows relative paths starting with /", () => {
     expect(safeImageUrl("/assets/voronov.webp")).toBe("/assets/voronov.webp");
+  });
+
+  it("allows Vite-bundled relative paths starting with ./", () => {
+    // Vite в production-сборке с `base: "./"` пишет URL вида
+    // `./assets/voronov-XYZ.webp` — это hash'нутый asset, безопасный.
+    expect(safeImageUrl("./assets/voronov-QKXQ-BoP.webp")).toBe(
+      "./assets/voronov-QKXQ-BoP.webp",
+    );
+    expect(safeImageUrl("./assets/achievements/first_win.png")).toBe(
+      "./assets/achievements/first_win.png",
+    );
+  });
+
+  it("blocks ./ paths with `..` traversal", () => {
+    expect(safeImageUrl("./../etc/passwd")).toBe(TRANSPARENT_PIXEL);
+    expect(safeImageUrl("./assets/../secret.webp")).toBe(TRANSPARENT_PIXEL);
   });
 
   it("allows https:// urls", () => {
@@ -69,5 +85,70 @@ describe("safeImageUrl", () => {
     // должен схлопнуться в transparent. Не подпадает ни под `/` (одиночный
     // префикс — ок) ни под `https://`.
     expect(safeImageUrl("//evil.com/x.png")).toBe(TRANSPARENT_PIXEL);
+  });
+});
+
+describe("safeAchievementIconUrl", () => {
+  it("accepts <tag>.png basenames", () => {
+    expect(safeAchievementIconUrl("first_win.png")).toBe(
+      "./assets/achievements/first_win.png",
+    );
+    expect(safeAchievementIconUrl("entries_voronov.png")).toBe(
+      "./assets/achievements/entries_voronov.png",
+    );
+  });
+
+  it("accepts <tag>_locked.png basenames", () => {
+    expect(safeAchievementIconUrl("epilogue_locked.png")).toBe(
+      "./assets/achievements/epilogue_locked.png",
+    );
+    expect(safeAchievementIconUrl("locked-generic.png")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+  });
+
+  it("rejects path traversal (../)", () => {
+    expect(safeAchievementIconUrl("../secret.png")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+    expect(safeAchievementIconUrl("..%2Fsecret.png")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+  });
+
+  it("rejects URL-encoded chars", () => {
+    expect(safeAchievementIconUrl("first%2Ewin.png")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+  });
+
+  it("rejects nested paths", () => {
+    expect(safeAchievementIconUrl("foo/bar.png")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+  });
+
+  it("rejects non-.png extensions", () => {
+    expect(safeAchievementIconUrl("evil.svg")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+    expect(safeAchievementIconUrl("evil.png.exe")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+  });
+
+  it("falls back to locked-generic.png on invalid input", () => {
+    expect(safeAchievementIconUrl("")).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+    expect(safeAchievementIconUrl(null as unknown as string)).toBe(
+      "./assets/achievements/locked-generic.png",
+    );
+  });
+
+  it("accepts custom fallback if valid", () => {
+    expect(safeAchievementIconUrl("nope", "first_win.png")).toBe(
+      "./assets/achievements/first_win.png",
+    );
   });
 });

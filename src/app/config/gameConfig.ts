@@ -35,7 +35,8 @@ export const SCENES = {
   game: "game",
   reward: "reward",
   diary: "diary",
-  settings: "settings"
+  settings: "settings",
+  achievements: "achievements",
 } as const;
 
 export const SAVE_KEY = "solitaire-expedition-save-v1";

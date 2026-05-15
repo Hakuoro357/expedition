@@ -2,11 +2,12 @@ import homeIconHtml from "../assets/ui/nav-icons/home.svg?raw";
 import archiveIconHtml from "../assets/ui/nav-icons/archive.svg?raw";
 import routeDayIconHtml from "../assets/ui/nav-icons/route-day.svg?raw";
 import settingsIconHtml from "../assets/ui/nav-icons/settings.svg?raw";
+import trophyIconHtml from "../assets/ui/nav-icons/trophy.svg?raw";
 
 import { escapeHtml } from "@/ui/escapeHtml";
 
 export type AppNavItem = {
-  id: "home" | "archive" | "daily" | "settings";
+  id: "home" | "archive" | "daily" | "achievements" | "settings";
   label: string;
   active: boolean;
 };
@@ -19,6 +20,8 @@ export function createAppNavIconHtml(id: AppNavItem["id"]): string {
       return archiveIconHtml;
     case "daily":
       return routeDayIconHtml;
+    case "achievements":
+      return trophyIconHtml;
     case "settings":
       return settingsIconHtml;
   }

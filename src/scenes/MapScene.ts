@@ -25,8 +25,9 @@ import {
 import { createRouteSceneOverlayHtml, type RouteOverlayPoint, type RouteOverlaySegment } from "@/scenes/routeSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
 import { lockClicksFor } from "@/ui/ghostClickGuard";
+import type { AppNavItem } from "@/ui/appNavHtml";
 
-type RouteNavTarget = "archive" | "daily" | "settings";
+type RouteNavTarget = "archive" | "daily" | "achievements" | "settings";
 
 export type MapSceneData = {
   /** Page to show when returning from another scene */
@@ -165,6 +166,17 @@ export class MapScene extends Phaser.Scene {
     const platformMuted = sound.isPlatformMuted();
     const sdk = getAppContext().sdk;
     const showCommunityButton = sdk.canJoinCommunity();
+    const showAchievements = sdk.canUseAchievements();
+    // v0.3.58 → v0.3.59: trophy переехал из top-right overlay в bottom-nav
+    // между «Маршрут дня» и «Меню». Top-right trophy спрятан (showAchievementsButton=false).
+    const navItems: AppNavItem[] = [
+      { id: "archive", label: i18n.t("archive"), active: false },
+      { id: "daily", label: i18n.t("daily"), active: false },
+      ...(showAchievements
+        ? ([{ id: "achievements", label: i18n.t("achievements"), active: false }] as const)
+        : []),
+      { id: "settings", label: i18n.t("menu"), active: false },
+    ];
     this.renderOverlay({
       pageLabel: this.getPageLabel(locale, this.currentPage),
       activePointTitle: panelTitle,
@@ -173,16 +185,16 @@ export class MapScene extends Phaser.Scene {
       canGoNext,
       routePoints: overlayPoints,
       routeSegments: overlaySegments,
-      navItems: [
-        { id: "archive", label: i18n.t("archive"), active: false },
-        { id: "daily", label: i18n.t("daily"), active: false },
-        { id: "settings", label: i18n.t("menu"), active: false },
-      ],
+      navItems,
       showDevTools: import.meta.env.DEV,
       muted: platformMuted,
       muteAriaLabel: platformMuted ? i18n.t("unmute") : i18n.t("mute"),
       showCommunityButton,
       communityAriaLabel: showCommunityButton ? i18n.t("communityAriaLabel") : undefined,
+      // v0.3.58: top-left coin counter сохраняется. Top-right trophy спрятан —
+      // кнопка теперь в bottom-nav.
+      coins: save.load().progress.coins,
+      showAchievementsButton: false,
     });
   }
 
@@ -316,14 +328,24 @@ export class MapScene extends Phaser.Scene {
 
   private renderBottomNav(): void {
     const y = GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT / 2;
-    const items: Array<{ x: number; target: RouteNavTarget }> = [
-      { x: 70, target: "archive" },
-      { x: GAME_WIDTH / 2, target: "daily" },
-      { x: GAME_WIDTH - 70, target: "settings" },
-    ];
+    // v0.3.59: 4 cells (archive / daily / achievements / settings) если SDK
+    // поддерживает ачивки. На Yandex (canUseAchievements=false) — 3 cells как
+    // раньше. Hit-area-позиции центрируются по grid-cells DOM-навбара
+    // (`grid-template-columns: repeat(auto-fit, minmax(0, 1fr))`).
+    const sdk = getAppContext().sdk;
+    const showAchievements = sdk.canUseAchievements();
+    const targets: RouteNavTarget[] = showAchievements
+      ? ["archive", "daily", "achievements", "settings"]
+      : ["archive", "daily", "settings"];
+    const cellWidth = GAME_WIDTH / targets.length;
+    const hitWidth = Math.min(104, cellWidth - 4);
+    const items: Array<{ x: number; target: RouteNavTarget }> = targets.map((target, i) => ({
+      x: cellWidth * (i + 0.5),
+      target,
+    }));
 
     items.forEach((item) => {
-      const hitArea = this.add.rectangle(item.x, y, 104, ROUTE_BOTTOM_NAV_HEIGHT, 0xffffff, 0).setInteractive({
+      const hitArea = this.add.rectangle(item.x, y, hitWidth, ROUTE_BOTTOM_NAV_HEIGHT, 0xffffff, 0).setInteractive({
         useHandCursor: true,
       });
       hitArea.on("pointerdown", () => {
@@ -428,6 +450,19 @@ export class MapScene extends Phaser.Scene {
       disposers.push(() => communityBtn.removeEventListener("click", onClick));
     }
 
+    // v0.3.58: trophy → open AchievementsScene via launch+pause.
+    // pause/resume сохраняет MapScene.currentPage без явной передачи.
+    const achievementsBtn = root.querySelector<HTMLElement>('[data-route-action="open-achievements"]');
+    if (achievementsBtn) {
+      const onClick = (): void => {
+        getAppContext().analytics.track("achievements_open", { origin: "map" });
+        this.scene.launch(SCENES.achievements, { returnTo: "map" });
+        this.scene.pause();
+      };
+      achievementsBtn.addEventListener("click", onClick);
+      disposers.push(() => achievementsBtn.removeEventListener("click", onClick));
+    }
+
     this.overlayCleanup = () => {
       disposers.forEach((d) => d());
     };
@@ -463,6 +498,13 @@ export class MapScene extends Phaser.Scene {
         }
         return;
       }
+      case "achievements":
+        // v0.3.59: trophy в bottom-nav. launch+pause — MapScene.currentPage
+        // сохраняется через Phaser pause/resume.
+        getAppContext().analytics.track("achievements_open", { origin: "map" });
+        this.scene.launch(SCENES.achievements, { returnTo: "map" });
+        this.scene.pause();
+        return;
       case "settings":
         // returnTo="map" явно — «← Назад» и клик по активной Settings вернут на карту.
         this.scene.start(SCENES.settings, { returnTo: "map" });

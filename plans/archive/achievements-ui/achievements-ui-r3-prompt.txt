@@ -1,0 +1,36 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 3 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. v0.3.56-57 introduced backend achievements (Reconciler + 20 ach in
+6 groups + GP admin GraphQL upload). This plan adds the missing UI page +
+entry points (TitleScene button, MapScene top-bar coins-left/trophy-right).
+
+R1: codex 2 CRIT + 11 MAJOR + 5 MINOR; xiaomi 8 MAJOR + 6 MINOR — 14 accepted.
+R2: codex 4 prior-MAJOR + 4 new-MAJOR + 2 MINOR; xiaomi 3 new-MAJOR + 3 MINOR — 11 accepted.
+
+Major changes in R3:
+- SDK confirmation = async progressive enhancement (compute first, SDK after)
+- Hidden masking via shared `locked-generic.png` (NOT CSS grayscale — leak risk)
+- Asset path: commit `public/assets/achievements/` directly to git (no dist sync)
+- Unified availability: `sdk.canUseAchievements()` + `prologueShown` (Title only)
+- Full-screen modal `.achievements-overlay__backdrop` with pointer-events:auto
+- Unlocked + compute<max → clamp display progress to max
+- Drop mapData — pause/resume preserves Phaser runtime state natively
+- safeImageUrl strict basename regex
+- Exact 50 i18n keys count
+- Drop locale param from VM, locale resolution in overlay-renderer
+- Analytics fired in both Title and Map click paths
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

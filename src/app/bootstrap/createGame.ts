@@ -3,6 +3,7 @@ import { GAME_CANVAS_WIDTH, GAME_HEIGHT } from "@/app/config/gameConfig";
 import { getGameResolution } from "@/app/rendering";
 import { greedySolveSteps } from "@/core/klondike/dealSolver";
 import type { GameState } from "@/core/game-state/types";
+import { AchievementsScene } from "@/scenes/AchievementsScene";
 import { BootScene } from "@/scenes/BootScene";
 import { DetailScene } from "@/scenes/DetailScene";
 import { DiaryScene } from "@/scenes/DiaryScene";
@@ -31,6 +32,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     RewardScene,
     DiaryScene,
     SettingsScene,
+    AchievementsScene,
   ];
 
   const config: Phaser.Types.Core.GameConfig & { resolution?: number } = {

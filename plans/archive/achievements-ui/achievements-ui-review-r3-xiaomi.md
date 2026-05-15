@@ -1,0 +1,13 @@
+## Prior-concern-not-closed
+
+[MAJOR] **Map top-bar concrete CSS positions still missing (R2 codex-M3, R1-M7).** Plan specifies stack order (mute/community/trophy) and mentions `env(safe-area-inset-*)` only on the achievements overlay backdrop. The route overlay top-bar (coins-left, trophy-right) has no safe-area handling, no z-index values, and no concrete offsets. On mobile notches/rounded corners, coins and trophy can clip behind bezel; mute/trophy can still collide on narrow viewports. **Fix:** Add CSS for `.route-overlay__coins` and `.route-overlay__achievements` with `env(safe-area-inset-top)`, explicit `z-index`, and `top`/`right` values. Note mobile QA in verification.
+
+## New-concern-introduced
+
+[MAJOR] **TitleScene gate rule contradicted within the plan (intra-plan inconsistency).** Design decision R1-M5+R2 clearly states `showAchievementsButton = sdk.canUseAchievements() && state.progress.prologueShown`. But the "Files to modify > TitleScene.ts" section says only: `showAchievementsButton = state.progress.prologueShown` — omitting the `sdk.canUseAchievements()` gate. A developer following the modification checklist would ship the exact R2 xiaomi-M bug (achievements button visible on Yandex builds). **Fix:** In the TitleScene modification section, write the full condition: `const showAchievementsButton = sdk.canUseAchievements() && state.progress.prologueShown`.
+
+[MINOR] **No re-render stability strategy when SDK confirmation arrives.** `renderFromVm()` is called twice: once on `create()` with compute-only data, again after SDK resolves. The plan doesn't specify whether the second call is a full DOM replace or a patch. If full replace, scroll position resets and any unlock change causes visible jump. **Fix:** Document that re-render preserves scroll position (e.g., save `scrollTop` before replace, restore after) or use a diff/patch approach for the confirmation pass.
+
+[MINOR] **Non-hidden locked achievement icon treatment unspecified.** The plan removes `<tag>_locked.png` from UI usage and defines `locked-generic.png` only for `hidden && !unlocked`. For non-hidden locked achievements, the plan doesn't state which icon renders — the normal `<tag>.png` (potentially confusing since it looks unlocked) or some dimmed variant. **Fix:** Add one line to the masking section: "non-hidden locked → show `<tag>.png` with `opacity: 0.5` and a lock badge overlay" (or similar explicit choice).
+
+CONCERNS REMAIN

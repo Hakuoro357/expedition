@@ -2883,3 +2883,366 @@ canvas {
   color: #1a2422;
 }
 
+/* =========================================================================
+ * v0.3.58 — Achievements UI (coins counter + trophy button + AchievementsScene)
+ *
+ * Все позиции верхнего бара уважают `env(safe-area-inset-*)` для нотчей/
+ * закруглений. CSS-vars `--top-action-*` управляют стеком mute/community/trophy
+ * без `*` в calc() (R4 codex-M1). z-index: 100 поверх SVG-маршрута, но ниже
+ * overlay-backdrop achievements (z-index: 200).
+ * ========================================================================= */
+:root {
+  --top-action-size: 44px;
+  --top-action-gap: 8px;
+  --top-action-step: calc(var(--top-action-size) + var(--top-action-gap));
+  --top-pad: 12px;
+}
+
+/* Top-LEFT coin counter */
+.route-overlay__coins {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--top-pad));
+  left: calc(env(safe-area-inset-left, 0px) + var(--top-pad));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 100;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(16, 32, 31, 0.78);
+  color: #d4a962;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.route-overlay__coin-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Top-RIGHT achievements button (под mute/community). */
+.route-overlay__achievements {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--top-pad) + var(--top-action-step) + var(--top-action-step));
+  right: calc(env(safe-area-inset-right, 0px) + var(--top-pad));
+  width: var(--top-action-size);
+  height: var(--top-action-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border: 1px solid rgba(218, 201, 161, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 32, 30, 0.78);
+  color: #d4a962;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.12s ease-out, background 0.12s ease-out;
+}
+.route-overlay__achievements:hover {
+  background: rgba(15, 32, 30, 0.92);
+  transform: translateY(-1px);
+}
+.route-overlay__achievements:active {
+  transform: translateY(0);
+}
+.route-overlay__achievements svg {
+  width: 22px;
+  height: 22px;
+}
+/* When community isn't shown, trophy slides up under mute. */
+.route-overlay--no-community .route-overlay__achievements {
+  top: calc(env(safe-area-inset-top, 0px) + var(--top-pad) + var(--top-action-step));
+}
+
+/* AchievementsScene — full-screen modal backdrop + content. */
+.achievements-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+
+.achievements-overlay {
+  position: absolute;
+  inset:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at top, #1a3a36 0%, #0f2422 70%);
+  color: #f4ead7;
+  pointer-events: auto;
+}
+
+.achievements-overlay__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 8px;
+  border-bottom: 1px solid rgba(218, 201, 161, 0.18);
+}
+
+.achievements-overlay__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(218, 201, 161, 0.28);
+  background: rgba(15, 32, 30, 0.72);
+  color: #f4ead7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.achievements-overlay__back:hover {
+  background: rgba(15, 32, 30, 0.9);
+}
+
+.achievements-overlay__title {
+  margin: 0;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #d4a962;
+  flex: 1;
+  text-align: center;
+  padding-right: 80px; /* compensate for back-button width on left, keep title visually centered */
+}
+
+.achievements-overlay__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px 24px;
+}
+
+.achievements-section {
+  margin-bottom: 18px;
+}
+
+.achievements-section__title {
+  margin: 0 0 8px;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(212, 169, 98, 0.88);
+}
+
+.achievements-section__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.achievement-card {
+  display: grid;
+  grid-template-columns: clamp(48px, 15vw, 64px) 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(218, 201, 161, 0.18);
+  background: rgba(16, 32, 31, 0.62);
+}
+.achievement-card--unlocked {
+  border-color: rgba(212, 169, 98, 0.55);
+  background: rgba(38, 56, 50, 0.7);
+}
+.achievement-card--locked {
+  /* default state — already has dimmed border */
+}
+.achievement-card--hidden {
+  border-style: dashed;
+  border-color: rgba(218, 201, 161, 0.22);
+  background: rgba(10, 22, 20, 0.7);
+}
+
+.achievement-card__icon-wrap {
+  position: relative;
+  width: clamp(48px, 15vw, 64px);
+  height: clamp(48px, 15vw, 64px);
+}
+.achievement-card__icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  display: block;
+  object-fit: cover;
+}
+.achievement-card--locked .achievement-card__icon {
+  opacity: 0.5;
+  filter: saturate(0.6);
+}
+.achievement-card--hidden .achievement-card__icon {
+  opacity: 0.75;
+}
+.achievement-card__lock-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d8a04a 0%, #7a5a2a 100%);
+  color: #1a1410;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  line-height: 0;
+  padding: 0;
+}
+.achievement-card__lock-badge svg {
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+.achievement-card__check {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d4a962 0%, #b68844 100%);
+  color: #1a2422;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.achievement-card__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.achievement-card__title {
+  margin: 0;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f4ead7;
+}
+.achievement-card--unlocked .achievement-card__title {
+  color: #f9e0a4;
+}
+.achievement-card__description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.32;
+  color: rgba(246, 232, 199, 0.75);
+}
+
+.achievement-card__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+.achievement-card__progress-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(16, 28, 26, 0.7);
+  border: 1px solid rgba(218, 201, 161, 0.18);
+  overflow: hidden;
+}
+.achievement-card__progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, #b68844 0%, #d4a962 100%);
+  border-radius: inherit;
+  transition: width 0.3s ease-out;
+}
+.achievement-card__progress-label {
+  display: block;
+  font-size: 11px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: rgba(246, 232, 199, 0.7);
+}
+
+/* ---- Achievement unlock toast (v0.3.58) ---- */
+/* Stack container: fixed top-right, newest-on-top via flex-column. */
+.achievement-toast-stack {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.achievement-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 169, 98, 0.55);
+  background: linear-gradient(180deg, rgba(38, 56, 50, 0.95) 0%, rgba(16, 32, 31, 0.95) 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: #f4ead7;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  max-width: 320px;
+  min-width: 220px;
+  /* Initial state (off-screen right). */
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.22, 0.7, 0.3, 1), opacity 0.35s ease-out;
+  pointer-events: none; /* purely informational */
+}
+.achievement-toast--visible {
+  transform: translateX(0);
+  opacity: 1;
+}
+.achievement-toast--leaving {
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+}
+.achievement-toast__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.achievement-toast__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.achievement-toast__subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #d4a962;
+}
+.achievement-toast__title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #f9e0a4;
+}
+
+

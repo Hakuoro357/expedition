@@ -1,0 +1,24 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 6 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. R7 is the LAST round.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. This plan adds UI page + entry points for v0.3.56-57 backend achievements.
+
+Trend: R1=14, R2=11, R3=8, R4=4, R5=1 concern. R5 xiaomi → NO SIGNIFICANT CONCERNS.
+
+R6 fix (from R5 codex-M):
+- VM now reads sdkProgressByTag + persistedProgress
+- effectiveProgress = max(compute, sdkProgress, persistedProgress) for max-ачивок
+- Display reflects "ever earned" peak, not current balance — closes coin regression bug
+- AchievementsScene.create passes both new maps to VM (initially empty, populated after sdk.fetchAchievements)
+
+Your task:
+1. Verify R5 concern is closed cleanly.
+2. Surface any new gaps.
+3. Optional: meaningfully better alternative.
+
+Output format same as before. End with verdict line.
+
+=== PRIOR REVIEW ===

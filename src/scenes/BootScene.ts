@@ -13,6 +13,8 @@ import { SoundService } from "@/services/sound/SoundService";
 import { GamePushSdkService } from "@/services/sdk/GamePushSdkService";
 import { AchievementsReconciler } from "@/services/achievements/AchievementsReconciler";
 import { recordSharedEver, recordCommunityJoinedEver } from "@/services/achievements/recordFacts";
+import { ACHIEVEMENT_UI_META } from "@/data/achievementUiMeta";
+import { showAchievementToast } from "@/ui/achievementToast";
 import type { Locale } from "@/services/i18n/locales";
 
 function setLoadingProgress(pct: number): void {
@@ -68,7 +70,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image("map-chapter-1", "assets/backgrounds/map-chapter1.webp");
     this.load.image("map-chapter-2", "assets/backgrounds/map-chapter2.webp");
     this.load.image("map-chapter-3", "assets/backgrounds/map-chapter3.webp");
-    this.load.image("map-chapter-4", "assets/backgrounds/map-chapter4.webp");
+    // map-chapter-4 удалён в v0.3.58 — игра 3-главная, ассет был unused dead weight.
     // Per-scene коллажи — RewardScene, DiaryScene, PrologueScene.
     // Каждая использует свою картинку через `textures.exists()`-fallback
     // на старый градиент, если файл по какой-то причине не загрузился.
@@ -133,6 +135,16 @@ export class BootScene extends Phaser.Scene {
           ...p,
           achievementUnlocked: { ...(p.achievementUnlocked ?? {}), [tag]: true },
         }));
+      },
+      // v0.3.58: toast on new unlocks from write-pipeline (not bootstrap-merge).
+      (tag) => {
+        const ui = ACHIEVEMENT_UI_META.find((m) => m.tag === tag);
+        if (!ui) return;
+        showAchievementToast({
+          title: i18n.t(ui.titleKey as Parameters<typeof i18n.t>[0]),
+          subtitle: i18n.t("achievementUnlocked"),
+          iconBasename: `${tag}.png`,
+        });
       },
     );
 

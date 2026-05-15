@@ -1,0 +1,5 @@
+Prior R4 concerns look closed: CSS `*` removed, one-shot unlock rule unified, `iconKey` dropped, TitleScene gate now consistent.
+
+[MAJOR] new-concern-introduced: 1. VM merge still only carries `sdkUnlockedTags` and `persistedUnlocked`, but ignores SDK/persisted progress for max achievements. 2. This can show wrong progress for monotonic backend achievements, especially coins: player once reached 1000/2000, spent coins down to 300, backend/save has `achievementProgress.coins_2000 = 1000`, but UI displays 300/2000. Also SDK `progress >= max` with `unlocked=false` can still appear locked, despite reconciler already handling this case. 3. Add `sdkProgressByTag` and `persistedProgress` to `buildAchievementsViewModel`; for `meta.max` use `effectiveProgress = max(computeProgress, sdkProgressClamped, persistedProgressClamped)`, and `isUnlocked = effectiveProgress >= meta.max || sdkUnlocked || persistedUnlocked`.
+
+CONCERNS REMAIN

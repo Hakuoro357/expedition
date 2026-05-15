@@ -35,6 +35,11 @@ export class AchievementsReconciler {
     private readonly persistProgress: (tag: string, progress: number) => void,
     /** Persist (tag) → save.progress.achievementUnlocked[tag] = true (R3 fix M3). */
     private readonly persistUnlocked: (tag: string) => void,
+    /**
+     * v0.3.58: optional callback fired once per new unlock from write-pipeline
+     * (NOT from bootstrap-merge of existing unlocks). Used to surface toasts.
+     */
+    private readonly onNewUnlock?: (tag: string) => void,
   ) {}
 
   /**
@@ -147,8 +152,10 @@ export class AchievementsReconciler {
           this.lastProgress.set(tag, capped);
           this.persistProgress(tag, capped);
           if (capped >= max) {
+            const wasNew = !this.unlockedCache.has(tag);
             this.unlockedCache.add(tag);
             this.persistUnlocked(tag); // R3 fix M3
+            if (wasNew) this.onNewUnlock?.(tag); // v0.3.58 toast
           }
         }
         // R4 fix M1: delete ДО рекурсии — next writeProgress должен пройти.
@@ -173,8 +180,10 @@ export class AchievementsReconciler {
       .unlockAchievement(tag)
       .then((ok) => {
         if (ok) {
+          const wasNew = !this.unlockedCache.has(tag);
           this.unlockedCache.add(tag);
           this.persistUnlocked(tag); // R3 fix M3
+          if (wasNew) this.onNewUnlock?.(tag); // v0.3.58 toast
         }
         this.pendingUnlocks.delete(tag);
       })

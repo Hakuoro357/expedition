@@ -1,0 +1,30 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 5 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. This plan adds UI page + entry points for v0.3.56-57 backend achievements.
+
+R1-R3: 33 concerns accepted total. R4: xiaomi → NO SIGNIFICANT CONCERNS;
+codex 3 MAJOR + 1 MINOR, all accepted.
+
+Major changes in R5 (from R4 codex fixes):
+- CSS step-vars without `*` in calc — `--top-action-step` for additive offsets
+- Unified unlock rule for all achievements: `compute || sdk || persisted`
+- Dropped `iconKey` from ACHIEVEMENT_UI_META — filename derived from tag only
+- TitleScene button order section now explicitly requires SDK gate everywhere
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: meaningfully better alternative not yet considered.
+
+Output format:
+- For each concern: [CRITICAL] / [MAJOR] / [MINOR] + (1) what's wrong (2) why
+  it matters (3) suggested fix.
+- Distinguish prior-concern-not-closed / new-concern-introduced.
+- End with verdict line (LAST non-empty line):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

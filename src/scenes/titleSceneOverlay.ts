@@ -16,6 +16,13 @@ export type TitleSceneOverlayParams = {
    */
   showCommunityButton?: boolean;
   communityLabel?: string;
+  /**
+   * v0.3.58: кнопка «Достижения». Видна только если
+   * `sdk.canUseAchievements() && state.progress.prologueShown` (anti-spoiler
+   * gate на first-run). На Yandex — всегда отсутствует.
+   */
+  showAchievementsButton?: boolean;
+  achievementsLabel?: string;
 };
 
 /**
@@ -42,6 +49,8 @@ export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): st
     settingsLabel,
     showCommunityButton,
     communityLabel,
+    showAchievementsButton,
+    achievementsLabel,
   } = params;
   const newGameIsPrimary = !continueEnabled;
   const continueIsPrimary = continueEnabled;
@@ -59,6 +68,9 @@ export function createTitleSceneOverlayHtml(params: TitleSceneOverlayParams): st
     '  <nav class="title-scene__buttons">',
     `    <button class="${newGameClass}" data-title-action="new-game" type="button">${escapeHtml(newGameLabel)}</button>`,
     `    <button class="${continueClass}" data-title-action="continue" type="button"${continueDisabledAttr}>${escapeHtml(continueLabel)}</button>`,
+    showAchievementsButton && achievementsLabel
+      ? `    <button class="title-scene__button" data-title-action="achievements" type="button">${escapeHtml(achievementsLabel)}</button>`
+      : "",
     `    <button class="title-scene__button" data-title-action="settings" type="button">${escapeHtml(settingsLabel)}</button>`,
     showCommunityButton && communityLabel
       ? `    <button class="title-scene__button" data-title-action="community" type="button">${escapeHtml(communityLabel)}</button>`

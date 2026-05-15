@@ -90,10 +90,13 @@ export class RewardScene extends Phaser.Scene {
     // (returnFromDetail) и НЕ preview, и dealId непустой.
     // Quick-play / daily специально исключены — для них шаблон
     // shareWinText давал бы пустое имя точки.
+    // v0.3.58: убран gate `!data.returnFromDetail` — share-кнопка должна
+    // оставаться доступной после возврата из detail-просмотра (cooldown
+    // от спам-кликов уже обеспечен `shareUsed=true` после первого клика
+    // в текущей сессии scene).
     this.canShare =
       this.mode === "adventure" &&
       getAppContext().sdk.canShare() &&
-      !data.returnFromDetail &&
       !data.preview &&
       this.dealId.length > 0;
     this.shareUsed = false;

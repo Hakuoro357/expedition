@@ -1,6 +1,9 @@
 import { createAppNavHtml, type AppNavItem } from "@/ui/appNavHtml";
+import { COIN_ICON_HTML } from "@/ui/coinIcon";
 
 import { escapeHtml } from "@/ui/escapeHtml";
+
+import trophyIconHtml from "../assets/ui/nav-icons/trophy.svg?raw";
 
 export type RouteNavItem = {
   id: AppNavItem["id"];
@@ -46,6 +49,17 @@ type RouteSceneOverlayParams = {
    */
   showCommunityButton?: boolean;
   communityAriaLabel?: string;
+  /**
+   * v0.3.58: счётчик монет в верхнем-левом углу карты.
+   * Читает `progress.coins`.
+   */
+  coins?: number;
+  /**
+   * v0.3.58: иконка-кнопка trophy открывает AchievementsScene.
+   * Видна только если `sdk.canUseAchievements() === true`.
+   */
+  showAchievementsButton?: boolean;
+  achievementsAriaLabel?: string;
 };
 
 /** Viewport width used for label placement clamping */
@@ -184,6 +198,9 @@ export function createRouteSceneOverlayHtml({
   muteAriaLabel = "Toggle sound",
   showCommunityButton = false,
   communityAriaLabel = "Open community",
+  coins,
+  showAchievementsButton = false,
+  achievementsAriaLabel = "Open achievements",
 }: RouteSceneOverlayParams): string {
   const soundIcon = muted
     ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
@@ -201,6 +218,22 @@ export function createRouteSceneOverlayHtml({
   const communityBtnHtml = showCommunityButton
     ? `<button class="route-overlay__community" type="button" data-route-action="community" aria-label="${escapeHtml(communityAriaLabel)}">${communityIcon}</button>`
     : "";
+
+  // v0.3.58: top-left coin counter (offline, читает save.progress.coins).
+  const coinsHtml = typeof coins === "number"
+    ? `<div class="route-overlay__coins" aria-label="${coins}" role="status">${COIN_ICON_HTML}<span class="route-overlay__coin-count">${coins}</span></div>`
+    : "";
+
+  // v0.3.58: top-right trophy (под mute/community). Открывает AchievementsScene.
+  const achievementsBtnHtml = showAchievementsButton
+    ? `<button class="route-overlay__achievements" type="button" data-route-action="open-achievements" aria-label="${escapeHtml(achievementsAriaLabel)}">${trophyIconHtml}</button>`
+    : "";
+
+  // R3-fix: переключатель CSS-стека top-right в зависимости от наличия community.
+  // Управляет CSS-фолбеком `--top-action-step` smoothing — см. styles.css.
+  const overlayRootClass = showCommunityButton
+    ? "route-overlay"
+    : "route-overlay route-overlay--no-community";
 
   const activePointHtml =
     activePointTitle || activePointDescription
@@ -228,9 +261,11 @@ export function createRouteSceneOverlayHtml({
     : "";
 
   return [
-    '<div class="route-overlay">',
+    `<div class="${overlayRootClass}">`,
+    `  ${coinsHtml}`,
     `  ${muteBtnHtml}`,
     `  ${communityBtnHtml}`,
+    `  ${achievementsBtnHtml}`,
     devToolsHtml,
     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
     activePointHtml,

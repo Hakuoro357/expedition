@@ -1,0 +1,36 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 4 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. v0.3.56-57 introduced backend achievements (Reconciler + 20 ach in
+6 groups + GP admin GraphQL upload). This plan adds UI page + entry points.
+
+R1: 14 concerns; R2: 11; R3: 8. All accepted. Convergence trend: 14 → 11 → 8.
+
+Major changes in R4:
+- TitleScene "Files to modify" section now correctly includes both gates
+- Concrete CSS for top-bar with safe-area-inset + z-index + var-driven positions
+- Async lifecycle guard (`isClosed` flag) before re-render
+- Clamp formula only for max-ачивок (one-shot have no progressbar)
+- ACHIEVEMENT_UI_META parity test added
+- Filesystem PNG-exists test added
+- aria-label progressbar inline (no extra i18n key — stays at 50)
+- Scroll position preservation on re-render
+- Non-hidden locked treatment: opacity 0.5 + brass lock-badge overlay
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: meaningfully better alternative not yet considered.
+
+Output format:
+- For each concern: [CRITICAL] / [MAJOR] / [MINOR] + (1) what's wrong (2) why
+  it matters (3) suggested fix.
+- Distinguish prior-concern-not-closed / new-concern-introduced.
+- End with verdict line (LAST non-empty line):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

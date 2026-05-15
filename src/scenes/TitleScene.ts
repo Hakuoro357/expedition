@@ -110,6 +110,11 @@ export class TitleScene extends Phaser.Scene {
     // Когда не настроен (или платформа не поддерживает) —
     // canJoinCommunity → false, кнопки нет, hero-блок остаётся 3-x-кнопочным.
     const showCommunityButton = sdk.canJoinCommunity();
+    // v0.3.58: кнопка «Достижения» — gated only by `canUseAchievements()`.
+    // Прежний `prologueShown` gate убран: спойлеры уже покрываются
+    // hidden-masking'ом (epilogue/all_artifacts/mastery остаются «???»
+    // до unlock'а), остальные ачивки видимы как мотивация на первом запуске.
+    const showAchievementsButton = sdk.canUseAchievements();
 
     const html = createTitleSceneOverlayHtml({
       title: i18n.t("title"),
@@ -120,6 +125,8 @@ export class TitleScene extends Phaser.Scene {
       settingsLabel: i18n.t("settings"),
       showCommunityButton,
       communityLabel: showCommunityButton ? i18n.t("community") : undefined,
+      showAchievementsButton,
+      achievementsLabel: showAchievementsButton ? i18n.t("achievements") : undefined,
     });
 
     this.overlay = createCanvasAnchoredOverlay({
@@ -151,6 +158,11 @@ export class TitleScene extends Phaser.Scene {
           this.handleContinue();
         } else if (action === "settings") {
           this.scene.start(SCENES.settings, { returnTo: "title" });
+        } else if (action === "achievements") {
+          // v0.3.58: launch+pause flow — preserves TitleScene state for resume.
+          getAppContext().analytics.track("achievements_open", { origin: "title" });
+          this.scene.launch(SCENES.achievements, { returnTo: "title" });
+          this.scene.pause();
         } else if (action === "community") {
           // pendingCommunityOrigin читает глобальный listener в BootScene
           // и attribut'ит analytics на правильный origin (title vs map).
