@@ -3,6 +3,7 @@ import { AdsService } from "@/services/ads/AdsService";
 import { I18nService } from "@/services/i18n/I18nService";
 import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
+import { AchievementsReconciler } from "@/services/achievements/AchievementsReconciler";
 import type { SdkService } from "@/services/sdk/SdkService";
 
 export type AppContext = {
@@ -12,6 +13,12 @@ export type AppContext = {
   save: SaveService;
   sound: SoundService;
   sdk: SdkService;
+  /**
+   * GP Achievements reconciler. Сцены вызывают `achievements.reconcile(...)`
+   * после значимых мутаций save.progress (completeNode, claimDaily, addCoins,
+   * recordFacts). Reconciler сам решает, какие SDK calls нужны.
+   */
+  achievements: AchievementsReconciler;
 };
 
 let appContext: AppContext | null = null;

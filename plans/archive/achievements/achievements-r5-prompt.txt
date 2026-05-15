@@ -1,0 +1,39 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 5 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. Plan integrates GP achievements API. R1: 1 CRITICAL + 11 MAJOR +
+5 MINOR + Reconciler architecture. R2: 4 MAJOR + 1 MINOR. R3: 5 MAJOR + 1
+MINOR. R4: 2 MAJOR. All accepted.
+
+Major changes in R5 (from R4 fixes):
+- pendingDesired drain через `writeProgress(tag, capped, max)` helper —
+  убрали `.finally`, удаляем pending ДО рекурсивного `writeProgress(tag,
+  latestDesired, max)`. Закрывает баг R3 где recursive `reconcile(state)`
+  внутри `.then` попадал в early-return из-за неудалённого pending.
+- Bootstrap seed persisted (`achievementUnlocked` + `achievementProgress`)
+  СИНХРОННО ДО `await fetchAchievements()`. Закрывает окно гонки между
+  `void bootstrap()` и параллельным `reconcile()`.
+- `writeUnlock(tag)` helper для symmetry.
+- Sanity-test проверяет что R3-реализация падает (gives confidence that
+  R4 fix is actually needed).
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: if you see a meaningfully better alternative not yet considered,
+   propose it (not required if plan is converging well).
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap. Severity tags let me filter.
+- If proposing alternatives, add "## Alternative approaches" section.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

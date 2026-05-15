@@ -10,6 +10,8 @@ import { getDailyDateKey } from "@/data/dailyDeals";
 import { getChapterTitle } from "@/data/naming";
 import { getRewardById } from "@/data/narrative/rewards";
 import { buildShareWinText } from "@/scenes/buildShareText";
+import { recordNoHintWinEver, recordNoUndoWinEver } from "@/services/achievements/recordFacts";
+import type { LastWinContext } from "@/data/achievements";
 import {
   buildRewardRevealItems,
 } from "@/scenes/rewardRevealItems";
@@ -28,6 +30,12 @@ export type RewardSceneData = {
   preview?: boolean;
   /** Set when returning from detail view — skips sound and save logic */
   returnFromDetail?: boolean;
+  /**
+   * v0.3.56: контекст последней успешной партии. Передаётся из
+   * GameScene при завершении игры; используется для mastery-ачивок
+   * (no_undo_win / no_hint_win) через durable facts.
+   */
+  lastWin?: LastWinContext;
 };
 
 type RewardNavTarget = "archive" | "daily" | "settings";
@@ -136,6 +144,20 @@ export class RewardScene extends Phaser.Scene {
         rewardId = result.rewardId;
         this.coinsAwarded = result.coinsAwarded;
         artifactAwarded = result.artifactAwarded;
+
+        // v0.3.56: durable facts ДО reconcile — иначе compute(no_undo_win)
+        // не увидит факт на этом тике. lastWin приходит из GameScene при
+        // победе в adventure-режиме.
+        const lastWin = data.lastWin;
+        if (lastWin && lastWin.undoCount === 0) recordNoUndoWinEver();
+        if (lastWin && lastWin.hintCount === 0) recordNoHintWinEver();
+        // Триггер reconcile: видит first_win/chapter_*/character entries/
+        // first_artifact/first_entry/all_artifacts/epilogue + mastery
+        // (через durable facts) + coins_* (через completeNode bump).
+        getAppContext().achievements.reconcile({
+          progress: save.load().progress,
+          lastWin,
+        });
       } else if (node) {
         // Replay (или повторный вход в RewardScene на этой партии):
         // монет не начисляем, но reveal items восстанавливаем по узлу,
@@ -150,10 +172,18 @@ export class RewardScene extends Phaser.Scene {
       if (progress.dailyClaimedOn !== dateKey) {
         save.claimDaily(dateKey);
         this.coinsAwarded = ECONOMY.dailyWinCoins;
+        // v0.3.56: coins после daily-claim могут пересечь coin-milestone.
+        getAppContext().achievements.reconcile({
+          progress: save.load().progress,
+        });
       }
     } else {
       save.addCoins(ECONOMY.winCoins);
       this.coinsAwarded = ECONOMY.winCoins;
+      // v0.3.56: quick-play addCoins может пересечь milestone.
+      getAppContext().achievements.reconcile({
+        progress: save.load().progress,
+      });
     }
 
     if (!preview && !data.returnFromDetail) {
@@ -351,6 +381,9 @@ export class RewardScene extends Phaser.Scene {
         this.adBonusShown = true;
         this.adStatusText = `+${adBonus} ${COIN_TOKEN}`;
         sound.goodMove();
+        // v0.3.56: ad-bonus может пересечь coin-milestone (например,
+        // 1900 + 100 = 2000 → coins_2000).
+        getAppContext().achievements.reconcile({ progress: save.load().progress });
         // Полный перерендер: renderOverlay сам пере-биндит обработчики,
         // переписывая rewardOverlayCleanup.
         this.renderOverlay();

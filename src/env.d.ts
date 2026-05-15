@@ -134,6 +134,51 @@ interface GamePushSocials {
   on(event: "share" | "post" | "invite" | "joinCommunity", callback: (success: boolean) => void): void;
 }
 
+/**
+ * gp.achievements — namespace для GP Achievements API.
+ * Канон: https://gamepush.com/sdk/docs/classes/Achievements.html
+ *
+ * R3 fix M2: namespace ИМЕННО `achievements`, не `socials`. Хук с
+ * `playerAchievementsList` (sync property) — единственный способ
+ * прочитать состояние ачивок без квоты.
+ */
+interface GamePushAchievementEntry {
+  tag: string;
+  /** Имя ачивки в текущей локали (для openAchievementsOverlay-аналогов). */
+  name?: string;
+  /** Текущий progress (для max-ачивок). */
+  progress?: number;
+  /** Максимум progress (для max-ачивок). */
+  maxProgress?: number;
+  /** Получена ли ачивка (для one-shot и max). */
+  unlocked?: boolean;
+}
+
+interface GamePushAchievements {
+  /**
+   * Sync property — список ачивок текущего игрока на основе последнего
+   * fetch (или authoritative GP state при login). Безопасно читать
+   * многократно — GP кэширует внутри.
+   */
+  playerAchievementsList: GamePushAchievementEntry[];
+  /**
+   * Принудительно подтягивает свежий список с GP-бэка. Per docs
+   * deprecated но работающий FREE-метод. Используется на bootstrap
+   * перед чтением playerAchievementsList — R3 fix M3.
+   */
+  fetch(): Promise<unknown>;
+  /**
+   * Установить progress (квота: +1 to player.sync). Reconciler
+   * cap'ит до max в коде, GP сам зачисляет unlock при >= maxProgress.
+   * Возвращает объект (UnlockPlayerAchievementOutput per docs).
+   */
+  setProgress(options: { tag: string; progress: number }): Promise<unknown>;
+  /**
+   * Прямой unlock one-shot ачивки (квота: +1 to player.sync).
+   */
+  unlock(options: { tag: string }): Promise<unknown>;
+}
+
 interface GamePushSDK {
   ads: GamePushAds;
   player: GamePushPlayer;
@@ -142,6 +187,12 @@ interface GamePushSDK {
   sounds?: GamePushSounds;
   /** Социальные действия (share / post / invite / joinCommunity). Опционален на случай старых SDK. */
   socials?: GamePushSocials;
+  /**
+   * GP Achievements API (R3 fix M2 — НЕ socials.playerAchievementsList).
+   * Опционален на случай старых SDK-сборок: если поле undefined, наш
+   * SDK-wrapper возвращает false из canUseAchievements и UI скрывает кнопку.
+   */
+  achievements?: GamePushAchievements;
   language: string;
   isMobile: boolean;
   isPortrait: boolean;

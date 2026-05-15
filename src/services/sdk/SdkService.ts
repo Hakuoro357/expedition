@@ -132,4 +132,49 @@ export interface SdkService {
   /** Subscribe to outcome events. callback(true) = действие выполнено. */
   onShareResult(callback: (success: boolean) => void): void;
   onJoinCommunityResult(callback: (success: boolean) => void): void;
+
+  // ============================================================
+  // Achievements API (gp.achievements.*)
+  // Канон: https://gamepush.com/sdk/docs/classes/Achievements.html
+  //
+  // R3 fix M2: namespace `achievements`, не `socials.playerAchievementsList`.
+  // R3 fix M3: fetchAchievements() перед чтением sync list — bootstrap.
+  // R3 fix M4: Promise<boolean> = "write accepted" (НЕ "unlocked").
+  //   Unlock-status reconciler определяет сам через `capped >= meta.max`.
+  // ============================================================
+
+  /**
+   * Whether the platform supports achievements at all (feature-detection).
+   * GamePush: true если SDK инициализирован и `gp.achievements` доступен.
+   * Yandex: всегда false (нет соответствующего API).
+   */
+  canUseAchievements(): boolean;
+  /**
+   * Принудительный fetch с GP-бэка перед чтением sync-списка.
+   * Resolves когда playerAchievementsList гарантированно актуален.
+   * Used by reconciler.bootstrap (R3 fix M3).
+   */
+  fetchAchievements(): Promise<void>;
+  /**
+   * Sync-чтение списка ачивок игрока. Возвращает массив { tag, progress, unlocked }.
+   * Безопасно вызывать многократно — GP кэширует. Возвращает [] если SDK
+   * недоступен.
+   */
+  getPlayerAchievements(): Array<{ tag: string; progress: number; unlocked: boolean }>;
+  /**
+   * Unlock one-shot ачивку. Resolves `true` если SDK принял write без error
+   * (НЕ означает "unlocked" — для max-ачивок reconciler определяет unlock
+   * через `capped >= meta.max`). Errors проглатываются (resolve false).
+   */
+  unlockAchievement(tag: string): Promise<boolean>;
+  /**
+   * Set progress для max-ачивки. Reconciler передаёт уже capped значение.
+   * Resolves `true` если SDK принял write без error (R3 fix M4).
+   */
+  setAchievementProgress(tag: string, progress: number): Promise<boolean>;
+  /**
+   * Открыть native overlay со списком ачивок (если поддерживается платформой).
+   * Resolves когда оверлей закрыт / no-op если не поддерживается.
+   */
+  openAchievementsOverlay(): Promise<void>;
 }

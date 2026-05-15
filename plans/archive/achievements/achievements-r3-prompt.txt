@@ -1,0 +1,51 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 3 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. Plan integrates GP achievements API. R1 raised 1 CRITICAL + 11
+MAJOR + 5 MINOR + alternative architecture (Reconciler pattern). All
+accepted.
+
+Major changes in this revision:
+- Adopted Reconciler pattern as the architectural core.
+- 21 → 20 achievements: dropped daily_streak_7/30 (until login-streak
+  update logic exists in code — `progress.streakCount` is currently never
+  incremented). Added `first_community_join`.
+- SaveService stays pure — no AppContext coupling; reconcile() called
+  from scenes / BootScene only.
+- Fixed character-entry IDs: leader/cartographer/archaeologist/
+  quartermaster_guide/photographer_archivist (verified by grep on the
+  actual codebase before writing r2).
+- hintCount monotonic across undo: handleUndo() preserves current
+  hintCount on the restored state, only undoCount comes from history.
+- Mastery context (undoCount/hintCount) passed via RewardSceneData
+  before clearCurrentGame.
+- Cache commit-on-success: SDK methods return Promise<boolean>;
+  reconciler updates unlockedCache only after success → transient SDK
+  failure does not permanently suppress retry.
+- Bootstrap backfill: reconciler.bootstrap() called after save.init()
+  seeds caches and reconciles existing players.
+- Coins are balance milestones (skip-on-decrease semantics already
+  monotonic via cap+last-progress).
+- first_entry triggered by completedNodes (not DetailScene-open).
+- Test factory createTestGameState() for legacy fixtures.
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: if you see a meaningfully better alternative not yet considered,
+   propose it (not required if plan is converging well).
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap. Severity tags let me filter.
+- If proposing alternatives, add "## Alternative approaches" section.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

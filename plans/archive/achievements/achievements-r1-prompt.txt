@@ -1,0 +1,67 @@
+You are reviewing an engineering plan. Your task is twofold:
+1. Find concerns: gaps, risks, missing edge cases, technical bugs, unclear specs.
+2. Suggest meaningfully better alternatives if you see them — don't limit yourself
+   to nitpicking the current plan. If a fundamentally simpler/safer/more
+   maintainable approach is missed, propose it explicitly in a separate section.
+
+Round: 1 of max 7 (workflow stops at R7 hard limit).
+
+Domain context: HTML5 web game (Solitaire variant) built with Phaser 3 +
+TypeScript + Vite, published on GamePush. Solo developer, post-release
+stabilisation. Plan integrates GamePush achievements API
+(gp.achievements.unlock/setProgress/has/open) — 21 achievements covering
+progression, collection, mastery, character-entry collection, coin economy,
+social, story-epilogue. Includes hidden ones (lockedVisible: false).
+
+Existing architecture context (relevant to the plan):
+- AppContext DI pattern (getAppContext returns analytics, ads, i18n, save,
+  sound, sdk; plan adds `achievements`).
+- SaveService cloud-sync with debounce 5s, idempotent skip, gp.player.sync
+  quota minimisation rules in place. See plan-mistakes/gamepush.md gp-001..013.
+- Existing socials integration uses singleton context (socialsContext) with
+  one global listener in BootScene (per gp-013 lesson — listener leak
+  prevention).
+- 7 UI locales. Achievement names/descriptions are NOT in code — registered
+  in panel.gamepush.com dashboard with localisation per locale there.
+- 3 chapters × 10 nodes = 30 points. 9 artifacts (3 per chapter at nodes
+  3/6/10). 30 entries (1 per node), 5 authors with non-uniform distribution
+  (Воронов 10, Левин 6, Мирская 5, Климова 4, Руденко 3 = 28; report has
+  slight inconsistency vs total 30 — to be confirmed at impl).
+- Engine GameState currently has undoCount; plan adds hintCount with
+  legacy-save tolerance migration (gp-006 pattern).
+
+Quota considerations:
+- gp.achievements.unlock = +1 quota per call.
+- gp.achievements.setProgress = +1 quota per call.
+- gp.achievements.has() / getProgress() / open() = FREE.
+- Domain wrapper AchievementsService.tryUnlock guards via local Set + has()
+  to ensure exactly 1 unlock call per achievement per player lifetime.
+- AchievementsService.trySetProgress skips if new progress <= last sent.
+
+KEY DESIGN POINTS to examine:
+1. Trigger-locations: are they correct? Will SaveService.addCoins fire
+   trySetProgress on every coin change? Is that wasteful or fine?
+2. character-entries counter — re-derives from completedNodes every win.
+   Is there a more efficient pattern?
+3. RewardScene access to undoCount/hintCount: plan flags this as Open item
+   because by the time RewardScene runs, currentGame is null (cleared by
+   completeNode). Is the proposed mitigation correct?
+4. Migration safety for hintCount field in cloud-saves.
+5. Are there missed achievement opportunities or redundant ones?
+6. Quota math: at 1000 daily players × ~5-10 achievement-related calls each
+   = 5-10k SDK calls/day. Acceptable given 100k limit. Confirm.
+
+Output format:
+- For each concern: severity tag [CRITICAL] (plan won't work / will cause
+  harm) / [MAJOR] (significant gap, should fix) / [MINOR] (polish,
+  nice-to-have), followed by (1) what's wrong, (2) why it matters,
+  (3) suggested fix.
+- List ALL concerns you find — no cap. Severity tags let me filter.
+- If you have a meaningfully better architectural alternative, add a section
+  "## Alternative approaches" at the end with rationale and trade-offs.
+- End with verdict line — MUST be the LAST non-empty line of your output:
+  either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing
+  punctuation.
+
+=== PLAN ===

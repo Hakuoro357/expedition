@@ -12,6 +12,8 @@ import { I18nService } from "@/services/i18n/I18nService";
 import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
 import { GamePushSdkService } from "@/services/sdk/GamePushSdkService";
+import { AchievementsReconciler } from "@/services/achievements/AchievementsReconciler";
+import { recordSharedEver, recordCommunityJoinedEver } from "@/services/achievements/recordFacts";
 import type { Locale } from "@/services/i18n/locales";
 
 function setLoadingProgress(pct: number): void {
@@ -116,7 +118,26 @@ export class BootScene extends Phaser.Scene {
     await save.init(sdk);
     setLoadingProgress(92);
 
-    setAppContext({ analytics, ads, i18n, save, sound, sdk });
+    // v0.3.56: GP Achievements reconciler. Persist-колбэки идут через
+    // save.updateProgress, чтобы достижения попадали в обычный
+    // debounced cloud-sync (5s).
+    const achievements = new AchievementsReconciler(
+      sdk,
+      (tag, progress) => {
+        save.updateProgress((p) => ({
+          ...p,
+          achievementProgress: { ...(p.achievementProgress ?? {}), [tag]: progress },
+        }));
+      },
+      (tag) => {
+        save.updateProgress((p) => ({
+          ...p,
+          achievementUnlocked: { ...(p.achievementUnlocked ?? {}), [tag]: true },
+        }));
+      },
+    );
+
+    setAppContext({ analytics, ads, i18n, save, sound, sdk, achievements });
 
     // Авто-определение языка. Приоритет:
     //   1. ?lang=X в URL — если явно указана валидная локаль, уважаем
@@ -157,12 +178,21 @@ export class BootScene extends Phaser.Scene {
       if (!success || !ctx) return;
       analytics.track("share_win_success", { dealId: ctx.dealId });
       sound.goodMove();
+      // v0.3.56: durable fact + reconcile → first_share unlock.
+      // recordFacts пишет в save.progress.achievementFacts; даже если
+      // последующий SDK unlock провалится, факт сохранён, и на следующем
+      // bootstrap/reconcile попытка повторится.
+      recordSharedEver();
+      achievements.reconcile({ progress: save.load().progress });
     });
     sdk.onJoinCommunityResult((success) => {
       const origin = socialsContext.pendingCommunityOrigin;
       socialsContext.pendingCommunityOrigin = null;
       if (!success || !origin) return;
       analytics.track("community_join_success", { from: origin });
+      // v0.3.56: durable fact + reconcile → first_community_join unlock.
+      recordCommunityJoinedEver();
+      achievements.reconcile({ progress: save.load().progress });
     });
     // Глобальный safety net: pagehide / visibilitychange:hidden срабатывают
     // при закрытии вкладки или сворачивании браузера. Без этого мы теряли
@@ -209,6 +239,14 @@ export class BootScene extends Phaser.Scene {
       window.location.href = url.toString();
     });
     analytics.track("session_start", { sdkAvailable: sdk.isAvailable() });
+
+    // v0.3.56: GP Achievements bootstrap — backfill для existing players.
+    // Fire-and-forget: запускает fetch + merge + первый reconcile с
+    // текущим save state. R4 fix M2 гарантирует что persisted seed
+    // делается СИНХРОННО ДО await, так что параллельные reconcile()
+    // (например, из preloader-flow) не будут отправлять SDK calls
+    // для уже-unlocked one-shot.
+    void achievements.bootstrap({ progress: save.load().progress });
 
     // Phase: 100% — assets и SDK init завершены.
     setLoadingProgress(100);

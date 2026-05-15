@@ -1,0 +1,34 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 6 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. Plan integrates GP achievements API. R1: 1 CRITICAL + 11 MAJOR +
+5 MINOR + Reconciler architecture. R2: 4 MAJOR + 1 MINOR. R3: 5 MAJOR + 1
+MINOR. R4: 2 MAJOR. R5: 1 MAJOR. All accepted.
+
+Major change in R6 (from R5 fix):
+- Bootstrap merge SDK list now persists locally: при first detection
+  SDK-unlocked tag (которого нет в `persistedUnlocked`) — `persistUnlocked(tag)`.
+  При SDK progress > local → `persistProgress(tag, progress)`. Закрывает
+  cross-device / dashboard-unlock сценарий, где SDK-truth существовал
+  только в RAM и терялся при empty SDK list в следующей сессии.
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: if you see a meaningfully better alternative not yet considered,
+   propose it (not required if plan is converging well).
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap. Severity tags let me filter.
+- If proposing alternatives, add "## Alternative approaches" section.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

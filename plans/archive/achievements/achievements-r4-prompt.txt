@@ -1,0 +1,42 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 4 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: HTML5 web game (Solitaire variant) Phaser 3 + TS + Vite,
+GamePush. Plan integrates GP achievements API. R1 raised 1 CRITICAL + 11
+MAJOR + 5 MINOR + alternative architecture (Reconciler). R2: 4 MAJOR + 1
+MINOR. R3: 5 MAJOR + 1 MINOR. All accepted.
+
+Major changes in R4 (from R3 fixes):
+- pendingDesired re-check теперь читает latest из Map (не closure-state via
+  meta.compute) — `pendingDesired.get(tag) ?? capped` ДО finally-delete.
+- Typo namespace fix: `gp.achievements.playerAchievementsList` (НЕ `gp.socials.*`).
+  env.d.ts получил `achievements?: GamePushAchievements`.
+- `progress.achievementUnlocked: Record<tag, true>` persisted после успешного
+  unlock; bootstrap seed'ит cache из union (SDK list ∪ persisted). Перед
+  чтением list — `await gp.achievements.fetch()`.
+- `Promise<boolean>` semantic = "SDK write accepted" (НЕ "achievement unlocked").
+  Reconciler коммитит lastProgress на ok=true независимо от unlock-status;
+  unlock определяет сам через `capped >= meta.max`.
+- Explicit migration order в SaveService.init: parse → isValidSaveState
+  (hintCount optional) → sanitizeGameState (выставляет default 0).
+- `.catch().finally()` для in-flight maps — defense-in-depth.
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: if you see a meaningfully better alternative not yet considered,
+   propose it (not required if plan is converging well).
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap. Severity tags let me filter.
+- If proposing alternatives, add "## Alternative approaches" section.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

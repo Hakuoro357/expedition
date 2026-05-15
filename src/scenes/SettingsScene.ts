@@ -82,7 +82,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   private renderOverlay(): void {
-    const { i18n, save, sound, sdk } = getAppContext();
+    const { i18n, save, sound, sdk, achievements } = getAppContext();
     const currentState = save.load();
     // Тумблер mute: источник истины — платформа (GP global mute). Если
     // SDK не в курсе (Yandex) — берём локальный SoundService state через
@@ -160,6 +160,9 @@ export class SettingsScene extends Phaser.Scene {
       // Только версия — дата/время билда убраны, чтобы метка в меню
       // оставалась короткой. __APP_VERSION__ инъектится через vite.define.
       versionLabel: `v${__APP_VERSION__}`,
+      // v0.3.56: GP Achievements кнопка. На Yandex undefined → секция
+      // не рендерится. На GP видна всегда (canUseAchievements=true).
+      achievementsLabel: sdk.canUseAchievements() ? i18n.t("achievements") : undefined,
     });
 
     if (!this.overlay) {
@@ -226,6 +229,14 @@ export class SettingsScene extends Phaser.Scene {
             // Из game-style nav: кнопка «Карта» уводит в MapScene
             // (аналог «Home» в GameScene action-bar'е).
             this.scene.start(SCENES.map);
+            return;
+          case "open-achievements":
+            // v0.3.56: открыть native overlay со списком ачивок.
+            // GP пока не имеет публичного API — wrapper no-op (см.
+            // GamePushSdkService.openAchievementsOverlay). Кнопка
+            // остаётся в UI как точка входа, готовая к подключению
+            // когда GP добавит метод.
+            achievements.openOverlay();
             return;
           case "nav-undo-disabled":
           case "nav-hint-disabled":

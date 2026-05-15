@@ -591,9 +591,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     save.addCoins(-cost);
+    // v0.3.56: hintCount монотонный через undo — берём из CURRENT state,
+    // не из history. Иначе игрок мог бы: hint → undo → удалять факт hint,
+    // обходя no_hint_win проверку.
+    const currentHintCount = this.gameState.hintCount ?? 0;
     this.gameState = {
       ...previousState,
       undoCount: previousState.undoCount + 1,
+      hintCount: currentHintCount,
     };
     save.updateCurrentGame(this.gameState);
     analytics.track("undo_used", { dealId: this.gameState.dealId });
@@ -711,6 +716,14 @@ export class GameScene extends Phaser.Scene {
     const hint = remaining[0]!;
     this.shownHintKeys.add(this.hintKey(hint));
     this.hintsUsed++;
+    // v0.3.56: hintCount в GameState — нужен для mastery-ачивки no_hint_win.
+    // Монотонный через undo (handleUndoAction сохраняет current hintCount,
+    // не откатывает к previous из history).
+    this.gameState = {
+      ...this.gameState,
+      hintCount: (this.gameState.hintCount ?? 0) + 1,
+    };
+    save.updateCurrentGame(this.gameState);
     analytics.track("hint_used", { dealId: this.gameState.dealId, cost });
     sound.hint();
     this.showHintHighlight(hint);
@@ -1009,17 +1022,28 @@ export class GameScene extends Phaser.Scene {
 
     // Win
     if (this.gameState.status === "won") {
+      // v0.3.56: lastWin контекст для mastery-ачивок. Снимаем ДО
+      // clearCurrentGame, потому что после clearCurrentGame.hintCount
+      // станет недоступен. hintCount/undoCount берутся из текущего
+      // gameState — handleUndoAction делает их монотонными.
+      const lastWin = {
+        mode: this.gameState.mode,
+        dealId: this.gameState.dealId,
+        undoCount: this.gameState.undoCount,
+        hintCount: this.gameState.hintCount ?? 0,
+      };
       save.clearCurrentGame();
       analytics.track("deal_win", {
         mode: this.gameState.mode,
         dealId: this.gameState.dealId,
         undoCount: this.gameState.undoCount,
+        hintCount: lastWin.hintCount,
       });
       sound.victory();
       const { mode, dealId } = this.gameState;
       this.gameState = { ...this.gameState, status: "idle" };
       this.playWinAnimation(() => {
-        this.scene.start(SCENES.reward, { mode, dealId });
+        this.scene.start(SCENES.reward, { mode, dealId, lastWin });
       });
       return;
     }

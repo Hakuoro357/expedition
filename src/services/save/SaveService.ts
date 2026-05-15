@@ -152,7 +152,26 @@ function isValidGameState(value: unknown): value is GameState {
   if (!g.foundations.every(isValidPile)) return false;
   if (!Array.isArray(g.tableau) || g.tableau.length > MAX_TABLEAU) return false;
   if (!g.tableau.every(isValidPile)) return false;
+  // R3 fix M5: hintCount — OPTIONAL для legacy saves. Если поле есть —
+  // должно быть валидным числом; если нет — sanitizeGameState выставит 0.
+  // Без optional-check старые активные партии без hintCount сбрасывались
+  // бы в null (validation падала), и игрок терял партию.
+  if (typeof g.hintCount !== "undefined" && !isBoundedInt(g.hintCount, 0, MAX_UNDOS)) {
+    return false;
+  }
   return true;
+}
+
+/**
+ * R3 fix M5: sanitize GameState — выставляет default 0 для legacy
+ * hintCount (saves сделанные до v0.3.56). Должен вызываться ПОСЛЕ
+ * validation (которая принимает legacy через optional-check).
+ */
+function sanitizeGameState(g: GameState): GameState {
+  return {
+    ...g,
+    hintCount: typeof g.hintCount === "number" ? g.hintCount : 0,
+  };
 }
 
 /**
@@ -289,7 +308,10 @@ export class SaveService {
     this.state = {
       version: 1,
       progress: sanitizeProgress(parsed.progress),
-      currentGame: parsed.currentGame ?? null,
+      // R3 fix M5: sanitize currentGame ПОСЛЕ validation. Legacy saves
+      // без hintCount проходят validation (optional), sanitizeGameState
+      // выставляет 0.
+      currentGame: parsed.currentGame ? sanitizeGameState(parsed.currentGame) : null,
     };
     // Запоминаем загруженный JSON как «уже в облаке», чтобы первый
     // же no-op save (например, миграция, не меняющая данные) не

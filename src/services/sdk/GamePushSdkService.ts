@@ -334,6 +334,68 @@ export class GamePushSdkService implements SdkService {
     }
   }
 
+  // ============================================================
+  // Achievements (gp.achievements.*) — R3 fix M2: namespace `achievements`,
+  // не `socials`. Feature-detected: canUseAchievements проверяет наличие
+  // `gp.achievements`; если SDK старее GP-релиза с этим API — все методы
+  // no-op / возвращают defaults.
+  // ============================================================
+
+  canUseAchievements(): boolean {
+    return Boolean(this.gp?.achievements);
+  }
+
+  async fetchAchievements(): Promise<void> {
+    if (!this.gp?.achievements?.fetch) return;
+    try {
+      await this.gp.achievements.fetch();
+    } catch (error) {
+      console.warn("[gp] achievements.fetch failed", error);
+    }
+  }
+
+  getPlayerAchievements(): Array<{ tag: string; progress: number; unlocked: boolean }> {
+    // R3 fix M2: правильный namespace — `achievements`, не `socials`.
+    const list = this.gp?.achievements?.playerAchievementsList ?? [];
+    return list.map((a) => ({
+      tag: a.tag,
+      progress: a.progress ?? 0,
+      unlocked: Boolean(a.unlocked),
+    }));
+  }
+
+  async unlockAchievement(tag: string): Promise<boolean> {
+    if (!this.gp?.achievements?.unlock) return false;
+    try {
+      // R3 fix M4: trust SDK call — если await не throw'нул, write принят.
+      await this.gp.achievements.unlock({ tag });
+      return true;
+    } catch (error) {
+      console.warn("[gp] achievements.unlock failed", error);
+      return false;
+    }
+  }
+
+  async setAchievementProgress(tag: string, progress: number): Promise<boolean> {
+    if (!this.gp?.achievements?.setProgress) return false;
+    try {
+      // R3 fix M4: ok=true означает SDK принял write без error,
+      // НЕ "achievement unlocked". Reconciler определяет unlock-status
+      // сам через `capped >= meta.max`.
+      await this.gp.achievements.setProgress({ tag, progress });
+      return true;
+    } catch (error) {
+      console.warn("[gp] achievements.setProgress failed", error);
+      return false;
+    }
+  }
+
+  async openAchievementsOverlay(): Promise<void> {
+    // GP-SDK не имеет публичного API для открытия built-in overlay'я
+    // ачивок (на 2026-05). Оставляем no-op, чтобы каркас был готов
+    // переключиться, как только GP добавит метод.
+  }
+
   async showPreloader(): Promise<boolean> {
     if (!this.gp?.ads) return false;
     // GP sandbox / draft-проекты без сконфигурированного preloader-слота

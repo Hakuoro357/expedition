@@ -262,5 +262,31 @@ export class YandexSdkService implements SdkService {
   onJoinCommunityResult(_callback: (success: boolean) => void): void {
     // noop
   }
+
+  // Achievements — Yandex Games не имеет соответствующего public API.
+  // UI скрывает кнопку «Достижения» через canUseAchievements() → false.
+  canUseAchievements(): boolean {
+    return false;
+  }
+
+  async fetchAchievements(): Promise<void> {
+    // noop — нет SDK-эндпоинта на Yandex.
+  }
+
+  getPlayerAchievements(): Array<{ tag: string; progress: number; unlocked: boolean }> {
+    return [];
+  }
+
+  async unlockAchievement(_tag: string): Promise<boolean> {
+    return false;
+  }
+
+  async setAchievementProgress(_tag: string, _progress: number): Promise<boolean> {
+    return false;
+  }
+
+  async openAchievementsOverlay(): Promise<void> {
+    // noop
+  }
 }
 

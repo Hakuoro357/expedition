@@ -23,6 +23,30 @@ export type GameState = {
   foundations: Pile[];
   tableau: Pile[];
   undoCount: number;
+  /**
+   * Total hints used in this game. Monotonic across undo (R2/R3 fix M5):
+   * handleUndo сохраняет current hintCount, не откатывает к previous.
+   * Это нужно для mastery-achievement `no_hint_win` — иначе игрок мог бы
+   * брать hint → undo → удалять факт hint.
+   *
+   * Optional на legacy cloud-save: isValidGameState не enforce'ит поле,
+   * sanitizeGameState выставляет default 0 на load. Новые партии всегда
+   * стартуют с 0 (см. createInitialDeal).
+   */
+  hintCount?: number;
+};
+
+/**
+ * R2 fix M2: durable одноразовые факты — для one-shot ачивок, выживающих
+ * SDK transient-failures. Если `gp.achievements.unlock(first_share)` вернёт
+ * false (network glitch), факт сохранён, и на следующем reconcile попытка
+ * повторится. Все поля optional на legacy cloud-save.
+ */
+export type AchievementFacts = {
+  sharedEver?: boolean;
+  communityJoinedEver?: boolean;
+  noUndoWinEver?: boolean;
+  noHintWinEver?: boolean;
 };
 
 export type ProgressState = {
@@ -54,6 +78,24 @@ export type ProgressState = {
   lastRewardedAt?: number;
   /** Dev-only: all route points are playable */
   devAllPlayable?: boolean;
+  /**
+   * R2 fix M2: durable one-shot facts (sharedEver, noUndoWinEver, ...).
+   * Optional на legacy. Sanitize нормализует undefined → undefined (читаем
+   * через optional chaining).
+   */
+  achievementFacts?: AchievementFacts;
+  /**
+   * R5 fix M1: persist lastProgress per-tag для achievement-progress
+   * reconcile. На bootstrap reconciler seed'ит lastProgress map отсюда,
+   * чтобы reduce quota burn если SDK list пустой.
+   */
+  achievementProgress?: Record<string, number>;
+  /**
+   * R3 fix M3: durable record успешно отправленных one-shot unlock'ов.
+   * На bootstrap reconciler seed'ит unlockedCache из union (SDK list ∪ this),
+   * иначе при пустом SDK list (network glitch) повторяли бы unlock.
+   */
+  achievementUnlocked?: Record<string, true>;
 };
 
 export type SaveState = {

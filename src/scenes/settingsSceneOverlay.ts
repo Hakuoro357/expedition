@@ -62,6 +62,12 @@ type SettingsSceneOverlayParams = {
    * GP-тестировщик по ней видит точно какой билд в песочнице.
    */
   versionLabel?: string;
+  /**
+   * v0.3.56: GP Achievements кнопка. Видна только если SDK поддерживает
+   * (canUseAchievements()=true) — на Yandex undefined, секция не рендерится.
+   * Клик дёргает `data-settings-action="open-achievements"`.
+   */
+  achievementsLabel?: string;
 };
 
 /** Game-style bottom bar, идентичный визуально GameScene action-bar'у. */
@@ -125,6 +131,7 @@ export function createSettingsSceneOverlayHtml({
   gameNavLabels,
   navItems,
   versionLabel,
+  achievementsLabel,
 }: SettingsSceneOverlayParams): string {
   // Иконка-spearker: sound-on / sound-off. Inline SVG вместо <img>, чтобы
   // не плодить файлы и легко перекрашивать через currentColor.
@@ -165,6 +172,17 @@ export function createSettingsSceneOverlayHtml({
     "    </section>",
     renderSlider("sfx", sfxLabel, sfxVolume),
     renderSlider("music", musicLabel, musicVolume),
+    // v0.3.56: GP Achievements — секция видна только если SDK поддерживает.
+    // На Yandex achievementsLabel будет undefined → секция не рендерится.
+    achievementsLabel
+      ? [
+          '    <section class="settings-page__section">',
+          '      <div class="settings-page__row">',
+          `        <button class="settings-page__action settings-page__action--wide" data-settings-action="open-achievements" type="button"><span class="settings-page__action-label">${escapeHtml(achievementsLabel)}</span></button>`,
+          "      </div>",
+          "    </section>",
+        ].join("\n")
+      : "",
     // Панель «Сброс сохранения» убрана по требованию тестировщиков.
     "  </div>",
     // Версия билда — показываем над нижним nav'ом, чтобы GP-тестировщик

@@ -178,4 +178,27 @@ describe("SaveService", () => {
     expect(sdk.cloud).toBeTruthy();
     expect(sdk.cloud).not.toBe(firstWrite);
   });
+
+  // v0.3.56 R3 fix M5: legacy cloud save без hintCount должен пройти
+  // validation (optional) и получить default 0 от sanitizeGameState.
+  // Без этого старые активные партии терялись при первом init после
+  // деплоя v0.3.56.
+  it("legacy currentGame без hintCount принимается и нормализуется в 0", async () => {
+    // Симулируем cloud-save, сделанный до v0.3.56 — currentGame есть,
+    // но поле hintCount отсутствует. Берём свежий deal и удаляем поле.
+    const legacyGame = createInitialDeal("adventure", "c1n1", 42);
+    delete (legacyGame as Partial<typeof legacyGame>).hintCount;
+    const legacyState = {
+      version: 1 as const,
+      progress: createDefaultSaveState().progress,
+      currentGame: legacyGame,
+    };
+    const sdkWithCloud = createSdkStub(JSON.stringify(legacyState));
+    const svc = new SaveService();
+    await svc.init(sdkWithCloud);
+
+    expect(svc.load().currentGame).not.toBeNull();
+    expect(svc.load().currentGame?.dealId).toBe("c1n1");
+    expect(svc.load().currentGame?.hintCount).toBe(0);
+  });
 });

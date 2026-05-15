@@ -61,7 +61,10 @@ export function createInitialDeal(mode: GameMode, dealId: string, seed?: number)
       createPile("foundation-4", "foundation")
     ],
     tableau,
-    undoCount: 0
+    undoCount: 0,
+    // v0.3.56: hintCount нужен для mastery-ачивки no_hint_win.
+    // Монотонный через undo (см. GameScene.handleUndoAction).
+    hintCount: 0,
   };
 }
 
