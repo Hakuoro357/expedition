@@ -10,8 +10,9 @@ import { AdsService } from "@/services/ads/AdsService";
 import { I18nService } from "@/services/i18n/I18nService";
 import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
-import { GamePushSdkService } from "@/services/sdk/GamePushSdkService";
+import { createSdkService } from "@/services/sdk/createSdkService";
 import { AchievementsReconciler } from "@/services/achievements/AchievementsReconciler";
+import { PaymentsService } from "@/services/payments/PaymentsService";
 import { recordSharedEver, recordCommunityJoinedEver } from "@/services/achievements/recordFacts";
 import { ACHIEVEMENT_UI_META } from "@/data/achievementUiMeta";
 import { showAchievementToast } from "@/ui/achievementToast";
@@ -105,7 +106,7 @@ export class BootScene extends Phaser.Scene {
   async create(): Promise<void> {
     // Phase: 75–85% (SDK init)
     setLoadingProgress(75);
-    const sdk = new GamePushSdkService();
+    const sdk = createSdkService();
     await sdk.init();
     setLoadingProgress(85);
 
@@ -113,7 +114,6 @@ export class BootScene extends Phaser.Scene {
     const i18n = new I18nService();
     const save = new SaveService();
     const sound = new SoundService();
-    const ads = new AdsService(sdk, analytics, save);
 
     // Phase: 85–92% (cloud save init — SaveService теперь держит снимок gp.player).
     await save.init(sdk);
@@ -148,7 +148,19 @@ export class BootScene extends Phaser.Scene {
       },
     );
 
-    setAppContext({ analytics, ads, i18n, save, sound, sdk, achievements });
+    const ads = new AdsService(sdk, analytics, save);
+    // v0.3.60: PaymentsService — patron IAP. Order: achievements before payments
+    // (AchievementsReconciler is a constructor arg of PaymentsService).
+    const payments = new PaymentsService(sdk, analytics, save, achievements, ads);
+
+    setAppContext({ analytics, ads, i18n, save, sound, sdk, achievements, payments });
+
+    // Bounded restore before preloader (1.5s internal timeout — safe to await)
+    try {
+      await payments.restoreOnBoot();
+    } catch (err) {
+      console.warn("[boot] payments restoreOnBoot failed", err);
+    }
 
     // Авто-определение языка. Приоритет:
     //   1. ?lang=X в URL — если явно указана валидная локаль, уважаем

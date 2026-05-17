@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { getAppContext } from "@/app/config/appContext";
 import { GAME_CANVAS_WIDTH, GAME_HEIGHT, GAME_OFFSET_X, GAME_WIDTH, SCENES } from "@/app/config/gameConfig";
 import { socialsContext } from "@/app/socialsContext";
+import { mountPatronDialog } from "@/ui/patronDialog";
 import { applyTextRenderQuality } from "@/app/rendering";
 import type { ProgressState } from "@/core/game-state/types";
 import { getNodeById, type ChapterNode } from "@/data/chapters";
@@ -32,6 +33,8 @@ type RouteNavTarget = "archive" | "daily" | "achievements" | "settings";
 export type MapSceneData = {
   /** Page to show when returning from another scene */
   page?: number;
+  /** When true, show patron purchase push dialog 600ms after scene is ready */
+  showPatronPush?: boolean;
 };
 
 export class MapScene extends Phaser.Scene {
@@ -40,9 +43,14 @@ export class MapScene extends Phaser.Scene {
   private content?: Phaser.GameObjects.Container;
   private currentPage = 1;
   private dragStart?: { x: number; y: number };
+  private pendingPatronPush = false;
 
   constructor() {
     super(SCENES.map);
+  }
+
+  init(data: MapSceneData): void {
+    this.pendingPatronPush = Boolean(data?.showPatronPush);
   }
 
   create(data?: MapSceneData): void {
@@ -75,6 +83,28 @@ export class MapScene extends Phaser.Scene {
     });
 
     this.render();
+
+    // Post-3-wins patron push — delayed to let the map settle visually
+    if (this.pendingPatronPush) {
+      this.pendingPatronPush = false;
+      const timer = this.time.delayedCall(600, () => {
+        if (!this.scene.isActive() || !(getAppContext().payments?.canPurchasePatron() ?? false)) return;
+        void this.openPatronPush();
+      });
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => timer.remove());
+    }
+  }
+
+  private async openPatronPush(): Promise<void> {
+    const { save } = getAppContext();
+    // On-impression flag — guard against repeated showing (set before dialog opens)
+    save.updateProgress((p) => ({ ...p, patronPushShown: true }));
+    try {
+      await save.flush();
+    } catch (err) {
+      console.warn("[payments] post-win push flush failed", err);
+    }
+    mountPatronDialog("post_win_push");
   }
 
   private render(): void {

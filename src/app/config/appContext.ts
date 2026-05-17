@@ -21,10 +21,9 @@ export type AppContext = {
    */
   achievements: AchievementsReconciler;
   /**
-   * Payments service. Optional until Phase 11 wires it in BootScene.
-   * UI handlers that call this only fire after Phase 11 — safe to non-null assert.
+   * Payments service. Wired in BootScene before any scene mounts.
    */
-  payments?: PaymentsService;
+  payments: PaymentsService;
 };
 
 let appContext: AppContext | null = null;

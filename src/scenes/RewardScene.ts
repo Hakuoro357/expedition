@@ -55,6 +55,11 @@ export class RewardScene extends Phaser.Scene {
   private revealItems: RewardOverlayRevealItem[] = [];
   private chapterProgressLabel: string | undefined;
   /**
+   * Captured in create() BEFORE save mutations — used by handleContinue()
+   * to detect the crossing of the 3-wins threshold for patron push.
+   */
+  private completedCountBeforeWin = 0;
+  /**
    * v0.3.51: gp.socials.share. canShare === true только если SDK
    * платформенно поддерживает share (`canShare()`), партия НЕ replay
    * (returnFromDetail), не в dev-preview, и mode === "adventure"
@@ -84,6 +89,11 @@ export class RewardScene extends Phaser.Scene {
     this.dealId = data.dealId ?? "";
     this.preview = data.preview === true;
     this.coinsAwarded = 0;
+    // Baseline-snapshot для justCrossed3 detection в handleContinue.
+    // Init ДО любых mutations — иначе для non-adventure / preview / returnFromDetail
+    // путей baseline остался бы 0 и patron-push мог бы false-positive выстрелить
+    // на 3-й daily-победе вместо 3-й adventure-победы.
+    this.completedCountBeforeWin = save.load().progress.completedNodes.length;
     // Share-кнопка: видна только в adventure-режиме (где есть
     // осмысленный pointTitle для контекстной share-карточки),
     // SDK платформенно поддерживает share, партия НЕ replay
@@ -143,6 +153,8 @@ export class RewardScene extends Phaser.Scene {
       const progress = save.load().progress;
 
       if (!progress.completedNodes.includes(dealId)) {
+        // Capture count BEFORE mutation — used in handleContinue() for 3-win push threshold
+        this.completedCountBeforeWin = progress.completedNodes.length;
         const result = save.completeNode(dealId, node?.artifactId);
         rewardId = result.rewardId;
         this.coinsAwarded = result.coinsAwarded;
@@ -243,8 +255,10 @@ export class RewardScene extends Phaser.Scene {
   }
 
   private renderOverlay(): void {
-    const { i18n } = getAppContext();
+    const { i18n, save } = getAppContext();
     const adBonus = this.mode === "daily" ? ECONOMY.dailyAdBonusCoins : ECONOMY.adBonusCoins;
+    // Patron ad-free: hide rewarded-video button entirely for patron supporters
+    const canShowRewarded = !save.load().progress.patronSupport;
 
     this.renderRewardOverlay({
       title: i18n.t("victory"),
@@ -253,7 +267,7 @@ export class RewardScene extends Phaser.Scene {
       foundTitle: this.revealItems.length > 0 ? i18n.t("foundItems") : undefined,
       revealItems: this.revealItems,
       rewardLines: this.revealItems.length > 0 ? [] : [i18n.t("reward")],
-      adLabel: `${i18n.t("adLabel")} (+${adBonus} ${COIN_TOKEN})`,
+      adLabel: canShowRewarded ? `${i18n.t("adLabel")} (+${adBonus} ${COIN_TOKEN})` : undefined,
       adDisabled: this.adBonusShown,
       shareLabel: this.canShare ? i18n.t("share") : undefined,
       shareDisabled: this.shareUsed,
@@ -429,7 +443,19 @@ export class RewardScene extends Phaser.Scene {
       continueBtn.style.pointerEvents = "auto";
       const onContinue = (): void => {
         analytics.track("reward_screen_continue", { dealId, mode });
-        this.scene.start(SCENES.map);
+        const { payments } = getAppContext();
+        const afterCount = save.load().progress.completedNodes.length;
+        // Defense-in-depth: gate на adventure-mode + non-preview.
+        // Baseline init в create() уже снимает 0-default ловушку для других
+        // режимов, но extra-gate здесь делает intent явным и фиксирует
+        // contract «push только после 3-й adventure-победы».
+        const isAdventureWinCommit = mode === "adventure" && !this.preview;
+        const justCrossed3 = isAdventureWinCommit && afterCount === 3 && this.completedCountBeforeWin < 3;
+        const showPatronPush =
+          (payments?.canPurchasePatron() ?? false) &&
+          justCrossed3 &&
+          !save.load().progress.patronPushShown;
+        this.scene.start(SCENES.map, { showPatronPush });
       };
       continueBtn.addEventListener("click", onContinue);
       disposers.push(() => continueBtn.removeEventListener("click", onContinue));
