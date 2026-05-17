@@ -8,15 +8,45 @@ import type { SdkService } from "@/services/sdk/SdkService";
  * rewarded и переходов gameplayStart/Stop.  Кулдаун хранится в SaveService
  * (`progress.lastRewardedAt`) — тестировщик GamePush требует, чтобы все
  * клиентские данные шли через gp.player, без отдельного localStorage.
+ *
+ * Patron gate: patronCached suppresses all ad types for confirmed/optimistic patrons.
  */
 export class AdsService {
+  /** Patron entitlement cache. undefined = not set (poll save). */
+  private patronCached?: boolean;
+
   constructor(
     private readonly sdk: SdkService,
     private readonly analytics: AnalyticsService,
     private readonly save: SaveService,
   ) {}
 
+  /** Optimistic suppression — sticky NOT closed (revocable on SDK timeout). */
+  setPatronOptimistic(): void {
+    this.patronCached = true;
+  }
+
+  /** Revert optimistic suppression (called when SDK disproves hint). */
+  clearPatronOptimistic(): void {
+    this.patronCached = undefined;
+  }
+
+  /** Confirmed entitlement — sticky is closed immediately. */
+  markPatronConfirmed(): void {
+    this.patronCached = true;
+    try { this.sdk.closeSticky(); } catch { /* safe */ }
+  }
+
+  private isPatron(): boolean {
+    if (this.patronCached !== undefined) return this.patronCached;
+    return Boolean(this.save.load().progress.patronSupport);
+  }
+
   async showRewardedVideo(placement: string): Promise<boolean> {
+    if (this.isPatron()) {
+      this.analytics.track("rewarded_offer_skipped", { placement, reason: "patron" });
+      return false;
+    }
     const now = Date.now();
     const lastRewardedAt = this.save.load().progress.lastRewardedAt ?? 0;
 
@@ -48,6 +78,7 @@ export class AdsService {
 
   /** Show an interstitial (fullscreen) ad at a natural breakpoint. */
   async showInterstitial(placement: string): Promise<void> {
+    if (this.isPatron()) return;
     this.analytics.track("interstitial_shown", { placement });
     this.sdk.gameplayStop();
     try {
@@ -63,6 +94,7 @@ export class AdsService {
    * параллельно с игрой, игрок продолжает кликать по картам.
    */
   showStickyBanner(placement: string): void {
+    if (this.isPatron()) return;
     this.analytics.track("sticky_banner_shown", { placement });
     this.sdk.showSticky();
   }
@@ -85,6 +117,7 @@ export class AdsService {
    * геймплей ещё не начался.
    */
   async showPreloader(): Promise<boolean> {
+    if (this.isPatron()) return false;
     this.analytics.track("preloader_offer_shown", {});
     let shown = false;
     try {
