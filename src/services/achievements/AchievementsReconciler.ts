@@ -28,6 +28,13 @@ export class AchievementsReconciler {
   private pendingDesired = new Map<string, number>();
   /** Pending one-shot unlocks — для дедупа in-flight. */
   private pendingUnlocks = new Set<string>();
+  /**
+   * Phase 3: flag set when patron purchase just completed. When true,
+   * the "patron" achievement toast is delayed 1800ms to avoid overlapping
+   * with the thank-you toast that fires immediately on purchase.
+   */
+  private patronJustActivated = false;
+  private patronJustActivatedTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private readonly sdk: SdkService,
@@ -183,7 +190,14 @@ export class AchievementsReconciler {
           const wasNew = !this.unlockedCache.has(tag);
           this.unlockedCache.add(tag);
           this.persistUnlocked(tag); // R3 fix M3
-          if (wasNew) this.onNewUnlock?.(tag); // v0.3.58 toast
+          if (wasNew && this.onNewUnlock) {
+            // Phase 3: delay patron toast 1800ms so thank-you toast shows first.
+            if (tag === "patron" && this.patronJustActivated) {
+              setTimeout(() => this.onNewUnlock!(tag), 1800);
+            } else {
+              this.onNewUnlock(tag); // v0.3.58 toast
+            }
+          }
         }
         this.pendingUnlocks.delete(tag);
       })
@@ -192,6 +206,23 @@ export class AchievementsReconciler {
         this.pendingUnlocks.delete(tag);
         console.warn("[ach] unlock threw", tag, err);
       });
+  }
+
+  /**
+   * Phase 3: called by PaymentsService.activatePatron() (Phase 4).
+   * Sets patronJustActivated for 1800ms so the "patron" achievement toast
+   * is delayed and doesn't overlap with the immediate thank-you toast.
+   * Idempotent: repeated calls reset the timer.
+   */
+  markPatronJustActivated(): void {
+    if (this.patronJustActivatedTimer !== undefined) {
+      clearTimeout(this.patronJustActivatedTimer);
+    }
+    this.patronJustActivated = true;
+    this.patronJustActivatedTimer = setTimeout(() => {
+      this.patronJustActivated = false;
+      this.patronJustActivatedTimer = undefined;
+    }, 1800);
   }
 
   openOverlay(): void {

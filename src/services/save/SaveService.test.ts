@@ -179,6 +179,56 @@ describe("SaveService", () => {
     expect(sdk.cloud).not.toBe(firstWrite);
   });
 
+  // Phase 2: patron fields in ProgressState
+  it("hydrates patron fields from cloud save correctly", async () => {
+    const seeded = createDefaultSaveState();
+    seeded.progress.patronSupport = true;
+    seeded.progress.patronBonusGranted = true;
+    seeded.progress.patronGrantedAt = 1700000000000;
+    seeded.progress.patronPushShown = false;
+    const sdkWithCloud = createSdkStub(JSON.stringify(seeded));
+    const svc = new SaveService();
+    await svc.init(sdkWithCloud);
+
+    expect(svc.load().progress.patronSupport).toBe(true);
+    expect(svc.load().progress.patronBonusGranted).toBe(true);
+    expect(svc.load().progress.patronGrantedAt).toBe(1700000000000);
+    expect(svc.load().progress.patronPushShown).toBe(false);
+  });
+
+  it("rejects save with patronSupport as string → returns fresh state", async () => {
+    const seeded = createDefaultSaveState();
+    (seeded.progress as Record<string, unknown>).patronSupport = "yes";
+    const sdkWithCloud = createSdkStub(JSON.stringify(seeded));
+    const svc = new SaveService();
+    await svc.init(sdkWithCloud);
+
+    expect(svc.load()).toEqual(createDefaultSaveState());
+  });
+
+  it("rejects save with patronGrantedAt as string → returns fresh state", async () => {
+    const seeded = createDefaultSaveState();
+    (seeded.progress as Record<string, unknown>).patronGrantedAt = "2024-01-01";
+    const sdkWithCloud = createSdkStub(JSON.stringify(seeded));
+    const svc = new SaveService();
+    await svc.init(sdkWithCloud);
+
+    expect(svc.load()).toEqual(createDefaultSaveState());
+  });
+
+  it("loads correctly when patron fields are absent (all undefined)", async () => {
+    const seeded = createDefaultSaveState();
+    // No patron fields set — should load and all be undefined
+    const sdkWithCloud = createSdkStub(JSON.stringify(seeded));
+    const svc = new SaveService();
+    await svc.init(sdkWithCloud);
+
+    expect(svc.load().progress.patronSupport).toBeUndefined();
+    expect(svc.load().progress.patronBonusGranted).toBeUndefined();
+    expect(svc.load().progress.patronGrantedAt).toBeUndefined();
+    expect(svc.load().progress.patronPushShown).toBeUndefined();
+  });
+
   // v0.3.56 R3 fix M5: legacy cloud save без hintCount должен пройти
   // validation (optional) и получить default 0 от sanitizeGameState.
   // Без этого старые активные партии терялись при первом init после

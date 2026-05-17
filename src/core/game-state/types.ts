@@ -78,6 +78,14 @@ export type ProgressState = {
   lastRewardedAt?: number;
   /** Dev-only: all route points are playable */
   devAllPlayable?: boolean;
+  /** Whether the player has activated patron support */
+  patronSupport?: boolean;
+  /** Guard: +300 coin bonus granted once per save state */
+  patronBonusGranted?: boolean;
+  /** Timestamp (ms) when patron was activated — for future refund logic */
+  patronGrantedAt?: number;
+  /** Whether the post-3-wins patron push has been shown */
+  patronPushShown?: boolean;
   /**
    * R2 fix M2: durable one-shot facts (sharedEver, noUndoWinEver, ...).
    * Optional на legacy. Sanitize нормализует undefined → undefined (читаем

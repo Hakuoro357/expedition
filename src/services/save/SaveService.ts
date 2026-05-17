@@ -106,6 +106,30 @@ function isValidSaveState(value: unknown): value is SaveState {
   ) {
     return false;
   }
+  if (
+    typeof progress.patronSupport !== "undefined" &&
+    typeof progress.patronSupport !== "boolean"
+  ) {
+    return false;
+  }
+  if (
+    typeof progress.patronBonusGranted !== "undefined" &&
+    typeof progress.patronBonusGranted !== "boolean"
+  ) {
+    return false;
+  }
+  if (
+    typeof progress.patronGrantedAt !== "undefined" &&
+    (typeof progress.patronGrantedAt !== "number" || !Number.isFinite(progress.patronGrantedAt))
+  ) {
+    return false;
+  }
+  if (
+    typeof progress.patronPushShown !== "undefined" &&
+    typeof progress.patronPushShown !== "boolean"
+  ) {
+    return false;
+  }
 
   if (v.currentGame !== null && v.currentGame !== undefined) {
     if (!isValidGameState(v.currentGame)) {
