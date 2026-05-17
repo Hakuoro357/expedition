@@ -1,0 +1,33 @@
+You are re-reviewing a revised engineering plan.
+
+Round: 7 of max 7. At R4+ minor polish concerns are likely to be rejected as
+nitpicks — focus on real risks. At R7 this is the LAST round; concerns not closed
+here will be carried forward as known TODO in the stalled plan.
+
+Domain context: Phaser 3 + TypeScript solitaire game with narrative expedition
+theme. GamePush + Yandex Games SDKs for distribution and IAP. Single one-shot IAP:
+«Поддержать автора + ad-free» (~199 RUB tier, removes all 4 ad types incl rewarded,
++300 coins bonus once-per-account via patronBonusGranted flag, unlocks «patron»
+achievement + adds Архив entry «От автора»). Existing infra: SdkService interface
+with adapters, AdsService, SaveService with debounced cloud-sync, Reconciler
+with onNewUnlock callback, narrative entries gated by completed nodes, 7-locale
+i18n. Plan adds: PaymentsService analog of AdsService, restore-on-boot,
+Settings UI button + dialog, RewardScene-triggered Post-3-wins push,
+~16 i18n keys × 7 locales, new author speaker + entry.
+
+Your task:
+1. Check whether prior concerns are addressed.
+2. Surface any new gaps introduced by the revision.
+3. Optionally: if you see a meaningfully better alternative not yet considered,
+   propose it (not required if plan is converging well).
+
+Output format:
+- For each concern: severity tag [CRITICAL] / [MAJOR] / [MINOR], followed by
+  (1) what's wrong, (2) why it matters, (3) suggested fix.
+- Distinguish "prior-concern-not-closed" from "new-concern-introduced".
+- List ALL concerns — no cap. Severity tags let me filter.
+- If proposing alternatives, add "## Alternative approaches" section.
+- End with verdict line (LAST non-empty line, no markdown/quotes/punctuation):
+  NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+
+=== PRIOR REVIEW ===

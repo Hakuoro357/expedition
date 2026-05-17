@@ -1,0 +1,62 @@
+You are reviewing an engineering plan. Your task is twofold:
+1. Find concerns: gaps, risks, missing edge cases, technical bugs, unclear specs.
+2. Suggest meaningfully better alternatives if you see them — don't limit yourself
+   to nitpicking the current plan. If a fundamentally simpler/safer/more
+   maintainable approach is missed, propose it explicitly in a separate section.
+
+Round: 1 of max 7 (workflow stops at R7 hard limit).
+Domain context: Phaser 3 + TypeScript solitaire game with narrative expedition theme.
+GamePush + Yandex Games SDKs for distribution and IAP. Single one-shot IAP being
+added: «Поддержать автора + ad-free» (~200 RUB tier, removes all 4 ad types including
+rewarded, +300 coins bonus, unlocks «patron» achievement + adds Архив entry).
+Existing infra: SdkService interface with adapters (GamePushSdkService /
+YandexSdkService / DevStubSdkService), AdsService wrapper, SaveService with
+debounced cloud-sync + idempotent skip + flush on lifecycle, AchievementsReconciler
+with onNewUnlock callback (toast on unlock), narrative entries currently gated by
+completed route nodes (chapterNode.entryId in completedNodes), 7-locale i18n in
+single locales.ts file, 20 existing achievements in 6 groups (community has 2
+existing: first_share + first_community_join). New for this plan: PaymentsService
+analog of AdsService, restore-on-boot in BootScene, Settings UI button + dialog,
+Post-3-wins one-time push (completedNodes.length >= 3 && !patronPushShown),
+15 new i18n keys × 7 locales, new author speaker profile, new author_thanks
+narrative entry purchase-gated.
+
+Known constraints I want you to challenge:
+- GP payments API: I'm not 100% sure whether `gp.payments.purchase(tag)` returns
+  Promise-resolves directly, or returns via event-listener (like gp.socials.share
+  which has no off-token and required singleton-listener architecture). Flag if
+  my assumed `await sdk.purchase()` model might be wrong for GP.
+- Yandex IAP: `ysdk.getPayments({signed:true})` — flag if signed:true is right
+  default, or if I'm missing token-validation step on backend.
+- CrazyGames / Poki distribution: GP-distributed builds for these platforms may
+  block IAP entirely. canUsePayments=false should hide button correctly — flag if
+  my plan misses any case.
+- AdsService gate: I gate all 4 ad types on isPatron(). Player may have paused/
+  hidden ad currently when patronSupport flips true. Flag if any race conditions
+  or "ad already running needs to stop" scenarios are missed.
+- Save migration: existing players with old save schema (no patronSupport field)
+  should default to non-patron. Optional field, default undefined → falsy. Flag if
+  this assumption breaks any existing test or migration code.
+- Restore timing: 5s timeout on getPurchases(). If patron purchased then opened
+  game offline, restore fails-soft → ads show until next online boot. Flag if a
+  better fallback exists.
+- Bonus +300 coins on purchase only (not on restore) — to avoid duplicate credit.
+  Flag if cross-device scenario (purchase on phone, restore on tablet) creates
+  user-confusion.
+- Achievement-firing timing: after activatePatron sets save.patronSupport=true,
+  Reconciler picks up on next tick and fires onNewUnlock(patron) → toast. Flag
+  if there's a race where toast fires before purchase dialog closes (visual mess)
+  or after a long delay (no feedback).
+
+Output format:
+- For each concern: severity tag [CRITICAL] (plan won't work / will cause harm) /
+  [MAJOR] (significant gap, should fix) / [MINOR] (polish, nice-to-have),
+  followed by (1) what's wrong, (2) why it matters, (3) suggested fix.
+- List ALL concerns you find — no cap. Severity tags let me filter.
+- If you have a meaningfully better architectural alternative, add a section
+  "## Alternative approaches" at the end with rationale and trade-offs.
+- End with verdict line — MUST be the LAST non-empty line of your output:
+  either NO SIGNIFICANT CONCERNS or CONCERNS REMAIN.
+- Do NOT wrap the verdict in markdown, code block, quotes, or trailing punctuation.
+
+=== PLAN ===
