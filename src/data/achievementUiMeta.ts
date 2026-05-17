@@ -70,7 +70,8 @@ export const ACHIEVEMENT_UI_META: AchievementUiMeta[] = [
   { tag: "coins_1000", groupTag: "equipment", order: 2, titleKey: "ach_coins_1000_title", descriptionKey: "ach_coins_1000_description" },
   { tag: "coins_2000", groupTag: "equipment", order: 3, titleKey: "ach_coins_2000_title", descriptionKey: "ach_coins_2000_description" },
 
-  // Community (2)
+  // Community (3)
   { tag: "first_share", groupTag: "community", order: 1, titleKey: "ach_first_share_title", descriptionKey: "ach_first_share_description" },
   { tag: "first_community_join", groupTag: "community", order: 2, titleKey: "ach_first_community_join_title", descriptionKey: "ach_first_community_join_description" },
+  { tag: "patron", groupTag: "community", order: 3, titleKey: "ach_patron_title", descriptionKey: "ach_patron_description" },
 ];

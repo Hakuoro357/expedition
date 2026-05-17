@@ -116,6 +116,7 @@ export const ACHIEVEMENTS: AchievementMeta[] = [
   // Social — durable via achievementFacts (R2 fix M2)
   { tag: "first_share", compute: (s) => Boolean(s.progress.achievementFacts?.sharedEver) },
   { tag: "first_community_join", compute: (s) => Boolean(s.progress.achievementFacts?.communityJoinedEver) },
+  { tag: "patron", compute: (s) => Boolean(s.progress.patronSupport) },
 
   // Story
   { tag: "epilogue", hidden: true, compute: (s) => s.progress.completedNodes.includes("c3n10") },

@@ -70,10 +70,10 @@ describe("buildAchievementsViewModel — structure", () => {
     }
   });
 
-  it("renders all 20 cards across groups", () => {
+  it("renders all 21 cards across groups", () => {
     const model = vm();
     const total = model.groups.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(20);
+    expect(total).toBe(21);
   });
 });
 
@@ -239,7 +239,7 @@ describe("buildAchievementsViewModel — monotonic progress (R5 codex)", () => {
 });
 
 describe("buildAchievementsViewModel — empty state", () => {
-  it("new player (empty progress) → all 20 achievements locked", () => {
+  it("new player (empty progress) → all 21 achievements locked", () => {
     const model = vm();
     const allLocked = model.groups
       .flatMap((g) => g.items)

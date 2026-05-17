@@ -11,7 +11,7 @@ const find = (tag: string) => {
 };
 
 describe("achievements metadata", () => {
-  it("contains all 20 expected tags", () => {
+  it("contains all 21 expected tags", () => {
     const tags = ACHIEVEMENTS.map((a) => a.tag).sort();
     expect(tags).toEqual(
       [
@@ -35,6 +35,7 @@ describe("achievements metadata", () => {
         "first_win",
         "no_hint_win",
         "no_undo_win",
+        "patron",
       ].sort(),
     );
   });
@@ -162,6 +163,20 @@ describe("compute functions", () => {
         progress: { ...emptyProgress, achievementFacts: { sharedEver: true } },
       }),
     ).toBeTruthy();
+  });
+
+  it("patron returns true when patronSupport === true, false otherwise", () => {
+    expect(find("patron").compute({ progress: emptyProgress })).toBeFalsy();
+    expect(
+      find("patron").compute({
+        progress: { ...emptyProgress, patronSupport: true },
+      }),
+    ).toBeTruthy();
+    expect(
+      find("patron").compute({
+        progress: { ...emptyProgress, patronSupport: false },
+      }),
+    ).toBeFalsy();
   });
 
   it("epilogue requires c3n10 specifically", () => {

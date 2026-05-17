@@ -55,6 +55,14 @@ const SPEAKER_PROFILES: Record<"ru" | "global" | "tr", Record<string, NarrativeS
       accent: "#a06f7f",
       portraitKey: "klimova",
     },
+    author: {
+      entityId: "author",
+      fullName: "Автор экспедиции",
+      shortName: "Автор",
+      initials: "АЭ",
+      accent: "#c9a76a",
+      portraitKey: "author",
+    },
   },
   global: {
     leader: {
@@ -96,6 +104,14 @@ const SPEAKER_PROFILES: Record<"ru" | "global" | "tr", Record<string, NarrativeS
       initials: "CR",
       accent: "#a06f7f",
       portraitKey: "klimova",
+    },
+    author: {
+      entityId: "author",
+      fullName: "Author of the expedition",
+      shortName: "Author",
+      initials: "AE",
+      accent: "#c9a76a",
+      portraitKey: "author",
     },
   },
   // Турецкая локаль использует те же латинские имена персонажей,
@@ -140,6 +156,14 @@ const SPEAKER_PROFILES: Record<"ru" | "global" | "tr", Record<string, NarrativeS
       initials: "CR",
       accent: "#a06f7f",
       portraitKey: "klimova",
+    },
+    author: {
+      entityId: "author",
+      fullName: "Author of the expedition",
+      shortName: "Author",
+      initials: "AE",
+      accent: "#c9a76a",
+      portraitKey: "author",
     },
   },
 };
