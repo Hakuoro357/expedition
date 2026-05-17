@@ -27,6 +27,8 @@ type ArchiveEntryItem = {
   portraitUrl: string | undefined;
   excerpt: string;
   body: string;
+  /** v0.3.60: true for the author_thanks patron entry (no chapter node). */
+  isAuthorThanks?: boolean;
 };
 
 type ArchiveNavTarget = "home" | "daily" | "settings";
@@ -110,10 +112,10 @@ export class DiaryScene extends Phaser.Scene {
   private buildArchiveEntries(
     locale: "ru" | "global" | "en" | "tr" | "es" | "pt" | "de" | "fr",
   ): ArchiveEntryItem[] {
-    const { save } = getAppContext();
+    const { save, i18n } = getAppContext();
     const { progress } = save.load();
 
-    return progress.completedNodes
+    const entries: ArchiveEntryItem[] = progress.completedNodes
       .map((nodeId) => {
         const chapterNode = this.getChapterNode(nodeId);
         if (!chapterNode) {
@@ -140,6 +142,31 @@ export class DiaryScene extends Phaser.Scene {
         };
       })
       .filter((item): item is ArchiveEntryItem => Boolean(item));
+
+    // v0.3.60: prepend author_thanks entry at top for patrons.
+    if (progress.patronSupport) {
+      const authorEntry = getNarrativeEntry("author_thanks", locale);
+      const authorSpeaker = getNarrativeSpeakerProfile("author", locale);
+      if (authorEntry && authorSpeaker) {
+        entries.unshift({
+          entryId: "author_thanks",
+          pointId: "",
+          pointLabel: i18n.t("authorThanksPointLabel"),
+          author: authorSpeaker.fullName,
+          initials: authorSpeaker.initials,
+          accent: authorSpeaker.accent,
+          // Author entry — initials-кружок fallback (нет author.webp asset).
+          // Explicit undefined чтобы добавление webp в v0.3.61 не сломало
+          // ad-hoc Phase 9 rendering без обновления layout.
+          portraitUrl: undefined,
+          excerpt: authorEntry.excerpt ?? "",
+          body: authorEntry.body,
+          isAuthorThanks: true,
+        });
+      }
+    }
+
+    return entries;
   }
 
   private getChapterNode(nodeId: string) {
@@ -353,6 +380,12 @@ export class DiaryScene extends Phaser.Scene {
   }
 
   private openEntryDetail(item: ArchiveEntryItem): void {
+    // v0.3.60: author_thanks has no chapter node — route to DetailScene in authorThanksEntry mode.
+    if (item.isAuthorThanks) {
+      this.scene.start(SCENES.detail, { authorThanksEntry: true, returnTo: "diary" });
+      return;
+    }
+
     const node = getNodeByEntryId(item.entryId);
     if (!node) {
       return;

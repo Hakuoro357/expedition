@@ -6,6 +6,8 @@ import { getDailyDateKey } from "@/data/dailyDeals";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { createSettingsSceneOverlayHtml } from "@/scenes/settingsSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { mountPatronDialog } from "@/ui/patronDialog";
+import { showConfirmDialog } from "@/ui/confirmDialog";
 
 type SettingsNavTarget = "archive" | "daily" | "settings" | "home";
 type ReturnTo = "game" | "map" | "archive" | "reward" | "title";
@@ -49,7 +51,7 @@ export class SettingsScene extends Phaser.Scene {
     this.rewardData = data?.rewardData;
 
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
-    const { sound } = getAppContext();
+    const { sound, payments } = getAppContext();
     sound.playBgm("map");
     this.renderBackground();
     this.renderOverlay();
@@ -58,9 +60,14 @@ export class SettingsScene extends Phaser.Scene {
     // перерисуется если GP сменит mute после рендера (preloader-ad,
     // платформенная иконка и т.п.).
     const unsubscribeMute = sound.onMuteChange(() => this.renderOverlay());
+    // v0.3.60: подписка на patron-state — после успешной покупки кнопка
+    // «Поддержать» должна исчезнуть. Без re-render — следующий клик попадает
+    // в not_eligible early-return и показывает generic error.
+    const unsubscribePatron = payments?.onChange(() => this.renderOverlay());
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       unsubscribeMute();
+      unsubscribePatron?.();
       this.overlayCleanup?.();
       this.overlay?.destroy();
       this.overlay = undefined;
@@ -82,7 +89,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   private renderOverlay(): void {
-    const { i18n, save, sound, sdk } = getAppContext();
+    const { i18n, save, sound, sdk, payments } = getAppContext();
     const currentState = save.load();
     // Тумблер mute: источник истины — платформа (GP global mute). Если
     // SDK не в курсе (Yandex) — берём локальный SoundService state через
@@ -166,6 +173,14 @@ export class SettingsScene extends Phaser.Scene {
       // В будущем v0.3.57+ вернём кнопку, открывающую наш собственный
       // DOM-overlay со списком прогресса по 20 ачивкам.
       achievementsLabel: undefined,
+      // v0.3.60: patron support button + restore button.
+      // canRestore требует payments-доступности И не-patron'а — активный patron
+      // уже подтверждён, кнопка «Восстановить» только запутает.
+      canPurchasePatron: payments?.canPurchasePatron() ?? false,
+      canRestore: (payments?.canUsePayments() ?? false) && currentState.progress.patronSupport !== true,
+      supportAuthorLabel: i18n.t("supportAuthor"),
+      supportAuthorSubtitleLabel: i18n.t("supportAuthorSubtitle"),
+      restorePurchaseLabel: i18n.t("restorePurchase"),
     });
 
     if (!this.overlay) {
@@ -236,6 +251,12 @@ export class SettingsScene extends Phaser.Scene {
           case "nav-undo-disabled":
           case "nav-hint-disabled":
             // Визуальные disabled-иконки — клик ничего не делает.
+            return;
+          case "open-patron":
+            mountPatronDialog("settings");
+            return;
+          case "restore-patron":
+            void this.handleRestoreClick();
             return;
         }
       };
@@ -336,6 +357,77 @@ export class SettingsScene extends Phaser.Scene {
     this.overlayCleanup = () => {
       disposers.forEach((dispose) => dispose());
     };
+  }
+
+  private showToast(text: string): void {
+    if (typeof document === "undefined") return;
+    const STACK_ID = "achievement-toast-stack";
+    let stack = document.getElementById(STACK_ID);
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.id = STACK_ID;
+      stack.className = "achievement-toast-stack";
+      document.body.appendChild(stack);
+    }
+    const toast = document.createElement("div");
+    toast.className = "achievement-toast patron-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    // escapeHtml not needed — text from i18n keys, no user input
+    toast.textContent = text;
+    stack.insertBefore(toast, stack.firstChild);
+    requestAnimationFrame(() => { toast.classList.add("achievement-toast--visible"); });
+    window.setTimeout(() => {
+      toast.classList.remove("achievement-toast--visible");
+      toast.classList.add("achievement-toast--leaving");
+      window.setTimeout(() => {
+        toast.remove();
+        if (stack && stack.children.length === 0) stack.remove();
+      }, 400);
+    }, 3500);
+  }
+
+  private async handleRestoreClick(retried = false): Promise<void> {
+    const { payments, sdk, i18n } = getAppContext();
+    if (!payments) return;
+    const result = await payments.restorePatronManual();
+    if (result.ok) {
+      if ("mismatch" in result && result.mismatch) {
+        this.showToast(i18n.t("patronRestoreDisputed"));
+      } else if (result.alreadyActive) {
+        this.showToast(i18n.t("patronAlreadyActive"));
+      } else {
+        this.showToast(i18n.t("patronRestoreSuccess"));
+        this.renderOverlay();
+      }
+      return;
+    }
+    const reason = (result as { ok: false; reason: string }).reason;
+    if (reason === "unauthorized") {
+      if (retried) {
+        this.showToast(i18n.t("patronRestoreUnauthorized"));
+        return;
+      }
+      const overlay = this.overlay;
+      if (!overlay) return;
+      const wantsLogin = await showConfirmDialog({
+        parent: overlay.getHostElement(),
+        title: i18n.t("patronUnauthorizedLogin"),
+        message: "",
+        okLabel: i18n.t("patronConfirmButton"),
+        cancelLabel: i18n.t("patronCancelButton"),
+      });
+      if (!wantsLogin) return;
+      await sdk.triggerLogin();
+      return this.handleRestoreClick(true);
+    }
+    if (reason === "not_found") {
+      this.showToast(i18n.t("patronRestoreNotFound"));
+    } else if (reason === "unavailable") {
+      this.showToast(i18n.t("patronRestoreUnavailable"));
+    } else {
+      this.showToast(i18n.t("patronError"));
+    }
   }
 
   private handleBottomNav(target: SettingsNavTarget): void {

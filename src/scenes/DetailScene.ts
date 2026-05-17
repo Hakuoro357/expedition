@@ -20,6 +20,7 @@ import {
 } from "@/scenes/detailSceneOverlay";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
+import { escapeHtml } from "@/ui/escapeHtml";
 
 export type DetailOrigin = {
   scene: string;
@@ -40,6 +41,13 @@ export type DetailSceneData = {
    * на узле подменяет дефолтный node.artifactId. v0.3.48.
    */
   artifactId?: string;
+  /**
+   * v0.3.60: true → render author_thanks layout (patron entry, no chapter node).
+   * When set, dealId is ignored and renderAuthorThanksLayout() is used instead.
+   */
+  authorThanksEntry?: boolean;
+  /** v0.3.60: scene key to return to when back button pressed in authorThanksEntry mode. */
+  returnTo?: string;
 };
 
 type DetailNavTarget = "archive" | "daily" | "settings";
@@ -57,6 +65,9 @@ export class DetailScene extends Phaser.Scene {
    *  обратно можно поделиться снова. */
   private entryShareUsed = false;
   private artifactShareUsed = false;
+  /** v0.3.60: true when opened as patron author_thanks entry (no chapter node). */
+  private authorThanksMode = false;
+  private returnToScene = "diary";
 
   constructor() {
     super(SCENES.detail);
@@ -65,10 +76,26 @@ export class DetailScene extends Phaser.Scene {
   create(data: DetailSceneData): void {
     this.cameras.main.setScroll(-GAME_OFFSET_X, 0);
     getAppContext().sound.playBgm("map");
-    this.dealId = data.dealId ?? "";
-    // Сброс one-shot share-флагов на каждом входе в сцену.
     this.entryShareUsed = false;
     this.artifactShareUsed = false;
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.overlayCleanup?.();
+      this.overlay?.destroy();
+      this.overlay = undefined;
+      this.overlayCleanup = undefined;
+    });
+
+    // v0.3.60: author_thanks patron entry — no chapter node needed.
+    this.authorThanksMode = Boolean(data?.authorThanksEntry);
+    this.returnToScene = data?.returnTo ?? "diary";
+
+    if (this.authorThanksMode) {
+      this.renderAuthorThanksLayout();
+      return;
+    }
+
+    this.dealId = data.dealId ?? "";
     const node = this.dealId ? getNodeById(this.dealId) : undefined;
 
     if (!node) {
@@ -81,14 +108,95 @@ export class DetailScene extends Phaser.Scene {
     this.origin = data.origin;
     this.artifactIdOverride = data.artifactId;
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.overlayCleanup?.();
-      this.overlay?.destroy();
-      this.overlay = undefined;
-      this.overlayCleanup = undefined;
-    });
-
     this.render();
+  }
+
+  /**
+   * v0.3.60: Minimal layout for the author_thanks patron entry.
+   * No chapter node, tabs, artifact panel, or next-entry navigation.
+   */
+  private renderAuthorThanksLayout(): void {
+    const { i18n } = getAppContext();
+    const locale = i18n.getNarrativeLocale();
+    const entry = getNarrativeEntry("author_thanks", locale);
+    const speaker = getNarrativeSpeakerProfile("author", locale);
+
+    // Fallback: if entry not found route to diary.
+    if (!entry || !speaker) {
+      this.scene.start(SCENES.diary);
+      return;
+    }
+
+    this.children.removeAll(true);
+    // Use a neutral background matching the map palette.
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(0x162927, 0x162927, 0x0e1e1c, 0x0e1e1c, 1);
+    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    const navBar = this.add.graphics();
+    navBar.fillStyle(0x10201f, 0.96);
+    navBar.lineStyle(1, 0x4f6964, 0.35);
+    navBar.fillRect(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, ROUTE_BOTTOM_NAV_HEIGHT);
+    navBar.strokeLineShape(
+      new Phaser.Geom.Line(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT),
+    );
+
+    // Author thanks — explicit initials-кружок только. Не resolvePortraitUrl,
+    // чтобы добавление author.webp в v0.3.61 не silently сменило layout.
+    const portraitHtml = `<div class="detail-page__portrait" style="--archive-portrait-accent:${escapeHtml(speaker.accent)}">${escapeHtml(speaker.initials)}</div>`;
+
+    const html = [
+      '<div class="detail-page author-thanks-page">',
+      '  <div class="detail-page__panel">',
+      `    <div class="detail-page__eyebrow">${escapeHtml(i18n.t("authorThanksPointLabel"))}</div>`,
+      `    ${portraitHtml}`,
+      `    <div class="detail-page__entry-author">${escapeHtml(speaker.fullName)}</div>`,
+      '    <div class="detail-page__scroll-body" data-detail-scroll>',
+      `      <div class="detail-page__entry-body">${escapeHtml(entry.body)}</div>`,
+      "    </div>",
+      `    <button class="detail-page__home-button" type="button" data-author-thanks-back aria-label="${escapeHtml(i18n.t("back"))}">${escapeHtml(i18n.t("back"))}</button>`,
+      "  </div>",
+      "</div>",
+    ].join("\n");
+
+    if (!this.overlay) {
+      this.overlay = createCanvasAnchoredOverlay({
+        scene: this,
+        html,
+        className: "detail-page-root",
+        logicalWidth: GAME_CANVAS_WIDTH,
+        logicalHeight: GAME_HEIGHT,
+      });
+    } else {
+      this.overlay.setHtml(html);
+    }
+
+    const root = this.overlay.getInnerElement();
+    this.overlayCleanup?.();
+    const disposers: Array<() => void> = [];
+
+    const backBtn = root.querySelector<HTMLElement>("[data-author-thanks-back]");
+    if (backBtn) {
+      backBtn.style.pointerEvents = "auto";
+      const onClick = (): void => { this.scene.start(this.returnToScene); };
+      backBtn.addEventListener("click", onClick);
+      disposers.push(() => backBtn.removeEventListener("click", onClick));
+    }
+
+    const scrollBody = root.querySelector<HTMLElement>("[data-detail-scroll]");
+    if (scrollBody) {
+      scrollBody.style.pointerEvents = "auto";
+      const updateScrollState = (): void => {
+        const atBottom = scrollBody.scrollTop + scrollBody.clientHeight >= scrollBody.scrollHeight - 2;
+        scrollBody.classList.toggle("is-at-bottom", atBottom);
+      };
+      const onScroll = (): void => updateScrollState();
+      scrollBody.addEventListener("scroll", onScroll, { passive: true });
+      updateScrollState();
+      disposers.push(() => scrollBody.removeEventListener("scroll", onScroll));
+    }
+
+    this.overlayCleanup = () => { disposers.forEach((d) => d()); };
   }
 
   private render(): void {

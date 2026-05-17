@@ -5,6 +5,7 @@ import { SaveService } from "@/services/save/SaveService";
 import { SoundService } from "@/services/sound/SoundService";
 import { AchievementsReconciler } from "@/services/achievements/AchievementsReconciler";
 import type { SdkService } from "@/services/sdk/SdkService";
+import type { PaymentsService } from "@/services/payments/PaymentsService";
 
 export type AppContext = {
   analytics: AnalyticsService;
@@ -19,6 +20,11 @@ export type AppContext = {
    * recordFacts). Reconciler сам решает, какие SDK calls нужны.
    */
   achievements: AchievementsReconciler;
+  /**
+   * Payments service. Optional until Phase 11 wires it in BootScene.
+   * UI handlers that call this only fire after Phase 11 — safe to non-null assert.
+   */
+  payments?: PaymentsService;
 };
 
 let appContext: AppContext | null = null;

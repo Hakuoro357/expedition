@@ -68,6 +68,20 @@ type SettingsSceneOverlayParams = {
    * Клик дёргает `data-settings-action="open-achievements"`.
    */
   achievementsLabel?: string;
+  /**
+   * v0.3.60: «Поддержать автора» кнопка. Видна только если payments available
+   * и patronSupport === false. Клик дёргает `data-settings-action="open-patron"`.
+   */
+  canPurchasePatron?: boolean;
+  /**
+   * v0.3.60: «Восстановить покупку» кнопка. Видна только если payments available
+   * (независимо от patronSupport). Клик дёргает `data-settings-action="restore-patron"`.
+   */
+  canRestore?: boolean;
+  /** i18n labels for patron section */
+  supportAuthorLabel?: string;
+  supportAuthorSubtitleLabel?: string;
+  restorePurchaseLabel?: string;
 };
 
 /** Game-style bottom bar, идентичный визуально GameScene action-bar'у. */
@@ -132,6 +146,11 @@ export function createSettingsSceneOverlayHtml({
   navItems,
   versionLabel,
   achievementsLabel,
+  canPurchasePatron,
+  canRestore,
+  supportAuthorLabel,
+  supportAuthorSubtitleLabel,
+  restorePurchaseLabel,
 }: SettingsSceneOverlayParams): string {
   // Иконка-spearker: sound-on / sound-off. Inline SVG вместо <img>, чтобы
   // не плодить файлы и легко перекрашивать через currentColor.
@@ -179,6 +198,33 @@ export function createSettingsSceneOverlayHtml({
           '    <section class="settings-page__section">',
           '      <div class="settings-page__row">',
           `        <button class="settings-page__action settings-page__action--wide" data-settings-action="open-achievements" type="button"><span class="settings-page__action-label">${escapeHtml(achievementsLabel)}</span></button>`,
+          "      </div>",
+          "    </section>",
+        ].join("\n")
+      : "",
+    // v0.3.60: «Поддержать автора» секция (только если payments available + не patron).
+    canPurchasePatron && supportAuthorLabel
+      ? [
+          '    <section class="settings-page__section settings-page__patron">',
+          '      <button class="settings-page__patron-button" type="button"',
+          `        data-settings-action="open-patron"`,
+          `        aria-label="${escapeHtml(supportAuthorLabel)}">`,
+          `        <span class="settings-page__patron-title">${escapeHtml(supportAuthorLabel)}</span>`,
+          supportAuthorSubtitleLabel
+            ? `        <span class="settings-page__patron-subtitle">${escapeHtml(supportAuthorSubtitleLabel)}</span>`
+            : "",
+          "      </button>",
+          "    </section>",
+        ].filter(Boolean).join("\n")
+      : "",
+    // v0.3.60: «Восстановить покупку» кнопка (только если payments available).
+    canRestore && restorePurchaseLabel
+      ? [
+          '    <section class="settings-page__section">',
+          '      <div class="settings-page__row">',
+          `        <button class="settings-page__patron-restore" type="button"`,
+          `          data-settings-action="restore-patron"`,
+          `          aria-label="${escapeHtml(restorePurchaseLabel)}">${escapeHtml(restorePurchaseLabel)}</button>`,
           "      </div>",
           "    </section>",
         ].join("\n")
