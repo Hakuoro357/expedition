@@ -1,5 +1,5 @@
 import type { Locale } from "@/services/i18n/locales";
-import type { SdkService } from "@/services/sdk/SdkService";
+import type { SdkService, ProductInfo, PurchaseResult, PurchasesResult } from "@/services/sdk/SdkService";
 
 /**
  * Wait for GamePush SDK to be available on `window.__gp`.
@@ -417,5 +417,73 @@ export class GamePushSdkService implements SdkService {
       console.warn("[gp] showPreloader failed", error);
       return false;
     }
+  }
+
+  // ============================================================
+  // Payments (gp.payments.*)
+  // ============================================================
+
+  private productsFetched = false;
+
+  canUsePayments(): boolean {
+    return Boolean(this.gp?.payments?.isAvailable);
+  }
+
+  async getProductInfo(tag: string): Promise<ProductInfo | null> {
+    if (!this.gp?.payments) return null;
+    try {
+      if (!this.productsFetched) {
+        await this.gp.payments.fetchProducts();
+        this.productsFetched = true;
+      }
+    } catch (err) {
+      console.warn("[gp.fetchProducts]", err);
+      return null;
+    }
+    const catalog = this.gp.payments.products ?? this.gp.payments.purchases;
+    const p = catalog.find((x) => x.tag === tag);
+    return p ? { tag, title: p.title ?? tag, price: p.price } : null;
+  }
+
+  async getPurchases(): Promise<PurchasesResult> {
+    if (!this.gp?.payments) return { ok: false, reason: "unavailable" };
+    // Best-effort fetchProducts to populate catalog (price/title metadata).
+    // Entitlement check below via has(tag) MUST proceed regardless of fetch
+    // failure — restore must not be blocked by catalog network errors.
+    try {
+      if (!this.productsFetched) {
+        await this.gp.payments.fetchProducts();
+        this.productsFetched = true;
+      }
+    } catch (err) {
+      console.warn("[gp.fetchProducts] (entitlement check proceeds anyway)", err);
+    }
+    // CRITICAL: has(tag) — canonical entitlement check, not purchases array
+    const tags = ["patron_support"];
+    const userPurchases = tags.filter((t) => this.gp!.payments!.has(t));
+    return { ok: true, purchases: userPurchases.map((t) => ({ tag: t })) };
+  }
+
+  async purchase(tag: string): Promise<PurchaseResult> {
+    if (!this.gp?.payments) return { ok: false, reason: "unavailable" };
+    try {
+      await this.gp.payments.purchase({ tag });
+      return { ok: true };
+    } catch (err) {
+      console.error("[gp.payments.purchase] raw", err);
+      return { ok: false, reason: this.classifyGpError(err) };
+    }
+  }
+
+  private classifyGpError(err: unknown): "cancelled" | "error" {
+    // Best-effort: cancelled vs error. GP SDK may surface "cancel" in message.
+    if (err instanceof Error && /cancel/i.test(err.message)) return "cancelled";
+    if (typeof err === "string" && /cancel/i.test(err)) return "cancelled";
+    return "error";
+  }
+
+  triggerLogin(): Promise<void> {
+    // GP handles player auth in host — no-op here
+    return Promise.resolve();
   }
 }

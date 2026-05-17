@@ -87,6 +87,7 @@ export default defineConfig(({ command }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+    __PLATFORM__: JSON.stringify(process.env.PLATFORM ?? "gamepush"),
   },
   // В production оставляем console.info/warn/error для диагностики
   // (нужно для GP-тестеров — логи [mute]/[gp.sync]/[save.persist]).

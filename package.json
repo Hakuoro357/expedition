@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:gp": "cross-env PLATFORM=gamepush npm run build",
+    "build:yandex": "cross-env PLATFORM=yandex npm run build",
     "preview": "vite preview",
     "test": "vitest run"
   },
@@ -16,6 +18,8 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@types/node": "^24.3.1",
     "adm-zip": "^0.5.17",
+    "cross-env": "^7.0.3",
+    "jsdom": "^29.1.1",
     "playwright": "^1.59.1",
     "sharp": "^0.34.5",
     "typescript": "^5.8.3",

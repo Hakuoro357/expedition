@@ -3,6 +3,8 @@
 /** Injected by vite.config.ts — версия из package.json и ISO-время билда. */
 declare const __APP_VERSION__: string;
 declare const __BUILD_TIME__: string;
+/** Injected by vite.config.ts — целевая платформа сборки. */
+declare const __PLATFORM__: "gamepush" | "yandex" | "dev";
 
 interface YaGamesPlayer {
   getMode?: () => Promise<string>;
@@ -21,7 +23,27 @@ interface YaGamesFeatures {
 }
 
 interface YaGamesPayments {
-  purchase?: (options: { id: string }) => Promise<unknown>;
+  purchase(args: { id: string; developerPayload?: string }): Promise<YaPurchase>;
+  getPurchases(): Promise<YaPurchase[]>;
+  getCatalog(): Promise<YaProduct[]>;
+  consumePurchase(token: string): Promise<void>;
+}
+
+interface YaPurchase {
+  productID: string;
+  purchaseToken?: string;
+  developerPayload?: string;
+  purchaseTime?: number;
+}
+
+interface YaProduct {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  priceValue: string;
+  priceCurrencyCode: string;
+  imageURI?: string;
 }
 
 interface YaGamesAdv {
@@ -39,7 +61,9 @@ interface YaGamesSDK {
   features?: YaGamesFeatures;
   adv?: YaGamesAdv;
   getPlayer?: () => Promise<YaGamesPlayer>;
-  getPayments?: () => Promise<YaGamesPayments>;
+  getPayments?: (options?: { signed?: boolean }) => Promise<YaGamesPayments>;
+  auth?: { openAuthDialog(): Promise<void> };
+  isAuthorized?: () => Promise<boolean>;
   environment?: {
     i18n?: {
       lang?: string;
@@ -142,6 +166,26 @@ interface GamePushSocials {
  * `playerAchievementsList` (sync property) — единственный способ
  * прочитать состояние ачивок без квоты.
  */
+interface GamePushPaymentProduct {
+  tag: string;
+  price: string;
+  priceValue?: number;
+  currency?: string;
+  title?: string;
+}
+
+interface GamePushPayments {
+  isAvailable: boolean;
+  fetchProducts(): Promise<void>;
+  products?: GamePushPaymentProduct[];
+  /** catalog snapshot — НЕ entitlement. Для entitlement используй has(tag). */
+  purchases: GamePushPaymentProduct[];
+  /** Canonical entitlement check. */
+  has(tag: string): boolean;
+  purchase(args: { tag: string }): Promise<{ tag: string }>;
+  consume(args: { tag: string }): Promise<void>;
+}
+
 interface GamePushAchievementEntry {
   tag: string;
   /** Имя ачивки в текущей локали (для openAchievementsOverlay-аналогов). */
@@ -193,6 +237,8 @@ interface GamePushSDK {
    * SDK-wrapper возвращает false из canUseAchievements и UI скрывает кнопку.
    */
   achievements?: GamePushAchievements;
+  /** GP Payments API. Опционален — доступен только если платежи включены в проекте. */
+  payments?: GamePushPayments;
   language: string;
   isMobile: boolean;
   isPortrait: boolean;

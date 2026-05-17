@@ -1,5 +1,24 @@
 import type { Locale } from "@/services/i18n/locales";
 
+// ============================================================
+// Payments types
+// ============================================================
+
+export type ProductInfo = { tag: string; title: string; price: string };
+
+export type PurchaseResult =
+  | { ok: true }
+  | { ok: false; reason: "cancelled" | "error" | "unavailable" | "unauthorized" };
+
+export type PurchasesResult =
+  | { ok: true; purchases: Array<{ tag: string }> }
+  | { ok: false; reason: "timeout" | "error" | "unauthorized" | "unavailable" };
+
+// Reason union from PurchaseResult (single purchase attempt failures).
+export type PurchaseFailureReason = Extract<PurchaseResult, { ok: false }>["reason"];
+// Reason union from PurchasesResult (entitlement/restore lookup failures).
+export type PurchasesFailureReason = Extract<PurchasesResult, { ok: false }>["reason"];
+
 /**
  * Platform-agnostic SDK interface.
  *
@@ -177,4 +196,35 @@ export interface SdkService {
    * Resolves когда оверлей закрыт / no-op если не поддерживается.
    */
   openAchievementsOverlay(): Promise<void>;
+
+  // ============================================================
+  // Payments API
+  // ============================================================
+
+  /** Whether the platform supports payments (feature-detection). */
+  canUsePayments(): boolean;
+
+  /**
+   * Get product info by tag. Returns null if unavailable / not found.
+   * May fetch product catalog from platform on first call (cached).
+   */
+  getProductInfo(tag: string): Promise<ProductInfo | null>;
+
+  /**
+   * Initiate a purchase flow. Returns ok:true on success.
+   * Errors are classified: cancelled / error / unavailable / unauthorized.
+   */
+  purchase(tag: string): Promise<PurchaseResult>;
+
+  /**
+   * Fetch the list of purchases made by the player on this platform.
+   * Used for restore-on-boot and manual restore flows.
+   */
+  getPurchases(): Promise<PurchasesResult>;
+
+  /**
+   * Trigger native login dialog (Yandex auth flow).
+   * No-op on platforms where host handles auth (GamePush, DevStub).
+   */
+  triggerLogin(): Promise<void>;
 }

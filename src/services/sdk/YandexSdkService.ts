@@ -1,5 +1,5 @@
 import type { Locale } from "@/services/i18n/locales";
-import type { SdkService } from "@/services/sdk/SdkService";
+import type { SdkService, ProductInfo, PurchaseResult, PurchasesResult } from "@/services/sdk/SdkService";
 
 function waitForYaGames(timeoutMs: number): Promise<YaGamesGlobal | null> {
   return new Promise((resolve) => {
@@ -30,6 +30,7 @@ export class YandexSdkService implements SdkService {
   private sdk: YaGamesSDK | null = null;
   private initialized = false;
   private player: YaGamesPlayer | null = null;
+  private payments: YaGamesPayments | null = null;
 
   async init(): Promise<void> {
     if (this.initialized) {
@@ -47,6 +48,16 @@ export class YandexSdkService implements SdkService {
       const yaGames = await waitForYaGames(5000);
       this.sdk = yaGames ? await yaGames.init() : null;
       this.initialized = true;
+
+      // Try to initialize payments — may fail if not enabled in Yandex Console
+      if (this.sdk?.getPayments) {
+        try {
+          this.payments = await this.sdk.getPayments({ signed: false });
+        } catch (err) {
+          console.warn("[sdk] getPayments unavailable", err);
+          this.payments = null;
+        }
+      }
     } catch (error) {
       console.warn("[sdk] failed to initialize", error);
       this.sdk = null;
@@ -287,6 +298,69 @@ export class YandexSdkService implements SdkService {
 
   async openAchievementsOverlay(): Promise<void> {
     // noop
+  }
+
+  // ============================================================
+  // Payments (Yandex Payments API)
+  // ============================================================
+
+  canUsePayments(): boolean {
+    return Boolean(this.payments);
+  }
+
+  async getProductInfo(tag: string): Promise<ProductInfo | null> {
+    if (!this.payments) return null;
+    try {
+      const catalog = await this.payments.getCatalog();
+      const product = catalog.find((p) => p.id === tag);
+      if (!product) return null;
+      return { tag, title: product.title, price: product.price };
+    } catch (err) {
+      console.warn("[sdk.getProductInfo]", err);
+      return null;
+    }
+  }
+
+  async purchase(tag: string): Promise<PurchaseResult> {
+    if (!this.payments) return { ok: false, reason: "unavailable" };
+    try {
+      await this.payments.purchase({ id: tag });
+      return { ok: true };
+    } catch (err) {
+      console.error("[sdk.purchase] raw", err);
+      if (this.isUnauthorized(err)) return { ok: false, reason: "unauthorized" };
+      return { ok: false, reason: "error" };
+    }
+  }
+
+  async getPurchases(): Promise<PurchasesResult> {
+    if (!this.payments) return { ok: false, reason: "unavailable" };
+    try {
+      const list = await this.payments.getPurchases();
+      return { ok: true, purchases: list.map((p) => ({ tag: p.productID })) };
+    } catch (err) {
+      console.error("[sdk.getPurchases] raw", err);
+      if (this.isUnauthorized(err)) return { ok: false, reason: "unauthorized" };
+      return { ok: false, reason: "error" };
+    }
+  }
+
+  async triggerLogin(): Promise<void> {
+    try {
+      await this.sdk?.auth?.openAuthDialog();
+    } catch (err) {
+      console.warn("[sdk.auth]", err);
+    }
+  }
+
+  private isUnauthorized(err: unknown): boolean {
+    if (err instanceof Error) {
+      return /unauthorized|not.authorized|not_authorized|auth/i.test(err.message);
+    }
+    if (typeof err === "string") {
+      return /unauthorized|not.authorized|not_authorized|auth/i.test(err);
+    }
+    return false;
   }
 }
 
