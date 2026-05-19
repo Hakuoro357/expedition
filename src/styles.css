@@ -2279,7 +2279,15 @@ canvas {
   bottom: 104px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  /* v0.3.60: после добавления patron + restore секций content может не
+     уместиться в 636px (особенно с achievements). Scroll'им — version label
+     остаётся фиксированным внизу. pointer-events: auto чтобы scroll работал. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  /* Запас под версионную плашку чтобы не overlap'ать на scroll end. */
+  padding-bottom: 8px;
 }
 
 .settings-page__section {
