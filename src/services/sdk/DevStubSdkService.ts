@@ -193,7 +193,7 @@ export class DevStubSdkService implements SdkService {
 
   async getProductInfo(tag: string): Promise<ProductInfo | null> {
     if (!import.meta.env.DEV) return null;
-    return { tag, title: tag, price: "199 RUB" };
+    return { tag, title: tag, price: "199 ₽" };
   }
 
   async purchase(tag: string): Promise<PurchaseResult> {

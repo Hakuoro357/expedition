@@ -442,7 +442,14 @@ export class GamePushSdkService implements SdkService {
     }
     const catalog = this.gp.payments.products ?? this.gp.payments.purchases;
     const p = catalog.find((x) => x.tag === tag);
-    return p ? { tag, title: p.title ?? tag, price: p.price } : null;
+    if (!p) return null;
+    // Combine price + currency symbol. GP returns price as numeric string
+    // ("199") + currencySymbol ("₽"). Fallback "₽" if SDK omits symbol —
+    // basePrice of patron_support is RUB on GP-side.
+    const symbol = p.currencySymbol?.trim() || "₽";
+    const priceStr = String(p.price ?? "").trim();
+    const formatted = priceStr ? `${priceStr} ${symbol}` : symbol;
+    return { tag, title: p.title ?? tag, price: formatted };
   }
 
   async getPurchases(): Promise<PurchasesResult> {

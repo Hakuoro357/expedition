@@ -82,6 +82,7 @@ type SettingsSceneOverlayParams = {
   supportAuthorLabel?: string;
   supportAuthorSubtitleLabel?: string;
   restorePurchaseLabel?: string;
+  restorePurchaseHintLabel?: string;
 };
 
 /** Game-style bottom bar, идентичный визуально GameScene action-bar'у. */
@@ -151,6 +152,7 @@ export function createSettingsSceneOverlayHtml({
   supportAuthorLabel,
   supportAuthorSubtitleLabel,
   restorePurchaseLabel,
+  restorePurchaseHintLabel,
 }: SettingsSceneOverlayParams): string {
   // Иконка-spearker: sound-on / sound-off. Inline SVG вместо <img>, чтобы
   // не плодить файлы и легко перекрашивать через currentColor.
@@ -218,16 +220,23 @@ export function createSettingsSceneOverlayHtml({
         ].filter(Boolean).join("\n")
       : "",
     // v0.3.60: «Восстановить покупку» кнопка (только если payments available).
+    // Title + subtitle pattern — new users понимают зачем кнопка
+    // ("Если уже покупали ранее") без необходимости угадывать что значит restore.
     canRestore && restorePurchaseLabel
       ? [
           '    <section class="settings-page__section">',
           '      <div class="settings-page__row">',
           `        <button class="settings-page__patron-restore" type="button"`,
           `          data-settings-action="restore-patron"`,
-          `          aria-label="${escapeHtml(restorePurchaseLabel)}">${escapeHtml(restorePurchaseLabel)}</button>`,
+          `          aria-label="${escapeHtml(restorePurchaseLabel)}">`,
+          `          <span class="settings-page__patron-restore-title">${escapeHtml(restorePurchaseLabel)}</span>`,
+          restorePurchaseHintLabel
+            ? `          <span class="settings-page__patron-restore-subtitle">${escapeHtml(restorePurchaseHintLabel)}</span>`
+            : "",
+          `        </button>`,
           "      </div>",
           "    </section>",
-        ].join("\n")
+        ].filter(Boolean).join("\n")
       : "",
     // Панель «Сброс сохранения» убрана по требованию тестировщиков.
     "  </div>",

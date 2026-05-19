@@ -171,6 +171,7 @@ interface GamePushPaymentProduct {
   price: string;
   priceValue?: number;
   currency?: string;
+  currencySymbol?: string;
   title?: string;
 }
 

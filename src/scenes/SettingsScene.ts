@@ -181,6 +181,7 @@ export class SettingsScene extends Phaser.Scene {
       supportAuthorLabel: i18n.t("supportAuthor"),
       supportAuthorSubtitleLabel: i18n.t("supportAuthorSubtitle"),
       restorePurchaseLabel: i18n.t("restorePurchase"),
+      restorePurchaseHintLabel: i18n.t("restorePurchaseHint"),
     });
 
     if (!this.overlay) {
