@@ -141,20 +141,23 @@ export class DetailScene extends Phaser.Scene {
       new Phaser.Geom.Line(0, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT, GAME_WIDTH, GAME_HEIGHT - ROUTE_BOTTOM_NAV_HEIGHT),
     );
 
-    // Author thanks — explicit initials-кружок только. Не resolvePortraitUrl,
-    // чтобы добавление author.webp в v0.3.61 не silently сменило layout.
+    // Author thanks — initials-кружок (не resolvePortraitUrl чтобы добавление
+    // author.webp в v0.3.61 не silently сменило layout).
+    // Structure mirrors detailSceneOverlay: ВСЁ содержимое внутри scroll-body
+    // (eyebrow + portrait + author + body). home-button — sticky внизу
+    // panel'а как в standard detail-page (.detail-page__home + modal-btn).
     const portraitHtml = `<div class="detail-page__portrait" style="--archive-portrait-accent:${escapeHtml(speaker.accent)}">${escapeHtml(speaker.initials)}</div>`;
 
     const html = [
-      '<div class="detail-page author-thanks-page">',
+      '<div class="detail-page detail-page--entry author-thanks-page">',
       '  <div class="detail-page__panel">',
-      `    <div class="detail-page__eyebrow">${escapeHtml(i18n.t("authorThanksPointLabel"))}</div>`,
-      `    ${portraitHtml}`,
-      `    <div class="detail-page__entry-author">${escapeHtml(speaker.fullName)}</div>`,
       '    <div class="detail-page__scroll-body" data-detail-scroll>',
+      `      <div class="detail-page__eyebrow">${escapeHtml(i18n.t("authorThanksPointLabel"))}</div>`,
+      `      ${portraitHtml}`,
+      `      <div class="detail-page__entry-author">${escapeHtml(speaker.fullName)}</div>`,
       `      <div class="detail-page__entry-body">${escapeHtml(entry.body)}</div>`,
       "    </div>",
-      `    <button class="detail-page__home-button" type="button" data-author-thanks-back aria-label="${escapeHtml(i18n.t("back"))}">${escapeHtml(i18n.t("back"))}</button>`,
+      `    <button class="detail-page__home modal-btn modal-btn--primary" type="button" data-author-thanks-back aria-label="${escapeHtml(i18n.t("back"))}">${escapeHtml(i18n.t("back"))}</button>`,
       "  </div>",
       "</div>",
     ].join("\n");
