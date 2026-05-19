@@ -203,9 +203,12 @@ export class MapScene extends Phaser.Scene {
     const sdk = ctx.sdk;
     const showCommunityButton = sdk.canJoinCommunity();
     const showAchievements = sdk.canUseAchievements();
-    // v0.3.61: heart-кнопка «Поддержать автора» в top-right стэке. Visible
-    // только если payments available + не-patron. После покупки исчезает.
-    const showPatronButton = ctx.payments?.canPurchasePatron() ?? false;
+    // v0.3.61: heart-кнопка «Поддержать автора» в top-right стэке.
+    // Тот же порог что и для post-win-push — после 3+ побед.
+    // Гейт: payments-доступны, не-patron, completedNodes >= 3 wins.
+    const completedCount = save.load().progress.completedNodes.length;
+    const showPatronButton =
+      (ctx.payments?.canPurchasePatron() ?? false) && completedCount >= 3;
     // v0.3.58 → v0.3.59: trophy переехал из top-right overlay в bottom-nav
     // между «Маршрут дня» и «Меню». Top-right trophy спрятан (showAchievementsButton=false).
     const navItems: AppNavItem[] = [
