@@ -511,11 +511,17 @@ export class MapScene extends Phaser.Scene {
     // кнопка исчезла. Подписку добавим если ещё нет.
     const patronBtn = root.querySelector<HTMLElement>('[data-route-action="open-patron"]');
     if (patronBtn) {
-      const onClick = (): void => {
+      patronBtn.style.pointerEvents = "auto";  // defensive — same as paginator buttons
+      const onClick = (e: Event): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (import.meta.env.DEV) console.info("[patron] heart click → mountPatronDialog(map_top)");
         mountPatronDialog("map_top");
       };
       patronBtn.addEventListener("click", onClick);
       disposers.push(() => patronBtn.removeEventListener("click", onClick));
+    } else if (import.meta.env.DEV) {
+      console.warn("[patron] heart button NOT found in DOM — showPatronButton false?");
     }
 
     this.overlayCleanup = () => {
