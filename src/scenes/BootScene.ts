@@ -155,6 +155,42 @@ export class BootScene extends Phaser.Scene {
 
     setAppContext({ analytics, ads, i18n, save, sound, sdk, achievements, payments });
 
+    // v0.3.61 DEV-only testing helpers для patron flow. Console:
+    //   __testPatronPush()           — показать push dialog без 3 побед
+    //   __resetPatronDev()           — сбросить DevStub patron state (re-test purchase)
+    //   __forcePatronActive()        — выставить patronSupport=true без покупки
+    if (import.meta.env.DEV && typeof window !== "undefined") {
+      const { mountPatronDialog } = await import("@/ui/patronDialog");
+      (window as unknown as Record<string, unknown>).__testPatronPush = () => {
+        mountPatronDialog("post_win_push");
+      };
+      (window as unknown as Record<string, unknown>).__resetPatronDev = () => {
+        try { localStorage.removeItem("dev_purchases"); } catch { /* ignore */ }
+        try { localStorage.removeItem("isPatron"); } catch { /* ignore */ }
+        save.updateProgress((p) => ({
+          ...p,
+          patronSupport: false,
+          patronBonusGranted: false,
+          patronGrantedAt: undefined,
+          patronPushShown: false,
+        }));
+        console.info("[dev] patron state cleared. Reload to see fresh CTA.");
+      };
+      (window as unknown as Record<string, unknown>).__forcePatronActive = () => {
+        save.updateProgress((p) => ({
+          ...p,
+          patronSupport: true,
+          patronBonusGranted: true,
+          patronGrantedAt: Date.now(),
+        }));
+        ads.markPatronConfirmed();
+        achievements.markPatronJustActivated();
+        achievements.reconcile(save.load());
+        console.info("[dev] patron forced active. Refresh to verify ad-free.");
+      };
+      console.info("[dev] patron test helpers: __testPatronPush(), __resetPatronDev(), __forcePatronActive()");
+    }
+
     // Bounded restore before preloader (1.5s internal timeout — safe to await)
     try {
       await payments.restoreOnBoot();
