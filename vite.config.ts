@@ -87,7 +87,16 @@ export default defineConfig(({ command }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(BUILD_TIME),
-    __PLATFORM__: JSON.stringify(process.env.PLATFORM ?? "gamepush"),
+    // PLATFORM env → gamepush / yandex / dev. Default разное по команде:
+    //   `npm run dev` (no PLATFORM)  → "dev" → DevStub → localhost не ловит
+    //                                  origin_not_allowed от GP, heart-иконка
+    //                                  и payments работают через DevStub
+    //   `npm run build:gp`            → PLATFORM=gamepush → GamePushSdkService
+    //   `npm run build:yandex`        → PLATFORM=yandex → YandexSdkService
+    //   `npm run build` (no PLATFORM) → "gamepush" (default production target)
+    __PLATFORM__: JSON.stringify(
+      process.env.PLATFORM ?? (command === "build" ? "gamepush" : "dev"),
+    ),
   },
   // В production оставляем console.info/warn/error для диагностики
   // (нужно для GP-тестеров — логи [mute]/[gp.sync]/[save.persist]).
