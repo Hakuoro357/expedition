@@ -62,7 +62,7 @@ export class PaymentsService {
     this.achievements.reconcile(this.save.load()); // U4: idempotent repair
   }
 
-  async purchasePatron(source: "settings" | "post_win_push"): Promise<{ ok: boolean }> {
+  async purchasePatron(source: "settings" | "post_win_push" | "map_top"): Promise<{ ok: boolean }> {
     if (this.inFlight) {
       this.analytics.track("patron_purchase_blocked", { source, reason: "in_flight" });
       return { ok: false };

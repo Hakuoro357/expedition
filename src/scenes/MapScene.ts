@@ -72,9 +72,14 @@ export class MapScene extends Phaser.Scene {
     // (preloader-ad закрылся, пользователь кликнул платформенную иконку
     // звука и т.п.) — иконка в правом верхнем углу перерисуется.
     const unsubscribeMute = sound.onMuteChange(() => this.render());
+    // v0.3.61: re-render после успешной покупки patron — heart icon
+    // должна исчезнуть (canPurchasePatron() возвращает false когда patronSupport=true).
+    const payments = getAppContext().payments;
+    const unsubscribePatron = payments?.onChange(() => this.render());
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       unsubscribeMute();
+      unsubscribePatron?.();
       this.overlayCleanup?.();
       this.overlay?.destroy();
       this.overlay = undefined;
@@ -194,9 +199,13 @@ export class MapScene extends Phaser.Scene {
     // Читаем из SoundService (а не sdk.isMuted()) — единственный источник
     // истины для UI, обновляется через onMuteChange listener.
     const platformMuted = sound.isPlatformMuted();
-    const sdk = getAppContext().sdk;
+    const ctx = getAppContext();
+    const sdk = ctx.sdk;
     const showCommunityButton = sdk.canJoinCommunity();
     const showAchievements = sdk.canUseAchievements();
+    // v0.3.61: heart-кнопка «Поддержать автора» в top-right стэке. Visible
+    // только если payments available + не-patron. После покупки исчезает.
+    const showPatronButton = ctx.payments?.canPurchasePatron() ?? false;
     // v0.3.58 → v0.3.59: trophy переехал из top-right overlay в bottom-nav
     // между «Маршрут дня» и «Меню». Top-right trophy спрятан (showAchievementsButton=false).
     const navItems: AppNavItem[] = [
@@ -225,6 +234,8 @@ export class MapScene extends Phaser.Scene {
       // кнопка теперь в bottom-nav.
       coins: save.load().progress.coins,
       showAchievementsButton: false,
+      showPatronButton,
+      patronAriaLabel: showPatronButton ? i18n.t("supportAuthor") : undefined,
     });
   }
 
@@ -491,6 +502,18 @@ export class MapScene extends Phaser.Scene {
       };
       achievementsBtn.addEventListener("click", onClick);
       disposers.push(() => achievementsBtn.removeEventListener("click", onClick));
+    }
+
+    // v0.3.61: heart → mountPatronDialog("map_top"). После успешной покупки
+    // payments.onChange listener в MapScene должен re-render scene чтобы
+    // кнопка исчезла. Подписку добавим если ещё нет.
+    const patronBtn = root.querySelector<HTMLElement>('[data-route-action="open-patron"]');
+    if (patronBtn) {
+      const onClick = (): void => {
+        mountPatronDialog("map_top");
+      };
+      patronBtn.addEventListener("click", onClick);
+      disposers.push(() => patronBtn.removeEventListener("click", onClick));
     }
 
     this.overlayCleanup = () => {

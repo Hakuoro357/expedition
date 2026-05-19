@@ -6,7 +6,6 @@ import { getDailyDateKey } from "@/data/dailyDeals";
 import { ROUTE_BOTTOM_NAV_HEIGHT } from "@/scenes/routeSceneLayout";
 import { createSettingsSceneOverlayHtml } from "@/scenes/settingsSceneOverlay";
 import { createCanvasAnchoredOverlay, type CanvasOverlayHandle } from "@/ui/canvasOverlay";
-import { mountPatronDialog } from "@/ui/patronDialog";
 import { showConfirmDialog } from "@/ui/confirmDialog";
 
 type SettingsNavTarget = "archive" | "daily" | "settings" | "home";
@@ -173,13 +172,11 @@ export class SettingsScene extends Phaser.Scene {
       // В будущем v0.3.57+ вернём кнопку, открывающую наш собственный
       // DOM-overlay со списком прогресса по 20 ачивкам.
       achievementsLabel: undefined,
-      // v0.3.60: patron support button + restore button.
-      // canRestore требует payments-доступности И не-patron'а — активный patron
-      // уже подтверждён, кнопка «Восстановить» только запутает.
-      canPurchasePatron: payments?.canPurchasePatron() ?? false,
+      // v0.3.61: «Поддержать автора» переехал в top-right heart-иконку
+      // на MapScene. В Settings остался только restore — для случаев когда
+      // patron-статус надо вручную восстановить (cross-device / cloud
+      // потерян / т.п.). Видна если payments-доступны И ещё не patron.
       canRestore: (payments?.canUsePayments() ?? false) && currentState.progress.patronSupport !== true,
-      supportAuthorLabel: i18n.t("supportAuthor"),
-      supportAuthorSubtitleLabel: i18n.t("supportAuthorSubtitle"),
       restorePurchaseLabel: i18n.t("restorePurchase"),
       restorePurchaseHintLabel: i18n.t("restorePurchaseHint"),
     });
@@ -252,9 +249,6 @@ export class SettingsScene extends Phaser.Scene {
           case "nav-undo-disabled":
           case "nav-hint-disabled":
             // Визуальные disabled-иконки — клик ничего не делает.
-            return;
-          case "open-patron":
-            mountPatronDialog("settings");
             return;
           case "restore-patron":
             void this.handleRestoreClick();

@@ -4,9 +4,13 @@ import { escapeHtml } from "@/ui/escapeHtml";
 /**
  * Slide-in toast notification when an achievement is unlocked.
  *
- * v0.3.58: появляется в правом верхнем углу, держится 4 секунды,
- * исчезает с slide-out анимацией. Дискретный DOM элемент поверх
- * canvas + canvas-anchored overlay'ев (z-index: 10000).
+ * v0.3.58: появляется в правом верхнем углу, slide-out по таймеру.
+ * Дискретный DOM элемент поверх canvas + canvas-anchored overlay'ев
+ * (z-index: 10000).
+ *
+ * v0.3.61: очередь со стаггером 1000ms между entry — несколько ачивок
+ * разом не наслаиваются на одном кадре, появляются последовательно.
+ * Default lifetime увеличен 4000 → 7000ms (больше времени прочитать).
  *
  * Безопасно для SSR (early return если нет document).
  */
@@ -20,11 +24,17 @@ export type AchievementToastOptions = {
    * post-unlock should pass real basename (no need for locked-generic).
    */
   iconBasename: string;
-  /** How long to keep visible before slide-out (ms). Default 4000. */
+  /** How long to keep visible before slide-out (ms). Default 7000. */
   durationMs?: number;
 };
 
 const STACK_ID = "achievement-toast-stack";
+const STAGGER_MS = 1000;
+const DEFAULT_DURATION_MS = 7000;
+const SLIDE_OUT_MS = 400;
+
+const queue: AchievementToastOptions[] = [];
+let pumping = false;
 
 /** Get-or-create the singleton stack container (fixed top-right flex column). */
 function getOrCreateStack(): HTMLElement {
@@ -40,6 +50,26 @@ function getOrCreateStack(): HTMLElement {
 
 export function showAchievementToast(opts: AchievementToastOptions): void {
   if (typeof document === "undefined") return;
+  queue.push(opts);
+  if (!pumping) {
+    pumping = true;
+    pumpQueue();
+  }
+}
+
+function pumpQueue(): void {
+  const next = queue.shift();
+  if (!next) {
+    pumping = false;
+    return;
+  }
+  displayToast(next);
+  // Stagger следующего entry на STAGGER_MS — даже если очередь длинная,
+  // tost'ы появляются с понятным ритмом.
+  window.setTimeout(pumpQueue, STAGGER_MS);
+}
+
+function displayToast(opts: AchievementToastOptions): void {
   const stack = getOrCreateStack();
   const toast = document.createElement("div");
   toast.className = "achievement-toast";
@@ -58,7 +88,7 @@ export function showAchievementToast(opts: AchievementToastOptions): void {
   requestAnimationFrame(() => {
     toast.classList.add("achievement-toast--visible");
   });
-  const duration = opts.durationMs ?? 4000;
+  const duration = opts.durationMs ?? DEFAULT_DURATION_MS;
   window.setTimeout(() => {
     toast.classList.remove("achievement-toast--visible");
     toast.classList.add("achievement-toast--leaving");
@@ -66,6 +96,6 @@ export function showAchievementToast(opts: AchievementToastOptions): void {
       toast.remove();
       // Clean up empty stack (in case nothing else queued — keeps DOM tidy).
       if (stack.children.length === 0) stack.remove();
-    }, 400);
+    }, SLIDE_OUT_MS);
   }, duration);
 }

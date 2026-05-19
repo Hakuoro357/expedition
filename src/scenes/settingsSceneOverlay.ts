@@ -147,10 +147,7 @@ export function createSettingsSceneOverlayHtml({
   navItems,
   versionLabel,
   achievementsLabel,
-  canPurchasePatron,
   canRestore,
-  supportAuthorLabel,
-  supportAuthorSubtitleLabel,
   restorePurchaseLabel,
   restorePurchaseHintLabel,
 }: SettingsSceneOverlayParams): string {
@@ -204,21 +201,9 @@ export function createSettingsSceneOverlayHtml({
           "    </section>",
         ].join("\n")
       : "",
-    // v0.3.60: «Поддержать автора» секция (только если payments available + не patron).
-    canPurchasePatron && supportAuthorLabel
-      ? [
-          '    <section class="settings-page__section settings-page__patron">',
-          '      <button class="settings-page__patron-button" type="button"',
-          `        data-settings-action="open-patron"`,
-          `        aria-label="${escapeHtml(supportAuthorLabel)}">`,
-          `        <span class="settings-page__patron-title">${escapeHtml(supportAuthorLabel)}</span>`,
-          supportAuthorSubtitleLabel
-            ? `        <span class="settings-page__patron-subtitle">${escapeHtml(supportAuthorSubtitleLabel)}</span>`
-            : "",
-          "      </button>",
-          "    </section>",
-        ].filter(Boolean).join("\n")
-      : "",
+    // v0.3.61: «Поддержать автора» убран из Settings — переехал в top-right
+    // heart-иконку на MapScene (см. routeSceneOverlay). Здесь остаётся
+    // только «Восстановить покупку» для restore flow.
     // v0.3.60: «Восстановить покупку» кнопка (только если payments available).
     // Title + subtitle pattern — new users понимают зачем кнопка
     // ("Если уже покупали ранее") без необходимости угадывать что значит restore.

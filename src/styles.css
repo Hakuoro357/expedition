@@ -3158,6 +3158,44 @@ canvas {
   top: calc(env(safe-area-inset-top, 0px) + var(--top-pad) + var(--top-action-step));
 }
 
+/* v0.3.61: Top-RIGHT patron heart button. Слот достижений (после
+   переезда trophy в bottom-nav слот пустой). Тёплый оттенок для
+   эмоциональной CTA — отличается от brass у mute/community. */
+.route-overlay__patron {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--top-pad) + var(--top-action-step) + var(--top-action-step));
+  right: calc(env(safe-area-inset-right, 0px) + var(--top-pad));
+  width: var(--top-action-size);
+  height: var(--top-action-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border: 1px solid rgba(218, 201, 161, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 32, 30, 0.78);
+  color: #e89a9a;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out;
+}
+.route-overlay__patron:hover {
+  background: rgba(15, 32, 30, 0.92);
+  color: #f4b3b3;
+  transform: translateY(-1px);
+}
+.route-overlay__patron:active {
+  transform: translateY(0);
+}
+.route-overlay__patron svg {
+  width: 22px;
+  height: 22px;
+}
+/* When community isn't shown, patron slides up under mute (same slot logic). */
+.route-overlay--no-community .route-overlay__patron {
+  top: calc(env(safe-area-inset-top, 0px) + var(--top-pad) + var(--top-action-step));
+}
+
 /* AchievementsScene — full-screen modal backdrop + content. */
 .achievements-overlay__backdrop {
   position: absolute;

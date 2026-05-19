@@ -4,6 +4,7 @@ import { COIN_ICON_HTML } from "@/ui/coinIcon";
 import { escapeHtml } from "@/ui/escapeHtml";
 
 import trophyIconHtml from "../assets/ui/nav-icons/trophy.svg?raw";
+import heartIconHtml from "../assets/ui/nav-icons/heart.svg?raw";
 
 export type RouteNavItem = {
   id: AppNavItem["id"];
@@ -60,6 +61,13 @@ type RouteSceneOverlayParams = {
    */
   showAchievementsButton?: boolean;
   achievementsAriaLabel?: string;
+  /**
+   * v0.3.61: heart-кнопка «Поддержать автора» в правом верхнем стэке.
+   * Видна только если `payments.canPurchasePatron() === true`
+   * (payments available + игрок ещё не patron). После покупки исчезает.
+   */
+  showPatronButton?: boolean;
+  patronAriaLabel?: string;
 };
 
 /** Viewport width used for label placement clamping */
@@ -201,6 +209,8 @@ export function createRouteSceneOverlayHtml({
   coins,
   showAchievementsButton = false,
   achievementsAriaLabel = "Open achievements",
+  showPatronButton = false,
+  patronAriaLabel = "Support the author",
 }: RouteSceneOverlayParams): string {
   const soundIcon = muted
     ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
@@ -227,6 +237,12 @@ export function createRouteSceneOverlayHtml({
   // v0.3.58: top-right trophy (под mute/community). Открывает AchievementsScene.
   const achievementsBtnHtml = showAchievementsButton
     ? `<button class="route-overlay__achievements" type="button" data-route-action="open-achievements" aria-label="${escapeHtml(achievementsAriaLabel)}">${trophyIconHtml}</button>`
+    : "";
+
+  // v0.3.61: heart-кнопка «Поддержать автора» — занимает слот achievements
+  // (тот сейчас в bottom-nav). Top-right стэк: mute → community → patron.
+  const patronBtnHtml = showPatronButton
+    ? `<button class="route-overlay__patron" type="button" data-route-action="open-patron" aria-label="${escapeHtml(patronAriaLabel)}">${heartIconHtml}</button>`
     : "";
 
   // R3-fix: переключатель CSS-стека top-right в зависимости от наличия community.
@@ -266,6 +282,7 @@ export function createRouteSceneOverlayHtml({
     `  ${muteBtnHtml}`,
     `  ${communityBtnHtml}`,
     `  ${achievementsBtnHtml}`,
+    `  ${patronBtnHtml}`,
     devToolsHtml,
     `  ${buildRouteGraphicsHtml(routePoints, routeSegments)}`,
     activePointHtml,

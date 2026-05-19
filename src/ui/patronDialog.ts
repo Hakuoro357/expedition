@@ -10,7 +10,9 @@ import { escapeHtml } from "@/ui/escapeHtml";
  * Rendered as an absolutely-positioned backdrop over document.body so it works
  * without a Phaser scene reference. Uses same visual language as confirm-dialog.
  */
-export function mountPatronDialog(source: "settings" | "post_win_push"): void {
+export type PatronDialogSource = "settings" | "post_win_push" | "map_top";
+
+export function mountPatronDialog(source: PatronDialogSource): void {
   const { analytics, i18n } = getAppContext();
   const payments = getAppContext().payments;
 
