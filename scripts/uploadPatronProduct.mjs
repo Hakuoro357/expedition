@@ -3,11 +3,26 @@
  * GamePush v0.3.60 patron IAP product uploader.
  *
  * Phases:
- *  1. Fetch existing payments/products — find patron_support if it exists.
+ *  1. FetchProducts — find patron_support if it exists.
  *  2. Upload patron.png via multipart UploadImage mutation.
- *  3. CreatePayment (new) or UpdatePayment (existing), idempotent.
+ *  3. CreateProduct (new) or UpdateProduct (existing), idempotent.
  *
  * Idempotent (re-runnable). Matches existing product by tag `patron_support`.
+ *
+ * v0.3.60 corrections (after introspection 2026-05-19):
+ *  - Query is `FetchProducts` (NOT `FetchPayments` — does not exist).
+ *  - Type wrapper is `ProductsList`, items are `Product`.
+ *  - Mutations are `CreateProduct` / `UpdateProduct` (NOT *Payment).
+ *  - `type` is enum `ProductType`: IN_GAME | CURRENCY_BUNDLE | VIP | SKIP_AD
+ *    (NOT "PERMANENT" — used IN_GAME for solitaire-expedition).
+ *  - No `isPublished` field — products are live by default after Create.
+ *  - Price is `prices: PlatformSpecificFloatInput` per-platform map.
+ *  - Many required NON_NULL fields (yandexId, beelineId, xsollaId,
+ *    onestoreId, googlePlayId, gamePlatformId, isSubscription,
+ *    period, trialPeriod) — pass safe defaults if not used.
+ *  - Benefits intentionally NOT set (disableGameAds=false, currencyAccrual=0)
+ *    because client-side PaymentsService.activatePatron already handles
+ *    ad-gate + 300 coin bonus. Setting GP benefits would cause double credit.
  *
  * Usage:
  *   GP_API_SECRET=xxx node scripts/uploadPatronProduct.mjs [--dry-run]
@@ -35,8 +50,12 @@ if (!API_SECRET) {
 // Product spec
 // ----------------------------------------------------------------------
 
+const BASE_PRICE = 199;
+const BASE_CURRENCY = "RUB";
+
 const PRODUCT = {
   tag: "patron_support",
+  type: "IN_GAME", // ProductType enum
   names: {
     ru: "Поддержать автора",
     en: "Support the author",
@@ -45,10 +64,21 @@ const PRODUCT = {
     ru: "Спасибо за поддержку проекта. Игра становится без рекламы + 300 монет в благодарность.",
     en: "Thanks for supporting the project. The game becomes ad-free + 300 coins as thanks.",
   },
-  price: 199,
-  // non-consumable / permanent — persists across sessions
-  type: "PERMANENT",
-  isPublished: true,
+  // Platform-specific prices in base currency (RUB). All 38 platform slots
+  // exist; we only set ones that practically take payments — others fall
+  // back to basePrice automatically via GP currency conversion.
+  prices: {
+    YANDEX: BASE_PRICE,
+    VK: BASE_PRICE,
+    OK: BASE_PRICE,
+    TELEGRAM: BASE_PRICE,
+    VK_PLAY: BASE_PRICE,
+    SMARTMARKET: BASE_PRICE,
+    RUSTORE: BASE_PRICE,
+    CUSTOM: BASE_PRICE,
+    PARTNER: BASE_PRICE,
+    NONE: BASE_PRICE,
+  },
 };
 
 // Strips null/undefined fields and __typename from objects returned by GP fetch.
@@ -94,7 +124,7 @@ async function uploadIcon(filepath) {
         ... on Problem { message }
       }
     }`,
-    variables: { input: { projectId: PROJECT_ID, file: null, tags: ["payment"] } },
+    variables: { input: { projectId: PROJECT_ID, file: null, tags: ["product"] } },
   };
   const form = new FormData();
   form.append("operations", JSON.stringify(operations));
@@ -119,6 +149,36 @@ async function uploadIcon(filepath) {
   return out.src;
 }
 
+/** All required NON_NULL fields per CreateProductInput introspection. */
+function baseInput(iconSrc) {
+  return {
+    type: PRODUCT.type,
+    tag: PRODUCT.tag,
+    icon: iconSrc,
+    // External platform refs — empty defaults when not using those platforms.
+    yandexId: "",
+    beelineId: 0,
+    xsollaId: "",
+    onestoreId: "",
+    googlePlayId: "",
+    // 0 = any (no specific game platform binding).
+    gamePlatformId: 0,
+    names: PRODUCT.names,
+    descriptions: PRODUCT.descriptions,
+    prices: PRODUCT.prices,
+    // Non-subscription one-shot product.
+    isSubscription: false,
+    period: 0,
+    trialPeriod: 0,
+    basePrice: BASE_PRICE,
+    baseCurrency: BASE_CURRENCY,
+    // baseRealPrice / baseRealCurrency optional на Create, NON_NULL на Update.
+    // Включаем для обоих путей чтобы избежать асимметрии.
+    baseRealPrice: BASE_PRICE,
+    baseRealCurrency: BASE_CURRENCY,
+  };
+}
+
 // ----------------------------------------------------------------------
 // Main
 // ----------------------------------------------------------------------
@@ -126,21 +186,21 @@ async function uploadIcon(filepath) {
 (async () => {
   console.log(`Project ${PROJECT_ID} — ${DRY_RUN ? "DRY RUN (no network calls)" : "LIVE"}`);
 
-  // -- Phase 1: fetch existing payments ---------------------------------
-  console.log("\n[1] Fetching existing payments...");
+  // -- Phase 1: fetch existing products ---------------------------------
+  console.log("\n[1] Fetching existing products...");
   let existingProduct = null;
 
   if (DRY_RUN) {
-    console.log("  [dry] would query FetchPayments for existing patron_support product");
+    console.log("  [dry] would query FetchProducts for existing patron_support product");
   } else {
     const data = await gql(
-      `query FetchPayments($projectId: Int!) {
-        FetchPayments(input: { projectId: $projectId }) {
-          ... on PaymentsList {
+      `query FetchProductsQuery($projectId: Int!) {
+        FetchProducts(input: { projectId: $projectId }) {
+          ... on ProductsList {
             items {
-              id tag type price isPublished
-              names { ru en fr de es pt tr }
-              descriptions { ru en fr de es pt tr }
+              id tag type
+              names { ru en fr it de es zh pt ko ja tr ar hi id }
+              descriptions { ru en fr it de es zh pt ko ja tr ar hi id }
               icon
             }
           }
@@ -149,13 +209,13 @@ async function uploadIcon(filepath) {
       }`,
       { projectId: PROJECT_ID },
     );
-    const list = data.FetchPayments;
+    const list = data.FetchProducts;
     if (list.__typename === "Problem") {
-      throw new Error(`FetchPayments: ${list.message}`);
+      throw new Error(`FetchProducts: ${list.message}`);
     }
     const items = list.items ?? [];
     existingProduct = items.find((p) => p.tag === PRODUCT.tag) ?? null;
-    console.log(`  Found ${items.length} payment(s). patron_support: ${existingProduct ? `id=${existingProduct.id}` : "not found"}`);
+    console.log(`  Found ${items.length} product(s). patron_support: ${existingProduct ? `id=${existingProduct.id}` : "not found"}`);
   }
 
   // -- Phase 2: upload patron.png icon ----------------------------------
@@ -173,74 +233,60 @@ async function uploadIcon(filepath) {
   // -- Phase 3: create or update product --------------------------------
   console.log("\n[3] Upserting patron_support product...");
 
-  const productInput = {
-    tag: PRODUCT.tag,
-    type: PRODUCT.type,
-    price: PRODUCT.price,
-    names: PRODUCT.names,
-    descriptions: PRODUCT.descriptions,
-    icon: iconSrc,
-    isPublished: PRODUCT.isPublished,
-  };
-
   if (existingProduct) {
-    // Merge: strip nulls from fetched data, overlay our updates
+    // Merge: strip nulls from fetched localized fields, overlay our values.
     const mergedNames = { ...stripNulls(existingProduct.names), ...PRODUCT.names };
     const mergedDescriptions = { ...stripNulls(existingProduct.descriptions), ...PRODUCT.descriptions };
     const updateInput = {
+      ...baseInput(iconSrc),
       id: existingProduct.id,
-      tag: PRODUCT.tag,
-      type: PRODUCT.type,
-      price: PRODUCT.price,
       names: mergedNames,
       descriptions: mergedDescriptions,
-      icon: iconSrc,
-      isPublished: PRODUCT.isPublished,
     };
 
     if (DRY_RUN) {
-      console.log(`  [dry] would UpdatePayment id=${existingProduct.id}`);
+      console.log(`  [dry] would UpdateProduct id=${existingProduct.id}`);
       console.log("  [dry] input:", JSON.stringify(updateInput, null, 2));
     } else {
       const data = await gql(
-        `mutation UpdatePayment($input: UpdatePaymentInput!) {
-          UpdatePayment(input: $input) {
+        `mutation UpdateProductMutation($input: UpdateProductInput!) {
+          UpdateProduct(input: $input) {
             __typename
-            ... on Payment { id tag }
+            ... on Product { id tag }
             ... on Problem { message }
           }
         }`,
         { input: updateInput },
       );
-      const r = data.UpdatePayment;
-      if (r.__typename !== "Payment") {
-        throw new Error(`UpdatePayment failed: ${r.message ?? JSON.stringify(r)}`);
+      const r = data.UpdateProduct;
+      if (r.__typename !== "Product") {
+        throw new Error(`UpdateProduct failed: ${r.message ?? JSON.stringify(r)}`);
       }
       console.log(`  updated patron_support (id=${r.id})`);
     }
   } else {
     const createInput = {
       projectId: PROJECT_ID,
-      ...productInput,
+      ...baseInput(iconSrc),
     };
 
     if (DRY_RUN) {
-      console.log("  [dry] would CreatePayment (product does not exist yet)");
+      console.log("  [dry] would CreateProduct (product does not exist yet)");
       console.log("  [dry] input:", JSON.stringify(createInput, null, 2));
     } else {
       const data = await gql(
-        `mutation CreatePayment($input: CreatePaymentInput!) {
-          CreatePayment(input: $input) {
+        `mutation CreateProductMutation($input: CreateProductInput!) {
+          CreateProduct(input: $input) {
             __typename
-            ... on Payment { id tag }
+            ... on Product { id tag }
             ... on Problem { message }
           }
         }`,
         { input: createInput },
       );
-      const r = data.CreatePayment;
-      if (r.__typename !== "Payment") {
-        throw new Error(`CreatePayment failed: ${r.message ?? JSON.stringify(r)}`);
+      const r = data.CreateProduct;
+      if (r.__typename !== "Product") {
+        throw new Error(`CreateProduct failed: ${r.message ?? JSON.stringify(r)}`);
       }
       console.log(`  created patron_support (id=${r.id})`);
     }
@@ -249,9 +295,9 @@ async function uploadIcon(filepath) {
   console.log("\nDONE.");
   if (DRY_RUN) {
     console.log("\nDry-run summary:");
-    console.log("  Phase 1: FetchPayments — check for existing patron_support product");
+    console.log("  Phase 1: FetchProducts — check for existing patron_support");
     console.log("  Phase 2: UploadImage — upload public/assets/achievements/patron.png");
-    console.log("  Phase 3: CreatePayment or UpdatePayment — upsert product (tag=patron_support, type=PERMANENT, price=199)");
+    console.log("  Phase 3: CreateProduct or UpdateProduct — upsert (tag=patron_support, type=IN_GAME, basePrice=199 RUB)");
     console.log("\nRe-run without --dry-run and GP_API_SECRET set to apply changes.");
   }
 })().catch((err) => {
